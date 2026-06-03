@@ -1,0 +1,35 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Axiqra icon">
+  <defs>
+    <linearGradient id="axiqraGradient" x1="90" y1="420" x2="420" y2="75" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="0.48" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <!-- Abstract A / engineering memory layer -->
+  <path d="M92 388L214 96H298L420 388H348L320 318H192L164 388H92Z" fill="url(#axiqraGradient)"/>
+  <path d="M220 258L256 172L292 258H220Z" fill="white" opacity="0.98"/>
+
+  <!-- Solution graph / verification nodes -->
+  <path d="M256 144V232" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M256 232L164 310" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M256 232L348 310" stroke="white" stroke-width="16" stroke-linecap="round"/>
+
+  <circle cx="256" cy="132" r="31" fill="white"/>
+  <circle cx="256" cy="132" r="15" fill="url(#axiqraGradient)"/>
+  <circle cx="256" cy="232" r="31" fill="white"/>
+  <circle cx="256" cy="232" r="15" fill="url(#axiqraGradient)"/>
+  <circle cx="154" cy="318" r="31" fill="white"/>
+  <circle cx="154" cy="318" r="15" fill="url(#axiqraGradient)"/>
+  <circle cx="358" cy="318" r="31" fill="white"/>
+  <circle cx="358" cy="318" r="15" fill="url(#axiqraGradient)"/>
+
+  <!-- Layered memory / solution stack -->
+  <path d="M168 388L256 424L344 388" stroke="url(#axiqraGradient)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M188 424L256 452L324 424" stroke="url(#axiqraGradient)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M210 458L256 476L302 458" stroke="url(#axiqraGradient)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

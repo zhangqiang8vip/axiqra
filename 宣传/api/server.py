@@ -19,7 +19,12 @@ except ImportError:  # pragma: no cover - Windows fallback for local debugging.
 DATA_PATH = Path(os.environ.get("WAITLIST_DATA_PATH", "/data/waitlist.csv"))
 MAX_BODY_BYTES = int(os.environ.get("WAITLIST_MAX_BODY_BYTES", "32768"))
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
-ALLOWED_ORIGINS = {"https://axiqra.com", "https://www.axiqra.com"}
+ALLOWED_ORIGINS = {
+    "https://axiqra.com",
+    "https://www.axiqra.com",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+}
 FIELDNAMES = [
     "created_at",
     "name",

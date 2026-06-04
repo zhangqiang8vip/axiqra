@@ -1,3 +1,11 @@
 logs/
 .env
 .env.local
+*.log
+*.local.json
+__pycache__/
+*.py[cod]
+宣传/.claude/
+宣传/logs/
+宣传/data/*.csv
+宣传/data/*.tsv

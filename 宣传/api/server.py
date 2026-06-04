@@ -4,6 +4,7 @@ import csv
 import json
 import os
 import re
+import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,6 +19,9 @@ except ImportError:  # pragma: no cover - Windows fallback for local debugging.
 
 DATA_PATH = Path(os.environ.get("WAITLIST_DATA_PATH", "/data/waitlist.csv"))
 MAX_BODY_BYTES = int(os.environ.get("WAITLIST_MAX_BODY_BYTES", "32768"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("WAITLIST_RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("WAITLIST_RATE_LIMIT_MAX_REQUESTS", "8"))
+RATE_LIMIT_MAX_BUCKETS = int(os.environ.get("WAITLIST_RATE_LIMIT_MAX_BUCKETS", "4096"))
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 ALLOWED_ORIGINS = {
     "https://axiqra.com",
@@ -25,6 +29,7 @@ ALLOWED_ORIGINS = {
     "http://localhost:8080",
     "http://127.0.0.1:8080",
 }
+RATE_BUCKETS: dict[str, list[float]] = {}
 FIELDNAMES = [
     "created_at",
     "name",
@@ -43,6 +48,12 @@ def clean(value: Any, limit: int) -> str:
     text = "" if value is None else str(value)
     text = " ".join(text.replace("\x00", "").split())
     return text[:limit]
+
+
+def csv_safe(value: str) -> str:
+    if value and value[0] in {"=", "+", "-", "@", "\t", "\r", "\n"}:
+        return "'" + value
+    return value
 
 
 def response_payload(ok: bool, message: str, **extra: Any) -> bytes:
@@ -90,6 +101,7 @@ def append_waitlist_row(row: dict[str, str]) -> tuple[bool, int]:
 
 class WaitlistHandler(BaseHTTPRequestHandler):
     server_version = "Axiqra"
+    sys_version = ""
 
     def _send_json(self, status: int, body: bytes, cors: bool = True) -> None:
         self.send_response(status)
@@ -132,7 +144,22 @@ class WaitlistHandler(BaseHTTPRequestHandler):
             self._send_json(403, response_payload(False, "非法来源。"))
             return
 
-        content_length = int(self.headers.get("Content-Length") or "0")
+        client_ip = clean(self.headers.get("X-Real-IP") or self.client_address[0], 80)
+        if not self._rate_limit_ok(client_ip):
+            self._send_json(429, response_payload(False, "请求过于频繁，请稍后再试。"))
+            return
+
+        content_type = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            self._send_json(415, response_payload(False, "请求类型无效。"))
+            return
+
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            self._send_json(400, response_payload(False, "请求长度无效。"))
+            return
+
         if content_length <= 0 or content_length > MAX_BODY_BYTES:
             self._send_json(413, response_payload(False, "提交内容过大。"))
             return
@@ -177,15 +204,15 @@ class WaitlistHandler(BaseHTTPRequestHandler):
 
         row = {
             "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "name": name,
-            "email": email,
-            "company": company,
-            "role": role,
-            "use_case": use_case,
+            "name": csv_safe(name),
+            "email": csv_safe(email),
+            "company": csv_safe(company),
+            "role": csv_safe(role),
+            "use_case": csv_safe(use_case),
             "source": source,
             "consent": "yes",
-            "ip": ip,
-            "user_agent": user_agent,
+            "ip": csv_safe(ip),
+            "user_agent": csv_safe(user_agent),
         }
 
         try:
@@ -199,7 +226,32 @@ class WaitlistHandler(BaseHTTPRequestHandler):
         self._send_json(status, response_payload(True, message, duplicate=duplicate))
 
     def log_message(self, format: str, *args: Any) -> None:
-        print("%s - %s" % (self.address_string(), format % args), flush=True)
+        print("%s - %s" % (self.client_address[0], format % args), flush=True)
+
+    def _rate_limit_ok(self, client_ip: str) -> bool:
+        now = time.monotonic()
+        window_start = now - RATE_LIMIT_WINDOW_SECONDS
+        if len(RATE_BUCKETS) > RATE_LIMIT_MAX_BUCKETS:
+            stale_clients = [
+                ip
+                for ip, stamps in RATE_BUCKETS.items()
+                if not stamps or max(stamps) < window_start
+            ]
+            for ip in stale_clients:
+                RATE_BUCKETS.pop(ip, None)
+            if len(RATE_BUCKETS) > RATE_LIMIT_MAX_BUCKETS:
+                oldest_ip = min(
+                    RATE_BUCKETS,
+                    key=lambda ip: max(RATE_BUCKETS[ip]) if RATE_BUCKETS[ip] else 0,
+                )
+                RATE_BUCKETS.pop(oldest_ip, None)
+        bucket = [stamp for stamp in RATE_BUCKETS.get(client_ip, []) if stamp >= window_start]
+        if len(bucket) >= RATE_LIMIT_MAX_REQUESTS:
+            RATE_BUCKETS[client_ip] = bucket
+            return False
+        bucket.append(now)
+        RATE_BUCKETS[client_ip] = bucket
+        return True
 
 
 def main() -> None:

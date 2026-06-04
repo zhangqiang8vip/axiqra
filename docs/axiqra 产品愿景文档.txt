@@ -1,5 +1,25 @@
 # Axiqra：让每一次真实工程修复，成为下一次 AI 自动修复可以调用的工程记忆
 
+Axiqra = Axi + QRA
+
+Axi 可以来自：
+
+Axis：坐标轴、判断坐标
+Axiom：基础判断、工程原则、可复用的经验基准
+QRA 可以定义成：
+
+Q = Query：AI Agent 可以查询
+R = Recall / Retrieve：召回真实工程经验
+A = Agent / Action：给 AI Agent 调用、执行、反馈
+所以品牌解释可以是：
+
+Axiqra 是 AI Agent 可查询、可调用、可反馈的工程判断与 Solution 记忆层。
+
+更产品化一点：
+
+Axiqra turns verified engineering experience into agent-callable intelligence.
+Axiqra 把真实验证过的工程经验，变成 AI Agent 可调用的工程智能。
+
 ## 一、序章：AI 已经会写代码，但它还没有真正拥有工程记忆
 
 软件工程正在进入一个全新的时代。
@@ -1364,6 +1384,20 @@ Axiqra 再将它清洗为 Project Case、Public Case、Solution、Prompt、Rule�
 不是提示词库。
 
 而是 AI Agent 时代的工程方案记忆层。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Axiqra：AI Agent 时代的工程方案记忆层
 
 ## 让每一次真实工程方案，都成为下一次 AI 可以调用、验证、复用和进化的工程记忆
@@ -2805,6 +2839,17 @@ Axiqra 要补上的，就是这一层。
 这不是一个提示词库。
 
 这是软件工程进入 AI Agent 时代后，必须补上的基础设施。
+
+
+
+
+
+
+
+
+
+
+
 # Axiqra：AI Agent 时代的工程方案记忆层
 
 ## 让每一次真实工程方案，都沉淀为下一次 AI 可以调用、验证、融合和进化的工程记忆

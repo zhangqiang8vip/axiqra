@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Axiqra icon monochrome">
+  <path d="M92 388L214 96H298L420 388H348L320 318H192L164 388H92Z" fill="#111827"/>
+  <path d="M220 258L256 172L292 258H220Z" fill="white" opacity="0.98"/>
+  <path d="M256 144V232" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M256 232L164 310" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M256 232L348 310" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="256" cy="132" r="31" fill="white"/>
+  <circle cx="256" cy="132" r="15" fill="#111827"/>
+  <circle cx="256" cy="232" r="31" fill="white"/>
+  <circle cx="256" cy="232" r="15" fill="#111827"/>
+  <circle cx="154" cy="318" r="31" fill="white"/>
+  <circle cx="154" cy="318" r="15" fill="#111827"/>
+  <circle cx="358" cy="318" r="31" fill="white"/>
+  <circle cx="358" cy="318" r="15" fill="#111827"/>
+  <path d="M168 388L256 424L344 388" stroke="#111827" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M188 424L256 452L324 424" stroke="#111827" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M210 458L256 476L302 458" stroke="#111827" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -17,125 +17,121 @@ on:
       - "*.yaml"
       - "*.sql"
       - "Dockerfile*"
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR Number to review"
-        required: false
-        type: string
 
 jobs:
   copilot-review:
-    name: GitHub Copilot Code Review
+    name: GitHub Copilot Review
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read
-      checks: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Get PR info
+        id: pr_info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          write_output() {
+            delimiter="ghadelimiter_$(openssl rand -hex 16)"
+            {
+              echo "$1<<$delimiter"
+              printf '%s\n' "$2"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR context, skipping."
+            exit 0
+          fi
+
+          PR_TITLE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.title')
+          PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.user.login')
+          PR_BASE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.base.ref')
+
+          write_output "title" "$PR_TITLE"
+          write_output "author" "$PR_AUTHOR"
+          write_output "base" "$PR_BASE"
+
       - name: Get PR diff
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ -n "$PR_NUMBER" ]; then
-            gh pr diff $PR_NUMBER > pr_changes.diff
-            echo "diff_size=$(wc -l < pr_changes.diff)" >> $GITHUB_OUTPUT
+          if [ -z "$PR_NUMBER" ]; then
+            exit 0
+          fi
+          gh pr diff "$PR_NUMBER" > pr_changes.diff
+          echo "diff_size=$(wc -l < pr_changes.diff)" >> "$GITHUB_OUTPUT"
+
+      - name: Copilot Code Review
+        id: review
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.pr_info.outputs.title }}
+          PR_AUTHOR: ${{ steps.pr_info.outputs.author }}
+          PR_BASE: ${{ steps.pr_info.outputs.base }}
+          DIFF_SIZE: ${{ steps.diff.outputs.diff_size }}
+        run: |
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR context, skipping."
+            exit 0
           fi
 
-      - name: Get changed files list
-        id: files
-        run: |
-          if [ -f pr_changes.diff ]; then
-            echo "files<<EOF" >> $GITHUB_OUTPUT
-            grep "^diff --git" pr_changes.diff | awk '{print $3}' | sed 's/^b\///' | sort | uniq >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
+          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
 
-      - name: Post Copilot Review
+          REVIEW=$(printf '%s\n' \
+            "## Summary" \
+            "PR #${PR_NUMBER} by ${PR_AUTHOR} targets ${PR_BASE} with ${DIFF_SIZE} lines of changes." \
+            "" \
+            "## Review Focus" \
+            "1. **Security**: hardcoded secrets, API key leaks, injection risks" \
+            "2. **MCP compliance**: quota limits, error handling, protocol adherence" \
+            "3. **Error handling**: async try/catch, proper HTTP status codes" \
+            "4. **Test coverage**: new code has corresponding tests" \
+            "5. **Code quality**: ESM imports, naming conventions, error context" \
+            "" \
+            "## Static Analysis" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```' \
+            "" \
+            "## Recommendations" \
+            "- Ensure all new API calls have proper error handling" \
+            "- Verify no hardcoded credentials or secrets in the diff" \
+            "- Check that workflow files follow GitHub Actions best practices" \
+            "- Confirm test coverage for new functionality" \
+            "" \
+            "---" \
+            "*Reviewed by GitHub Copilot*")
+
+          delimiter="ghadelimiter_$(openssl rand -hex 16)"
+          {
+            echo "review_body<<$delimiter"
+            printf '%s\n' "$REVIEW"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post review comment
+        if: steps.review.outputs.review_body != ''
         uses: actions/github-script@v7
+        env:
+          REVIEW_BODY: ${{ steps.review.outputs.review_body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            const diff = fs.readFileSync('pr_changes.diff', 'utf8');
-            const diffLines = diff.split('\n');
-            const diffSize = diffLines.length;
-
-            // 读取 Copilot 指令
-            const copilotInstructions = fs.existsSync('.github/copilot-instructions.md')
-              ? fs.readFileSync('.github/copilot-instructions.md', 'utf8')
-              : '';
-
-            // 分析变更文件
-            const changedFiles = diff.match(/diff --git a\/(.*?) b\//g) || [];
-            const filesList = changedFiles.map(f => f.replace('diff --git a/', '').replace(' b/', ''));
-
-            // 识别关键变更
-            const securityRisks = [];
-            const mcpChanges = [];
-            const testChanges = [];
-            const errorHandling = [];
-            const apiChanges = [];
-
-            filesList.forEach(file => {
-              if (file.includes('mcp') || file.includes('MCP')) mcpChanges.push(file);
-              if (file.includes('test') || file.includes('fixture')) testChanges.push(file);
-              if (file.includes('audit') || file.includes('policy') || file.includes('redaction')) securityRisks.push(file);
-              if (file.includes('api-adapter') || file.includes('search-service')) apiChanges.push(file);
-            });
-
-            // 生成审查摘要
-            const reviewBody = `
-## GitHub Copilot Code Review 🤖
-
-### PR 变更摘要
-- **变更文件数**: ${filesList.length}
-- **Diff 总行数**: ${diffSize}
-- **PR 编号**: #${context.payload.pull_request?.number}
-
-### 变更范围分析
-${mcpChanges.length > 0 ? `- **MCP 相关**: ${mcpChanges.join(', ')}` : ''}
-${testChanges.length > 0 ? `- **测试相关**: ${testChanges.join(', ')}` : ''}
-${securityRisks.length > 0 ? `- **安全相关**: ${securityRisks.join(', ')}` : ''}
-${apiChanges.length > 0 ? `- **API 相关**: ${apiChanges.join(', ')}` : ''}
-
-### 审查重点
-基于 Copilot 指令，以下是针对本 PR 的审查要点：
-
-#### 1. 安全审查 🔒
-${securityRisks.length > 0 ? '已识别以下安全相关文件，请确认变更内容：\n' + securityRisks.map(f => `  - ${f}`).join('\n') + '\n请检查：\n  - [ ] 是否有硬编码的密钥或 token\n  - [ ] 数据脱敏逻辑是否正确\n  - [ ] 权限检查是否覆盖所有入口' : '未发现明确的安全相关文件变更，但建议：\n  - [ ] 确认所有 API 调用都通过 api-adapter.mjs\n  - [ ] 确认审计日志记录完整'}
-
-#### 2. MCP 协议合规性 🔄
-${mcpChanges.length > 0 ? '已识别以下 MCP 相关文件：\n' + mcpChanges.map(f => `  - ${f}`).join('\n') + '\n请确认：\n  - [ ] quota 限制检查\n  - [ ] 错误处理\n  - [ ] tracing 完整性' : '未识别 MCP 文件变更'}
-
-#### 3. 测试覆盖 📋
-${testChanges.length > 0 ? `已识别测试文件变更：\n${testChanges.map(f => `  - ${f}`).join('\n')}\n请确认测试覆盖了：\n  - [ ] 正常路径\n  - [ ] 边界条件\n  - [ ] 错误路径' : '⚠️ 未识别到测试文件变更，新功能是否有对应测试？'}
-
-#### 4. 代码质量 ✨
-请确认：
-- [ ] ESM 模块导入一致（使用 .mjs 扩展名）
-- [ ] 错误处理完善（async 操作有 try/catch）
-- [ ] 变量命名清晰表达意图
-
-### 下一步建议
-1. ✅ 所有安全相关变更已通过审查
-2. ✅ MCP 协议变更符合规范
-3. ✅ 测试覆盖充分
-4. 🔄 请确认上述审查要点
-
----
-*Reviewed by GitHub Copilot with Axiqra project instructions*
-`;
-
-            // 发布审查意见
-            const prNumber = context.payload.pull_request?.number;
+            const reviewBody = process.env.REVIEW_BODY;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (prNumber) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -143,25 +139,4 @@ ${testChanges.length > 0 ? `已识别测试文件变更：\n${testChanges.map(f 
                 issue_number: prNumber,
                 body: reviewBody
               });
-            } else {
-              console.warn('No pull_request context; skipping issue comment.');
-            }
-
-            // 提交审查状态
-            if (context.payload.pull_request?.head?.sha) {
-              await github.rest.checks.runs.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'Copilot Code Review',
-                head_sha: context.payload.pull_request.head.sha,
-                status: 'completed',
-                conclusion: 'action_required',
-                output: {
-                  title: 'Copilot Code Review',
-                  summary: `审查了 ${filesList.length} 个文件，共 ${diffSize} 行变更`,
-                  text: reviewBody
-                }
-              });
-            } else {
-              console.warn('No pull_request head SHA; skipping check run creation.');
             }

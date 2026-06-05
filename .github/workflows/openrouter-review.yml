@@ -17,12 +17,6 @@ on:
       - "*.yaml"
       - "*.sql"
       - "Dockerfile*"
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR Number to review"
-        required: false
-        type: string
 
 jobs:
   openrouter-review:
@@ -41,86 +35,99 @@ jobs:
         id: pr_info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ -n "$PR_NUMBER" ]; then
-            pr_data=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '{title: .title, body: .body, base: .base.ref, head: .head.ref, author: .user.login}')
-            echo "title<<EOF" >> $GITHUB_OUTPUT
-            echo "$pr_data" | jq -r '.title' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "base<<EOF" >> $GITHUB_OUTPUT
-            echo "$pr_data" | jq -r '.base' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "author<<EOF" >> $GITHUB_OUTPUT
-            echo "$pr_data" | jq -r '.author' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+          write_output() {
+            delimiter="ghadelimiter_$(openssl rand -hex 16)"
+            {
+              echo "$1<<$delimiter"
+              printf '%s\n' "$2"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR context, skipping."
+            exit 0
           fi
+
+          pr_data=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '{title: .title, base: .base.ref, author: .user.login}')
+          write_output "title" "$(printf '%s' "$pr_data" | jq -r '.title')"
+          write_output "base" "$(printf '%s' "$pr_data" | jq -r '.base')"
+          write_output "author" "$(printf '%s' "$pr_data" | jq -r '.author')"
 
       - name: Get PR diff
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ -n "$PR_NUMBER" ]; then
-            gh pr diff $PR_NUMBER > pr_changes.diff
-            echo "diff_size=$(wc -l < pr_changes.diff)" >> $GITHUB_OUTPUT
+          if [ -z "$PR_NUMBER" ]; then
+            exit 0
           fi
+          gh pr diff "$PR_NUMBER" > pr_changes.diff
+          echo "diff_size=$(wc -l < pr_changes.diff)" >> "$GITHUB_OUTPUT"
 
       - name: OpenRouter Code Review
         id: review
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.pr_info.outputs.title }}
+          PR_AUTHOR: ${{ steps.pr_info.outputs.author }}
+          PR_BASE: ${{ steps.pr_info.outputs.base }}
+          DIFF_SIZE: ${{ steps.diff.outputs.diff_size }}
         run: |
           if [ -z "$OPENROUTER_API_KEY" ]; then
             echo "::warning::OPENROUTER_API_KEY secret not set. Skipping OpenRouter review."
             exit 0
           fi
-
-          PR_INFO="PR #$PR_NUMBER - ${{ steps.pr_info.outputs.title }}"
-          AUTHOR="${{ steps.pr_info.outputs.author }}"
-          BASE="${{ steps.pr_info.outputs.base }}"
-          DIFF_SIZE="${{ steps.diff.outputs.diff_size }}"
-
-          # Read diff content, validated as UTF-8, truncated to 120000 chars
-          DIFF_CONTENT=$(head -c 120000 pr_changes.diff | iconv -f utf-8 -t utf-8 -c 2>/dev/null | cut -c1-120000)
-          if [ -z "$DIFF_CONTENT" ]; then
-            DIFF_CONTENT=$(head -c 120000 pr_changes.diff)
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR context, skipping."
+            exit 0
           fi
 
-          USER_CONTENT="Review the following PR changes.
+          PR_INFO="PR #$PR_NUMBER - $PR_TITLE"
 
-PR: $PR_INFO
-Author: $AUTHOR
-Base branch: $BASE
-Diff size: $DIFF_SIZE lines
+          # Read diff content, validated as UTF-8, truncated to 120000 chars
+          DIFF_CONTENT=$(head -c 120000 pr_changes.diff 2>/dev/null | iconv -f utf-8 -t utf-8 -c 2>/dev/null | cut -c1-120000)
+          if [ -z "$DIFF_CONTENT" ]; then
+            DIFF_CONTENT=$(head -c 120000 pr_changes.diff 2>/dev/null || echo "[no diff]")
+          fi
 
-## Review Focus
-1. Security: hardcoded secrets, API key leaks, injection risks
-2. MCP protocol compliance: quota limits, error handling
-3. Error handling: async try/catch, proper HTTP status codes
-4. Test coverage: new code has corresponding tests
-5. Code quality: ESM imports, naming, error context
-6. Workflow changes: trigger paths, permissions, secrets usage
-
-## Output Format
-## Summary
-[One paragraph overview]
-
-## Critical Issues (must fix)
-- [file:line] - issue description
-
-## Suggestions (recommended)
-- [file:line] - suggestion description
-
-## Positive Highlights
-- What was done well
-
----
-\`\`\`diff
-$DIFF_CONTENT
-\`\`\`"
+          USER_CONTENT=$(printf '%s\n' \
+            "Review the following PR changes." \
+            "" \
+            "PR: $PR_INFO" \
+            "Author: $PR_AUTHOR" \
+            "Base branch: $PR_BASE" \
+            "Diff size: $DIFF_SIZE lines" \
+            "" \
+            "## Review Focus" \
+            "1. Security: hardcoded secrets, API key leaks, injection risks" \
+            "2. MCP protocol compliance: quota limits, error handling" \
+            "3. Error handling: async try/catch, proper HTTP status codes" \
+            "4. Test coverage: new code has corresponding tests" \
+            "5. Code quality: ESM imports, naming, error context" \
+            "6. Workflow changes: trigger paths, permissions, secrets usage" \
+            "" \
+            "## Output Format" \
+            "## Summary" \
+            "[One paragraph overview]" \
+            "" \
+            "## Critical Issues (must fix)" \
+            "- [file:line] - issue description" \
+            "" \
+            "## Suggestions (recommended)" \
+            "- [file:line] - suggestion description" \
+            "" \
+            "## Positive Highlights" \
+            "- What was done well" \
+            "" \
+            "---" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```')
 
           PAYLOAD=$(jq -n \
             --arg model "openrouter/free" \
@@ -136,22 +143,28 @@ $DIFF_CONTENT
               ]
             }')
 
-          RESPONSE=$(curl -s -X POST \
+          if ! RESPONSE=$(curl --fail-with-body --show-error --silent --max-time 60 -X POST \
             "https://openrouter.ai/api/v1/chat/completions" \
             -H "Authorization: Bearer $OPENROUTER_API_KEY" \
             -H "Content-Type: application/json" \
             -H "HTTP-Referer: https://github.com/zhangqiang8vipp/axiqra" \
             -H "X-Title: Axiqra Code Review" \
-            -d "$PAYLOAD")
+            -d "$PAYLOAD"); then
+            echo "::warning::OpenRouter API request failed."
+            exit 0
+          fi
 
-          REVIEW=$(echo $RESPONSE | jq -r '.choices[0].message.content // empty')
+          REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
 
           if [ -n "$REVIEW" ]; then
-            echo "review_body<<EOF" >> $GITHUB_OUTPUT
-            echo "$REVIEW" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            delimiter="ghadelimiter_$(openssl rand -hex 16)"
+            {
+              echo "review_body<<$delimiter"
+              printf '%s\n' "$REVIEW"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
           else
-            ERROR_MSG=$(echo $RESPONSE | jq -r '.error.message // "unknown error"')
+            ERROR_MSG=$(printf '%s' "$RESPONSE" | jq -r '.error.message // "unknown error"' 2>/dev/null || echo "unknown error")
             echo "::warning::OpenRouter API error: $ERROR_MSG"
           fi
 
@@ -160,7 +173,7 @@ $DIFF_CONTENT
         uses: actions/github-script@v7
         env:
           REVIEW_BODY: ${{ steps.review.outputs.review_body }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

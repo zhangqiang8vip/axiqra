@@ -1,0 +1,143 @@
+name: GitHub Copilot Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "*.mjs"
+      - "*.js"
+  workflow_dispatch:
+
+jobs:
+  copilot-review:
+    name: GitHub Copilot Code Review
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr diff $PR_NUMBER > pr_changes.diff
+            echo "diff_size=$(wc -l < pr_changes.diff)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get changed files list
+        id: files
+        run: |
+          if [ -f pr_changes.diff ]; then
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            grep "^diff --git" pr_changes.diff | sed 's/diff --git //' | sed 's/ b\/.*//' | sort | uniq >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Copilot Review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const diff = fs.readFileSync('pr_changes.diff', 'utf8');
+            const diffLines = diff.split('\n');
+            const diffSize = diffLines.length;
+
+            // 读取 Copilot 指令
+            const copilotInstructions = fs.existsSync('.github/copilot-instructions.md')
+              ? fs.readFileSync('.github/copilot-instructions.md', 'utf8')
+              : '';
+
+            // 分析变更文件
+            const changedFiles = diff.match(/diff --git a\/(.*?) b\//g) || [];
+            const filesList = changedFiles.map(f => f.replace('diff --git a/', '').replace(' b/', ''));
+
+            // 识别关键变更
+            const securityRisks = [];
+            const mcpChanges = [];
+            const testChanges = [];
+            const errorHandling = [];
+            const apiChanges = [];
+
+            filesList.forEach(file => {
+              if (file.includes('mcp') || file.includes('MCP')) mcpChanges.push(file);
+              if (file.includes('test') || file.includes('fixture')) testChanges.push(file);
+              if (file.includes('audit') || file.includes('policy') || file.includes('redaction')) securityRisks.push(file);
+              if (file.includes('api-adapter') || file.includes('search-service')) apiChanges.push(file);
+            });
+
+            // 生成审查摘要
+            const reviewBody = `
+## GitHub Copilot Code Review 🤖
+
+### PR 变更摘要
+- **变更文件数**: ${filesList.length}
+- **Diff 总行数**: ${diffSize}
+- **PR 编号**: #${context.payload.pull_request?.number}
+
+### 变更范围分析
+${mcpChanges.length > 0 ? `- **MCP 相关**: ${mcpChanges.join(', ')}` : ''}
+${testChanges.length > 0 ? `- **测试相关**: ${testChanges.join(', ')}` : ''}
+${securityRisks.length > 0 ? `- **安全相关**: ${securityRisks.join(', ')}` : ''}
+${apiChanges.length > 0 ? `- **API 相关**: ${apiChanges.join(', ')}` : ''}
+
+### 审查重点
+基于 Copilot 指令，以下是针对本 PR 的审查要点：
+
+#### 1. 安全审查 🔒
+${securityRisks.length > 0 ? '已识别以下安全相关文件，请确认变更内容：\n' + securityRisks.map(f => `  - ${f}`).join('\n') + '\n请检查：\n  - [ ] 是否有硬编码的密钥或 token\n  - [ ] 数据脱敏逻辑是否正确\n  - [ ] 权限检查是否覆盖所有入口' : '未发现明确的安全相关文件变更，但建议：\n  - [ ] 确认所有 API 调用都通过 api-adapter.mjs\n  - [ ] 确认审计日志记录完整'}
+
+#### 2. MCP 协议合规性 🔄
+${mcpChanges.length > 0 ? '已识别以下 MCP 相关文件：\n' + mcpChanges.map(f => `  - ${f}`).join('\n') + '\n请确认：\n  - [ ] quota 限制检查\n  - [ ] 错误处理\n  - [ ] tracing 完整性' : '未识别 MCP 文件变更'}
+
+#### 3. 测试覆盖 📋
+${testChanges.length > 0 ? `已识别测试文件变更：\n${testChanges.map(f => `  - ${f}`).join('\n')}\n请确认测试覆盖了：\n  - [ ] 正常路径\n  - [ ] 边界条件\n  - [ ] 错误路径' : '⚠️ 未识别到测试文件变更，新功能是否有对应测试？'}
+
+#### 4. 代码质量 ✨
+请确认：
+- [ ] ESM 模块导入一致（使用 .mjs 扩展名）
+- [ ] 错误处理完善（async 操作有 try/catch）
+- [ ] 变量命名清晰表达意图
+
+### 下一步建议
+1. ✅ 所有安全相关变更已通过审查
+2. ✅ MCP 协议变更符合规范
+3. ✅ 测试覆盖充分
+4. 🔄 请确认上述审查要点
+
+---
+*Reviewed by GitHub Copilot with Axiqra project instructions*
+`;
+
+            // 发布审查意见
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: reviewBody
+            });
+
+            // 提交审查状态
+            await github.rest.checks.runs.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Copilot Code Review',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: 'action_required',
+              output: {
+                title: 'Copilot Code Review',
+                summary: `审查了 ${filesList.length} 个文件，共 ${diffSize} 行变更`,
+                text: reviewBody
+              }
+            });

@@ -1,0 +1,114 @@
+name: Gemini Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "fixtures/**"
+      - "scripts/**"
+      - "*.mjs"
+      - "*.js"
+      - "*.ts"
+      - "*.yml"
+      - "*.yaml"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR Number to review"
+        required: false
+        type: string
+
+jobs:
+  gemini-review:
+    name: Gemini AI Code Review
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR info
+        id: pr_info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          if [ -n "$PR_NUMBER" ]; then
+            pr_data=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '{title: .title, body: .body, base: .base.ref, head: .head.ref, author: .user.login}')
+            echo "title=$(echo $pr_data | jq -r '.title')" >> $GITHUB_OUTPUT
+            echo "base=$(echo $pr_data | jq -r '.base')" >> $GITHUB_OUTPUT
+            echo "author=$(echo $pr_data | jq -r '.author')" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get PR diff
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr diff $PR_NUMBER > pr_changes.diff
+            echo "diff_size=$(wc -l < pr_changes.diff)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Gemini Code Review
+        id: review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::GEMINI_API_KEY secret not set. Skipping Gemini review."
+            exit 0
+          fi
+
+          # 构建审查上下文
+          PR_INFO="PR #$PR_NUMBER - ${{ steps.pr_info.outputs.title }}"
+          AUTHOR="${{ steps.pr_info.outputs.author }}"
+          BASE="${{ steps.pr_info.outputs.base }}"
+          DIFF_SIZE="${{ steps.diff.outputs.diff_size }}"
+
+          # 调用 Gemini API 进行代码审查
+          RESPONSE=$(curl -s -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "contents": [{
+                "parts": [{
+                  "text": "You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Review the following PR changes.\n\nPR: '"$PR_INFO"'\nAuthor: '"$AUTHOR"'\nBase branch: '"$BASE"'\n\nReview focus areas:\n1. Security: hardcoded secrets, API key leaks, injection risks\n2. MCP protocol compliance: quota limits, error handling\n3. Error handling: async try/catch, proper HTTP status codes\n4. Test coverage: new code has corresponding tests\n5. Code quality: ESM imports, naming, error context\n\nProvide your review in this format:\n## Summary\n[One paragraph overview]\n\n## Critical Issues (must fix)\n- [file:line] - issue description\n\n## Suggestions (recommended)\n- [file:line] - suggestion description\n\n## Positive Highlights\n- What was done well\n\nDiff size: '"$DIFF_SIZE"' lines\nOutput format: Markdown"
+                }]
+              }]
+            }')
+
+          REVIEW=$(echo $RESPONSE | jq -r '.candidates[0].content.parts[0].text // empty')
+
+          if [ -n "$REVIEW" ]; then
+            echo "review_body<<EOF" >> $GITHUB_OUTPUT
+            echo "$REVIEW" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post review comment
+        if: steps.review.outputs.review_body != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const reviewBody = `${{ steps.review.outputs.review_body }}`;
+            const prNumber = context.payload.pull_request?.number || context.inputs.pr_number;
+
+            if (prNumber) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `## Gemini AI Code Review 🤖\n\n${reviewBody}\n\n---\n*Reviewed by Gemini AI*`
+              });
+            }

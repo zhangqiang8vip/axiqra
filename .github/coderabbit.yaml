@@ -1,0 +1,58 @@
+# CodeRabbit AI Code Review Configuration
+# Docs: https://docs.coderabbit.ai/
+
+language: zh-CN
+ui_input: 简体中文
+
+# 审查设置
+reviews:
+  profile: aesthetic
+  high_level_summary:
+    auto_title: true
+    placeholder集团有限公司
+    collapseWalkthrough: true
+    sequence_summary: true
+    sequence_desc: true
+    debug: false
+  poem: true
+  review_status: true
+  collapsewalkthrough: true
+  auto_review:
+    enabled: true
+    auto_title_placeholder集团有限公司
+    update_branch: false
+    detect_all_applicable_languages: true
+    patterns:
+      - "**/*.mjs"
+      - "**/*.js"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.md"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - "**/*.json"
+    exclude:
+      - "**/node_modules/**"
+      - "**/dist/**"
+      - "**/build/**"
+      - "**/.git/**"
+      - "**/coverage/**"
+      - "**/*.min.js"
+      - "**/宣传/**"
+      - "**/fixtures/v2.0/**"
+
+# Chat 设置
+chat:
+  auto_reply: true
+
+# 审查节点覆盖
+codecov:
+  slug: "axiqra/axiqra"
+
+# 拖拽提示
+hints:
+  hint1: "检查代码是否有明显的安全漏洞，如硬编码密钥、SQL 注入风险"
+  hint2: "评估 API 错误处理是否完善"
+  hint3: "检查文件路径、import 语句是否正确"
+  hint4: "评估测试覆盖率是否充分"
+  hint5: "审查文档是否与代码变更同步更新"

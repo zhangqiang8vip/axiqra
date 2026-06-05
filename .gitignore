@@ -8,3 +8,37 @@ __pycache__/
 .cursor/
 start.log
 
+# Axiqra local-only Chinese docs (not for upload)
+docs/00-*
+docs/01-*
+docs/02-*
+docs/03-*
+docs/04-*
+docs/05-*
+docs/06-*
+docs/07-*
+docs/08-*
+docs/09-*
+docs/10-*
+docs/11-*
+docs/12-*
+docs/13-*
+docs/14-*
+docs/15-*
+docs/16-*
+docs/17-*
+docs/18-*
+docs/19-*
+docs/20-*
+docs/evidence/
+docs/Axiqra_*.xlsx
+docs/S1-S4*.md
+docs/axiqra *.txt
+docs/base_*.json
+docs/mcp_*.json
+docs/private_isolation_response.json
+docs/public_search_response.json
+docs/sample_ci_report.json
+docs/scope_denied_response.json
+docs/交付说明.md
+logo/*.zip

@@ -4,12 +4,22 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "src/**"
+      - "axiqra-project/axiqra-code/**"
+      - "axiqra-project/.github/scripts/**"
+      - ".github/scripts/**"
+      - "axiqra-project/axiqra-infra/**"
+      - "axiqra-project/axiqra-website/**"
       - "tests/**"
-      - "fixtures/**"
-      - "scripts/**"
+      - ".github/workflows/*.yml"
       - "*.mjs"
       - "*.js"
+      - "*.py"
+      - "*.java"
+      - "*.xml"
+      - "*.yml"
+      - "*.yaml"
+      - "*.sql"
+      - "Dockerfile*"
   workflow_dispatch:
     inputs:
       pr_number:

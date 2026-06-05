@@ -1,0 +1,177 @@
+version: "3.9"
+
+# ============================================================
+# Axiqra S1 MVP 全量中间件编排
+# 启动命令：cd axiqra-infra && docker compose up -d
+# 查看日志：cd axiqra-infra && docker compose logs -f
+# 停止：cd axiqra-infra && docker compose down
+#
+# 注意：--insecure 标志仅用于本地开发！禁止在生产环境使用。
+# ============================================================
+
+services:
+  # -------------------- CockroachDB 业务主库 --------------------
+  axiqra_cockroachdb_primary:
+    image: cockroachdb/cockroach:v24.1.0
+    container_name: axiqra_cockroachdb_primary
+    hostname: axiqra-cockroachdb
+    # 警告：--insecure 仅限本地开发使用。生产部署请配置 TLS 证书。
+    command: >
+      start-single-node
+      ${COCKROACH_INSECURE:-true}
+    ports:
+      - "127.0.0.1:26257:26257"
+      - "127.0.0.1:26258:26258"
+    volumes:
+      - axiqra_cockroachdb_data:/cockroach/cockroach-data
+      - ./docker/cockroachdb/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - axiqra_internal_net
+    healthcheck:
+      test: ["CMD", "cockroach", "sql", "--insecure", "-e", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # -------------------- PostgreSQL 审计库 --------------------
+  axiqra_postgres_audit:
+    image: postgres:16-alpine
+    container_name: axiqra_postgres_audit
+    environment:
+      POSTGRES_DB: axq_audit_db
+      POSTGRES_USER: ${AUDIT_DB_USER}
+      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - axiqra_audit_data:/var/lib/postgresql/data
+      - ./docker/postgres-audit/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - axiqra_internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER} -d axq_audit_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # -------------------- Redis 缓存 --------------------
+  axiqra_redis_cache:
+    image: redis:7-alpine
+    container_name: axiqra_redis_cache
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - axiqra_redis_data:/data
+    networks:
+      - axiqra_internal_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # -------------------- MinIO 对象存储（S1 预留） --------------------
+  axiqra_minio_storage:
+    image: minio/minio:latest
+    container_name: axiqra_minio_storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - axiqra_minio_data:/data
+    networks:
+      - axiqra_internal_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # -------------------- 后端 API 服务 --------------------
+  # 注意：axiqra-code 构建上下文不存在，已禁用。解除注释并配置正确的
+  # build.context 和 build.dockerfile 后启用。
+  # axiqra_core:
+  #   build:
+  #     context: ../axiqra-code
+  #     dockerfile: axiom-start/Dockerfile
+  #   container_name: axiqra_core
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  #     DB_PASSWORD: ${DB_PASSWORD}
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #     AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     FIELD_ENCRYPT_KEY: ${FIELD_ENCRYPT_KEY}
+  #     MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+  #     MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+  #   ports:
+  #     - "127.0.0.1:8080:8080"
+  #     - "127.0.0.1:9090:9090"
+  #   volumes:
+  #     - axiqra_logs:/var/log/axiqra
+  #   depends_on:
+  #     axiqra_cockroachdb_primary:
+  #       condition: service_healthy
+  #     axiqra_postgres_audit:
+  #       condition: service_healthy
+  #     axiqra_redis_cache:
+  #       condition: service_healthy
+  #     axiqra_minio_storage:
+  #       condition: service_healthy
+  #   networks:
+  #     - axiqra_internal_net
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 60s
+  #   restart: unless-stopped
+
+  # -------------------- 前端 Web 服务 --------------------
+  # 前端（官网）由 axiqra-project/axiqra-website/docker-compose.yml 提供
+  # axiqra-infra 仅负责后端基础设施（数据库、缓存、对象存储）
+  # axiqra_frontend:
+  #   build:
+  #     context: ../axiqra-frontend
+  #     dockerfile: Dockerfile
+  #   container_name: axiqra_frontend
+  #   ports:
+  #     - "127.0.0.1:80:80"
+  #     - "127.0.0.1:443:443"
+  #   volumes:
+  #     - ./docker/nginx/certs:/etc/nginx/certs:ro
+  #   depends_on:
+  #     - axiqra_core
+  #   networks:
+  #     - axiqra_internal_net
+  #   restart: unless-stopped
+
+networks:
+  axiqra_internal_net:
+    name: axiqra_internal_net
+    driver: bridge
+
+volumes:
+  axiqra_cockroachdb_data:
+    name: axiqra_cockroachdb_data
+  axiqra_audit_data:
+    name: axiqra_audit_data
+  axiqra_redis_data:
+    name: axiqra_redis_data
+  axiqra_minio_data:
+    name: axiqra_minio_data
+  axiqra_logs:
+    name: axiqra_logs

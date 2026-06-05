@@ -21,3 +21,7 @@ This project aims to be useful, careful, and respectful.
 ## Enforcement
 
 Maintainers may remove content, close issues, request edits, restrict participation, or escalate disputes when behavior harms the project or its contributors.
+
+---
+
+[English](CODE_OF_CONDUCT.md) | [中文](../i18n/CODE_OF_CONDUCT_zh.md)

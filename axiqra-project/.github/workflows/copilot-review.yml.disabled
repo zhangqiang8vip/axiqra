@@ -20,6 +20,11 @@ on:
       - "*.sql"
       - "Dockerfile*"
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR Number to review"
+        required: false
+        type: string
 
 jobs:
   copilot-review:
@@ -28,6 +33,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+      checks: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +44,7 @@ jobs:
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
         run: |
           if [ -n "$PR_NUMBER" ]; then
             gh pr diff $PR_NUMBER > pr_changes.diff
@@ -50,7 +56,7 @@ jobs:
         run: |
           if [ -f pr_changes.diff ]; then
             echo "files<<EOF" >> $GITHUB_OUTPUT
-            grep "^diff --git" pr_changes.diff | sed 's/diff --git //' | sed 's/ b\/.*//' | sort | uniq >> $GITHUB_OUTPUT
+            grep "^diff --git" pr_changes.diff | awk '{print $3}' | sed 's/^b\///' | sort | uniq >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
@@ -60,7 +66,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const { generateReviewBody } = await import('../.github/scripts/copilot-review-body.mjs');
+            const { generateReviewBody } = await import('./.github/scripts/copilot-review-body.mjs');
             const diff = fs.readFileSync('pr_changes.diff', 'utf8');
             const diffLines = diff.split('\n');
             const diffSize = diffLines.length;
@@ -94,23 +100,32 @@ jobs:
               context
             );
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: reviewBody
-            });
+            const prNumber = context.payload.pull_request?.number;
+            if (prNumber) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: reviewBody
+              });
+            } else {
+              console.warn('No pull_request context; skipping issue comment.');
+            }
 
-            await github.rest.checks.runs.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'Copilot Code Review',
-              head_sha: context.payload.pull_request.head.sha,
-              status: 'completed',
-              conclusion: 'action_required',
-              output: {
-                title: 'Copilot Code Review',
-                summary: `审查了 ${filesList.length} 个文件，共 ${diffSize} 行变更`,
-                text: reviewBody
-              }
-            });
+            if (context.payload.pull_request?.head?.sha) {
+              await github.rest.checks.runs.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'Copilot Code Review',
+                head_sha: context.payload.pull_request.head.sha,
+                status: 'completed',
+                conclusion: 'action_required',
+                output: {
+                  title: 'Copilot Code Review',
+                  summary: `审查了 ${filesList.length} 个文件，共 ${diffSize} 行变更`,
+                  text: reviewBody
+                }
+              });
+            } else {
+              console.warn('No pull_request head SHA; skipping check run creation.');
+            }

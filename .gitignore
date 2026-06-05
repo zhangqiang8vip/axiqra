@@ -9,5 +9,8 @@ __pycache__/
 start.log
 
 # Axiqra local Chinese docs — separate private repo
+# _docs/ contains the Axiqra local development docs private git submodule
 docs/_docs/
+# Compressed logo assets
 logo/*.zip
+

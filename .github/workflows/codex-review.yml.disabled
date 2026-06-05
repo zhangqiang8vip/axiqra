@@ -43,7 +43,7 @@ jobs:
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
         run: |
           if [ -n "$PR_NUMBER" ]; then
             gh pr diff $PR_NUMBER > pr_changes.diff
@@ -52,35 +52,34 @@ jobs:
           fi
 
       - name: Setup Node.js
-        if: secrets.OPENAI_API_KEY != ''
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
 
       - name: Install OpenAI SDK
-        if: secrets.OPENAI_API_KEY != ''
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         run: npm install openai
 
       - name: Run Codex Review
         id: review
-        if: secrets.OPENAI_API_KEY != ''
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PR_NUMBER: ${{ steps.diff.outputs.pr_number }}
           PR_DIFF: ${{ steps.diff.outputs.diff_size }}
+          REVIEW_BODY: ${{ steps.review.outputs.review_body }}
         run: |
           node .github/scripts/codex-review.mjs
 
       - name: Post review comment
         if: steps.review.outputs.review_body != ''
         uses: actions/github-script@v7
+        env:
+          REVIEW_BODY: ${{ steps.review.outputs.review_body }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const reviewBody = `${{ steps.review.outputs.review_body }}`;
-            const prNumber = context.payload.pull_request?.number || context.inputs.pr_number;
-
+            const reviewBody = process.env.REVIEW_BODY;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (prNumber) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,

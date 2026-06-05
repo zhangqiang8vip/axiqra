@@ -37,28 +37,29 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          write_output() {
+            delimiter="ghadelimiter_$(openssl rand -hex 16)"
+            {
+              echo "$1<<$delimiter"
+              printf '%s\n' "$2"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          }
+
           if [ -z "$PR_NUMBER" ]; then
             echo "No PR context, skipping."
             exit 0
           fi
 
-          PR_TITLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.title')
-          PR_AUTHOR=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.user.login')
-          PR_BASE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.base.ref')
-          PR_HEAD=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')
+          PR_TITLE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.title')
+          PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.user.login')
+          PR_BASE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.base.ref')
+          PR_HEAD=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.ref')
 
-          echo "title<<EOF" >> $GITHUB_OUTPUT
-          echo "$PR_TITLE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "author<<EOF" >> $GITHUB_OUTPUT
-          echo "$PR_AUTHOR" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "base<<EOF" >> $GITHUB_OUTPUT
-          echo "$PR_BASE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "head<<EOF" >> $GITHUB_OUTPUT
-          echo "$PR_HEAD" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          write_output "title" "$PR_TITLE"
+          write_output "author" "$PR_AUTHOR"
+          write_output "base" "$PR_BASE"
+          write_output "head" "$PR_HEAD"
 
       - name: Get PR diff
         id: diff
@@ -69,8 +70,8 @@ jobs:
           if [ -z "$PR_NUMBER" ]; then
             exit 0
           fi
-          gh pr diff $PR_NUMBER > pr_changes.diff
-          echo "diff_size=$(wc -l < pr_changes.diff)" >> $GITHUB_OUTPUT
+          gh pr diff "$PR_NUMBER" > pr_changes.diff
+          echo "diff_size=$(wc -l < pr_changes.diff)" >> "$GITHUB_OUTPUT"
 
       - name: Agnes AI Review
         id: review
@@ -79,6 +80,10 @@ jobs:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           REVIEW_MODEL: ${{ secrets.AGNES_REVIEW_MODEL }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.pr_info.outputs.title }}
+          PR_AUTHOR: ${{ steps.pr_info.outputs.author }}
+          PR_BASE: ${{ steps.pr_info.outputs.base }}
+          DIFF_SIZE: ${{ steps.diff.outputs.diff_size }}
         run: |
           if [ -z "$AGNES_API_KEY" ] || [ -z "$API_BASE_URL" ]; then
             echo "::warning::AGNES_API_KEY or API_BASE_URL not set. Skipping."
@@ -89,46 +94,45 @@ jobs:
             exit 0
           fi
 
-          PR_INFO="PR #$PR_NUMBER - ${{ steps.pr_info.outputs.title }}"
-          AUTHOR="${{ steps.pr_info.outputs.author }}"
-          BASE="${{ steps.pr_info.outputs.base }}"
-          DIFF_SIZE="${{ steps.diff.outputs.diff_size }}"
+          PR_INFO="PR #$PR_NUMBER - $PR_TITLE"
+          MODEL="${REVIEW_MODEL:-agnes-2.0-flash}"
 
           DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
 
-          USER_CONTENT="Review the following PR changes.
-
-PR: $PR_INFO
-Author: $AUTHOR
-Base branch: $BASE
-Diff size: $DIFF_SIZE lines
-
-## Review Focus
-1. Security: hardcoded secrets, API key leaks, injection risks
-2. MCP protocol compliance: quota limits, error handling
-3. Error handling: async try/catch, proper HTTP status codes
-4. Test coverage: new code has corresponding tests
-5. Code quality: ESM imports, naming, error context
-
-## Output Format
-## Summary
-[One paragraph overview]
-
-## Critical Issues (must fix)
-- [file:line] - issue description
-
-## Suggestions (recommended)
-- [file:line] - suggestion description
-
-## Positive Highlights
-- What was done well
-
-\`\`\`diff
-$DIFF_CONTENT
-\`\`\`"
+          USER_CONTENT=$(printf '%s\n' \
+            "Review the following PR changes." \
+            "" \
+            "PR: $PR_INFO" \
+            "Author: $PR_AUTHOR" \
+            "Base branch: $PR_BASE" \
+            "Diff size: $DIFF_SIZE lines" \
+            "" \
+            "## Review Focus" \
+            "1. Security: hardcoded secrets, API key leaks, injection risks" \
+            "2. MCP protocol compliance: quota limits, error handling" \
+            "3. Error handling: async try/catch, proper HTTP status codes" \
+            "4. Test coverage: new code has corresponding tests" \
+            "5. Code quality: ESM imports, naming, error context" \
+            "" \
+            "## Output Format" \
+            "## Summary" \
+            "[One paragraph overview]" \
+            "" \
+            "## Critical Issues (must fix)" \
+            "- [file:line] - issue description" \
+            "" \
+            "## Suggestions (recommended)" \
+            "- [file:line] - suggestion description" \
+            "" \
+            "## Positive Highlights" \
+            "- What was done well" \
+            "" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```')
 
           PAYLOAD=$(jq -n \
-            --arg model "$REVIEW_MODEL" \
+            --arg model "$MODEL" \
             --argjson max_tokens 2048 \
             --argjson temperature 0.3 \
             --arg system "You are an expert code reviewer for the Axiqra project. Axiqra is a knowledge engineering and memory system with MCP adapters, search service, audit/tracing, policy-based access control, and JSON store persistence. Review guidelines: 1) SECURITY FIRST: hardcoded secrets, API key leaks, injection risks. 2) MCP compliance: quota limits, error handling, protocol adherence. 3) Error handling: async try/catch, proper HTTP status codes. 4) Test coverage: new code has corresponding tests. 5) Code quality: ESM imports, naming conventions, error context. Output format (Markdown): ## Summary [brief overview] ## Critical Issues (block merge) - [file:line] - issue ## Suggestions (recommended) - [file:line] - suggestion ## Positive Highlights - what was done well. Be concise and actionable." \
@@ -143,19 +147,25 @@ $DIFF_CONTENT
               ]
             }')
 
-          RESPONSE=$(curl -s -X POST "$API_BASE_URL/chat/completions" \
+          if ! RESPONSE=$(curl --fail-with-body --show-error --silent --max-time 60 -X POST "$API_BASE_URL/chat/completions" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $AGNES_API_KEY" \
-            -d "$PAYLOAD")
+            -d "$PAYLOAD"); then
+            echo "::warning::Agnes API request failed."
+            exit 0
+          fi
 
-          REVIEW=$(echo $RESPONSE | jq -r '.choices[0].message.content // empty')
+          REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
 
           if [ -n "$REVIEW" ]; then
-            echo "review_body<<EOF" >> $GITHUB_OUTPUT
-            echo "$REVIEW" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            delimiter="ghadelimiter_$(openssl rand -hex 16)"
+            {
+              echo "review_body<<$delimiter"
+              printf '%s\n' "$REVIEW"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
           else
-            ERROR_MSG=$(echo $RESPONSE | jq -r '.error.message // "unknown error"')
+            ERROR_MSG=$(printf '%s' "$RESPONSE" | jq -r '.error.message // "unknown error"' 2>/dev/null || echo "unknown error")
             echo "::warning::API call failed: $ERROR_MSG"
             exit 0
           fi

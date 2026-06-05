@@ -4,13 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "axiqra-project/axiqra-code/**"
-      - "axiqra-project/.github/scripts/**"
-      - ".github/scripts/**"
-      - "axiqra-project/axiqra-infra/**"
-      - "axiqra-project/axiqra-website/**"
+      - ".gitignore"
+      - "docs/**"
+      - "axiqra-project/**"
       - "tests/**"
       - ".github/workflows/*.yml"
+      - ".github/scripts/**"
       - "*.mjs"
       - "*.js"
       - "*.py"

@@ -8,17 +8,6 @@ __pycache__/
 .cursor/
 start.log
 
-# Local Chinese docs — private git repo
+# Axiqra local Chinese docs — separate private repo
 docs/_docs/
-docs/evidence/
-docs/Axiqra_*.xlsx
-docs/S1-S4*.md
-docs/axiqra *.txt
-docs/base_*.json
-docs/mcp_*.json
-docs/private_isolation_response.json
-docs/public_search_response.json
-docs/sample_ci_report.json
-docs/scope_denied_response.json
-docs/交付说明.md
 logo/*.zip

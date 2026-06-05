@@ -6,11 +6,8 @@ on:
     paths:
       - ".gitignore"
       - "docs/**"
-      - "axiqra-project/**"
       - "tests/**"
-      - ".github/workflows/gemini-review.yml"
-      - ".github/workflows/axiqra-quality-gates-sample.yml"
-      - ".github/scripts/**"
+      - ".github/workflows/*.yml"
       - "*.mjs"
       - "*.js"
       - "*.py"
@@ -76,23 +73,53 @@ jobs:
             exit 0
           fi
 
-          # 构建审查上下文
           PR_INFO="PR #$PR_NUMBER - ${{ steps.pr_info.outputs.title }}"
           AUTHOR="${{ steps.pr_info.outputs.author }}"
           BASE="${{ steps.pr_info.outputs.base }}"
           DIFF_SIZE="${{ steps.diff.outputs.diff_size }}"
 
-          # 调用 Gemini API 进行代码审查
+          REVIEW_TEXT=$(jq -n \
+            --arg pr_info "$PR_INFO" \
+            --arg author "$AUTHOR" \
+            --arg base "$BASE" \
+            --arg diff_size "$DIFF_SIZE" \
+            'You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Review the following PR changes.
+
+PR: \($pr_info)
+Author: \($author)
+Base branch: \($base)
+
+Review focus areas:
+1. Security: hardcoded secrets, API key leaks, injection risks
+2. MCP protocol compliance: quota limits, error handling
+3. Error handling: async try/catch, proper HTTP status codes
+4. Test coverage: new code has corresponding tests
+5. Code quality: ESM imports, naming, error context
+
+Provide your review in this format:
+## Summary
+[One paragraph overview]
+
+## Critical Issues (must fix)
+- [file:line] - issue description
+
+## Suggestions (recommended)
+- [file:line] - suggestion description
+
+## Positive Highlights
+- What was done well
+
+Diff size: \($diff_size) lines
+Output format: Markdown')
+
+          PAYLOAD=$(jq -n \
+            --arg text "$REVIEW_TEXT" \
+            '{contents: [{parts: [{text: $text}]}]}')
+
           RESPONSE=$(curl -s -X POST \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{
-              "contents": [{
-                "parts": [{
-                  "text": "You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Review the following PR changes.\n\nPR: '"$PR_INFO"'\nAuthor: '"$AUTHOR"'\nBase branch: '"$BASE"'\n\nReview focus areas:\n1. Security: hardcoded secrets, API key leaks, injection risks\n2. MCP protocol compliance: quota limits, error handling\n3. Error handling: async try/catch, proper HTTP status codes\n4. Test coverage: new code has corresponding tests\n5. Code quality: ESM imports, naming, error context\n\nProvide your review in this format:\n## Summary\n[One paragraph overview]\n\n## Critical Issues (must fix)\n- [file:line] - issue description\n\n## Suggestions (recommended)\n- [file:line] - suggestion description\n\n## Positive Highlights\n- What was done well\n\nDiff size: '"$DIFF_SIZE"' lines\nOutput format: Markdown"
-                }]
-              }]
-            }')
+            -d "$PAYLOAD")
 
           REVIEW=$(echo $RESPONSE | jq -r '.candidates[0].content.parts[0].text // empty')
 
@@ -116,6 +143,6 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber,
-                body: `## Gemini AI Code Review 🤖\n\n${reviewBody}\n\n---\n*Reviewed by Gemini AI*`
+                body: `## Gemini AI Code Review ??\n\n${reviewBody}\n\n---\n*Reviewed by Gemini AI*`
               });
             }

@@ -9,9 +9,11 @@
 - [1. CodeRabbit](#1-coderabbit)
 - [2. GitHub Copilot](#2-github-copilot)
 - [3. Gemini](#3-gemini)
-- [4. Codex](#4-codex)
-- [5. Cursor BugBot](#5-cursor-bugbot)
-- [6. 全部启用后的效果](#6-全部启用后的效果)
+- [4. OpenRouter](#4-openrouter)
+- [5. Codex](#5-codex)
+- [6. Agnes AI](#6-agnes-ai)
+- [7. Cursor BugBot](#7-cursor-bugbot)
+- [8. 全部启用后的效果](#8-全部启用后的效果)
 
 ---
 
@@ -19,12 +21,17 @@
 
 ### 添加 GitHub Secrets
 
-以下机器人的部分需要设置 GitHub Secrets。前往 **Settings → Secrets and variables → Actions** 添加：
+前往 **Settings → Secrets and variables → Actions** 添加以下 Secret：
 
-| Secret 名称 | 用途 | 获取方式 |
-|-------------|------|---------|
-| `GEMINI_API_KEY` | Gemini 审查 | [Google AI Studio](https://makersuite.google.com/app/apikey) |
-| `OPENAI_API_KEY` | Codex 审查 | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| Secret | 用途 | 示例值 |
+|--------|------|--------|
+| `GEMINI_API_KEY` | Gemini 审查 | Google AI Studio 获取 |
+| `OPENROUTER_API_KEY` | OpenRouter 审查 | OpenRouter.ai 注册获取 |
+| `API_BASE_URL` | Codex 审查 API 地址 | `https://free.v36.cm` |
+| `OPENAI_API_KEY` | Codex 审查 Key | 对应 API Key |
+| `AGNES_API_BASE_URL` | Agnes AI API 地址 | `https://apihub.agnes-ai.com/v1` |
+| `AGNES_API_KEY` | Agnes AI Key | `sk-N6X6vCFW2d4vgAo6REX6iyIQGywc12AGnGjViffJa7zXCoHu` |
+| `AGNES_REVIEW_MODEL` | Agnes 审查模型 | `agnes-2.0-flash` |
 
 ---
 
@@ -95,17 +102,13 @@ GitHub Copilot 审查通过 `.github/copilot-instructions.md` 提供项目上下
 ### 启用步骤
 
 1. 获取 Gemini API Key：[Google AI Studio](https://makersuite.google.com/app/apikey)
-2. 添加 Secret：
-   - 进入 GitHub 仓库 **Settings → Secrets → Actions**
-   - 点击 **New repository secret**
-   - Name: `GEMINI_API_KEY`
-   - Secret: 粘贴你的 API Key
+2. 添加 Secret：`GEMINI_API_KEY`
 3. 完成！workflow `.github/workflows/gemini-review.yml` 会自动触发
 
 ### 工作流
 
-- 触发条件：PR 打开/同步/重新打开，且变更涉及 `src/`, `tests/`, `fixtures/`, `scripts/`
-- 获取 PR diff 并发送给 Gemini API
+- 触发条件：PR 打开/同步/重新打开
+- 调用 Gemini API 进行代码审查
 - 在 PR 评论中发布审查结果
 
 ### 功能特性
@@ -121,40 +124,72 @@ Gemini Flash 模型价格极低（免费额度充足），适合日常审查。
 
 ---
 
-## 4. Codex
+## 4. OpenRouter
 
-**定位**：OpenAI Codex (GPT-4o) 提供深度代码审查，需要 `OPENAI_API_KEY`。
+**定位**：聚合多个 LLM 模型的统一网关，使用 `openrouter/free` 模型，无需指定具体 Key。
 
 ### 启用步骤
 
-1. 获取 OpenAI API Key：[OpenAI Platform](https://platform.openai.com/api-keys)
-2. 添加 Secret：
-   - 进入 GitHub 仓库 **Settings → Secrets → Actions**
-   - 点击 **New repository secret**
-   - Name: `OPENAI_API_KEY`
-   - Secret: 粘贴你的 API Key
-3. 完成！workflow `.github/workflows/codex-review.yml` 会自动触发
+1. 注册 OpenRouter：[openrouter.ai](https://openrouter.ai/)
+2. 添加 Secret：`OPENROUTER_API_KEY`
+3. 完成！workflow `.github/workflows/openrouter-review.yml` 会自动触发
 
 ### 工作流
 
-- 触发条件：PR 打开/同步/重新打开，且变更涉及 `src/`, `tests/`, `fixtures/`, `scripts/`
-- 调用 OpenAI API（使用 GPT-4o 模型）进行审查
-- 在 PR 评论中发布详细审查
+- 触发条件：PR 打开/同步/重新打开
+- 调用 OpenRouter API（`openrouter/free` 模型）
+- 在 PR 评论中发布审查结果
 
 ### 功能特性
 
-- 深度代码理解
-- 上下文感知的审查建议
-- 支持中文输出
-- 提供具体的代码修改建议
-
-### 费用
-
-GPT-4o 按 token 计费，建议限制 diff 大小以控制成本（脚本中已限制为 15000 字符）。
+- 自动路由到最优免费模型
+- 支持多种 LLM 后端
+- 与 GitHub Actions 无缝集成
 
 ---
 
-## 5. Cursor BugBot
+## 5. Codex
+
+**定位**：OpenAI-compatible API 提供代码审查，需要 `API_BASE_URL` + `OPENAI_API_KEY`。
+
+### 启用步骤
+
+1. 获取 API 代理地址和 Key（如 `https://free.v36.cm` + 对应 Key）
+2. 添加 Secrets：
+   - `API_BASE_URL` = `https://free.v36.cm`
+   - `OPENAI_API_KEY` = 填入 API Key
+3. 将 `.github/workflows/codex-review.yml.disabled` 重命名为 `.github/workflows/codex-review.yml` 即可启用
+4. 模型默认为 `gpt-4o-mini`
+
+### 工作流
+
+- 触发条件：PR 打开/同步/重新打开
+- 调用兼容 OpenAI 格式的 API（curl 直接调用）
+- 在 PR 评论中发布审查结果
+
+---
+
+## 6. Agnes AI
+
+**定位**：Agnes AI 平台提供的快速审查服务，需要 `AGNES_API_BASE_URL` + `AGNES_API_KEY` + `AGNES_REVIEW_MODEL`。
+
+### 启用步骤
+
+1. 添加 Secrets：
+   - `AGNES_API_BASE_URL` = `https://apihub.agnes-ai.com/v1`
+   - `AGNES_API_KEY` = `sk-N6X6vCFW2d4vgAo6REX6iyIQGywc12AGnGjViffJa7zXCoHu`
+   - `AGNES_REVIEW_MODEL` = `agnes-2.0-flash`
+2. 将 `.github/workflows/agnes-review.yml.disabled` 重命名为 `.github/workflows/agnes-review.yml` 即可启用
+
+### 工作流
+
+- 触发条件：PR 打开/同步/重新打开
+- 调用 Agnes AI API（OpenAI 兼容格式）
+- 在 PR 评论中发布审查结果
+
+---
+
+## 7. Cursor BugBot
 
 **定位**：Cursor IDE 内置的 PR 审查工具，适合本地深度审查。
 
@@ -175,7 +210,7 @@ GPT-4o 按 token 计费，建议限制 diff 大小以控制成本（脚本中已
 
 ---
 
-## 6. 全部启用后的效果
+## 8. 全部启用后的效果
 
 ### PR 创建后的完整流水线
 
@@ -188,8 +223,14 @@ PR 打开
   ├─→ Gemini Review (需要 GEMINI_API_KEY)
   │      └─→ PR 评论：安全 + MCP + 错误处理审查
   │
-  ├─→ Codex Review (需要 OPENAI_API_KEY)
+  ├─→ OpenRouter Review (需要 OPENROUTER_API_KEY)
+  │      └─→ PR 评论：免费模型代码审查
+  │
+  ├─→ Codex Review (需要 API_BASE_URL + OPENAI_API_KEY)
   │      └─→ PR 评论：深度代码审查 + 修复建议
+  │
+  ├─→ Agnes AI Review (需要 AGNES_* secrets)
+  │      └─→ PR 评论：Agnes 平台代码审查
   │
   ├─→ CodeRabbit (免费，App 安装)
   │      └─→ PR 评论：AI 交互审查 + PR 摘要
@@ -209,7 +250,9 @@ PR 打开
 
 - **Copilot**：变更范围摘要，文件分类
 - **Gemini**：安全风险、MCP 合规性评估
+- **OpenRouter**：免费模型综合审查
 - **Codex**：深度代码建议，修复示例
+- **Agnes AI**：Agnes 平台审查
 - **CodeRabbit**：交互式审查，PR 摘要
 - **Quality Gates**：测试结果，安全扫描结果
 
@@ -217,8 +260,8 @@ PR 打开
 
 | 团队规模 | 推荐组合 | 说明 |
 |---------|---------|------|
-| 个人/小团队 | CodeRabbit + Gemini | 最少配置，覆盖安全审查 |
-| 中型团队 | CodeRabbit + Gemini + Codex + Copilot | 全方位覆盖 |
+| 个人/小团队 | CodeRabbit + OpenRouter + Codex | 最少配置，覆盖安全审查 |
+| 中型团队 | CodeRabbit + OpenRouter + Codex + Gemini + Agnes AI | 全方位覆盖 |
 | 大型团队 | 全套 + Cursor BugBot + 人工审查 | 多层审查保障 |
 
 ---
@@ -227,19 +270,23 @@ PR 打开
 
 ### Gemini 审查未触发
 - 检查 `GEMINI_API_KEY` Secret 是否正确设置
-- 确认 PR 变更路径匹配（`src/`, `tests/` 等）
+
+### OpenRouter 审查未触发
+- 检查 `OPENROUTER_API_KEY` Secret 是否正确设置
 
 ### Codex 审查未触发
-- 检查 `OPENAI_API_KEY` Secret 是否正确设置
-- 确认 OpenAI 账户有足够余额
+- 检查 `API_BASE_URL` 和 `OPENAI_API_KEY` Secrets 是否正确设置
+- 确认 workflow 已启用（`.yml.disabled` 已改名）
+
+### Agnes AI 审查未触发
+- 检查 `AGNES_API_BASE_URL`、`AGNES_API_KEY`、`AGNES_REVIEW_MODEL` Secrets 是否正确设置
+- 确认 workflow 已启用（`.yml.disabled` 已改名）
 
 ### CodeRabbit 未响应
 - 确认已在 [coderabbit.ai](https://coderabbit.ai/) 中授权了仓库
-- 检查仓库是否为 private（免费版有限制）
 
 ### Copilot Review 失败
 - Copilot Review 依赖 GitHub Actions，无需额外配置
-- 检查 workflow 是否有执行权限
 
 ---
 
@@ -250,7 +297,8 @@ PR 打开
 | `.github/coderabbit.yaml` | CodeRabbit 审查配置 |
 | `.github/copilot-instructions.md` | Copilot 项目规范 |
 | `.github/workflows/gemini-review.yml` | Gemini 审查 workflow |
-| `.github/workflows/codex-review.yml` | Codex 审查 workflow |
+| `.github/workflows/openrouter-review.yml` | OpenRouter 审查 workflow |
 | `.github/workflows/copilot-review.yml` | Copilot 审查 workflow |
-| `.github/scripts/codex-review.mjs` | Codex 审查脚本 |
-| `.github/workflows/axiqra-quality-gates-sample.yml` | 质量门控 workflow |
+| `.github/workflows/codex-review.yml` | Codex 审查 workflow |
+| `.github/workflows/agnes-review.yml` | Agnes AI 审查 workflow |
+| `.github/workflows/axiqra-quality-gates.yml` | 质量门控 workflow |

@@ -253,4 +253,3 @@ PR 打开
 | `.github/workflows/codex-review.yml` | Codex 审查 workflow |
 | `.github/workflows/copilot-review.yml` | Copilot 审查 workflow |
 | `.github/scripts/codex-review.mjs` | Codex 审查脚本 |
-| `.github/workflows/axiqra-quality-gates-sample.yml` | 质量门控 workflow |

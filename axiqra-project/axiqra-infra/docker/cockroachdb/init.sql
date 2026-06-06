@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS axiqra_review (
     object_id BIGINT NOT NULL,
     queue VARCHAR(32) NOT NULL DEFAULT 'human',
     reviewer_id BIGINT NULL,
-    risk_level VARCHAR(32) NOT NULL,
+    risk_level VARCHAR(32) NOT NULL DEFAULT 'R0',
     status VARCHAR(32) NOT NULL DEFAULT 'pending',
     PRIMARY KEY (id),
     INDEX idx_object (object_type, object_id),

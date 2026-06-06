@@ -131,6 +131,7 @@ services:
   #   container_name: axiqra_core
   #   environment:
   #     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  #     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
   #     DB_PASSWORD: ${DB_PASSWORD}
   #     REDIS_PASSWORD: ${REDIS_PASSWORD}
   #     AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}

@@ -64,14 +64,17 @@ public class HealthController {
 
         boolean anyDown = "DOWN".equals(result.get("cockroachDb"))
                        || "DOWN".equals(result.get("redis"))
-                       || "DOWN".equals(result.get("rabbitMq"));
+                       || "DOWN".equals(result.get("rabbitMq"))
+                       || "DOWN".equals(result.get("postgresAuditTcp"))
+                       || "DOWN".equals(result.get("minioHttp"));
         result.put("status", anyDown ? "DEGRADED" : "UP");
         return result;
     }
 
     private String checkDatabase() {
         try {
-            return String.valueOf(jdbcTemplate.queryForObject("SELECT 1", Integer.class));
+            Integer result = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+            return Integer.valueOf(1).equals(result) ? "UP" : "DOWN";
         } catch (Exception ex) {
             return "DOWN";
         }
@@ -79,7 +82,8 @@ public class HealthController {
 
     private String checkRedis() {
         try {
-            return stringRedisTemplate.execute((RedisCallback<String>) connection -> connection.ping());
+            String response = stringRedisTemplate.execute((RedisCallback<String>) connection -> connection.ping());
+            return "PONG".equalsIgnoreCase(response) ? "UP" : "DOWN";
         } catch (Exception ex) {
             return "DOWN";
         }
@@ -87,7 +91,7 @@ public class HealthController {
 
     private String checkRabbitMq() {
         try {
-            return rabbitTemplate.execute(channel -> channel.isOpen() ? "CONNECTED" : "CLOSED");
+            return rabbitTemplate.execute(channel -> channel.isOpen() ? "UP" : "DOWN");
         } catch (Exception ex) {
             return "DOWN";
         }
@@ -96,23 +100,27 @@ public class HealthController {
     private String probeTcp(String host, int port) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port), TCP_CONNECT_TIMEOUT_MS);
-            return "CONNECTED";
+            return "UP";
         } catch (IOException ex) {
             return "DOWN";
         }
     }
 
     private String probeHttp(String url) {
+        HttpURLConnection connection = null;
         try {
-            HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+            connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(3000);
             connection.setReadTimeout(3000);
             int status = connection.getResponseCode();
-            connection.disconnect();
-            return String.valueOf(status);
-        } catch (IOException ex) {
+            return status >= 200 && status < 300 ? "UP" : "DOWN";
+        } catch (Exception ex) {
             return "DOWN";
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 }

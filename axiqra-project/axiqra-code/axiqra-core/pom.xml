@@ -42,7 +42,7 @@
         <!-- Apache ShardingSphere JDBC（读写分离） -->
         <dependency>
             <groupId>org.apache.shardingsphere</groupId>
-            <artifactId>shardingsphere-jdbc-core</artifactId>
+            <artifactId>shardingsphere-jdbc</artifactId>
         </dependency>
 
         <!-- Resilience4j 熔断降级 -->

@@ -129,11 +129,6 @@ class SecurityConfigTest {
     static class TestApplication {
 
         @Bean
-        HealthProbeProperties healthProbeProperties() {
-            return new HealthProbeProperties();
-        }
-
-        @Bean
         UserDetailsManager userDetailsManager() {
             UserDetails user = User.withUsername("user")
                     .password("{noop}password")

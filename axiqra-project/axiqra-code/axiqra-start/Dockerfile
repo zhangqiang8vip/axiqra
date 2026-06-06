@@ -11,4 +11,4 @@ USER axiqra
 
 EXPOSE 8080 9090
 
-ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-Duser.timezone=Asia/Shanghai", "-jar", "/app/app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java -Dfile.encoding=UTF-8 -Duser.timezone=${APP_TIMEZONE:-UTC} -jar /app/app.jar"]

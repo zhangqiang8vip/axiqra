@@ -35,7 +35,7 @@ axiqra:
     enabled: false
     url: jdbc:postgresql://localhost:5433/axiqra_audit_db
     username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
-    password: ${AUDIT_DB_PASSWORD:change_me_before_production}
+    password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
     driver-class-name: org.postgresql.Driver
   minio:
     endpoint: http://localhost:9000

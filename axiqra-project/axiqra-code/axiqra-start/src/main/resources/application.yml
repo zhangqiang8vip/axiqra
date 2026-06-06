@@ -103,6 +103,7 @@ security:
     signature-header: X-Axiqra-Signature
     nonce-header: X-Axiqra-Nonce
     clock-skew-seconds: 300
+    max-body-size: 1048576  # 1MB, configurable limit for request body caching
   cors:
     allowed-origins:
       - http://localhost:5173
@@ -162,3 +163,12 @@ resilience4j:
       default:
         max-attempts: 3
         wait-duration: 500ms
+
+# ===================== 审计库（PostgreSQL）=====================
+axiqra:
+  audit-datasource:
+    enabled: true
+    url: jdbc:postgresql://${AUDIT_DB_HOST:localhost}:${AUDIT_DB_PORT:5432}/axiqra_audit_db
+    username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
+    password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
+    driver-class-name: org.postgresql.Driver

@@ -16,6 +16,8 @@ import javax.sql.DataSource;
 @ConditionalOnProperty(prefix = "axiqra.audit-datasource", name = "enabled", havingValue = "true")
 public class DataSourceConfig {
 
+        private static final String SENTINEL_VALUE = "change_me_before_production";
+
         @Value("${axiqra.audit-datasource.url}")
         private String auditUrl;
 
@@ -28,6 +30,12 @@ public class DataSourceConfig {
         @Bean("auditDataSource")
         @ConditionalOnMissingBean(name = "auditDataSource")
         public DataSource auditDataSource() {
+                if (auditPassword == null || auditPassword.isBlank()
+                                || SENTINEL_VALUE.equals(auditPassword)) {
+                        throw new IllegalStateException(
+                                "Audit DB password not configured or still at default sentinel value. "
+                                        + "Set environment variable AUDIT_APP_DB_PASSWORD.");
+                }
                 HikariConfig config = new HikariConfig();
                 config.setJdbcUrl(auditUrl);
                 config.setUsername(auditUsername);

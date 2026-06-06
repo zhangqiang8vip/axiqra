@@ -1,0 +1,25 @@
+# Maven
+/target/
+
+# IDE
+/.idea/
+*.iml
+/.vscode/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+# Test reports
+**/surefire-reports/
+**/failsafe-reports/
+**/jacoco.exec
+**/jacoco/

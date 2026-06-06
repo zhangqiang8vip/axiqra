@@ -1,11 +1,15 @@
 spring:
+  sql:
+    init:
+      mode: never
   datasource:
+    type: org.springframework.jdbc.datasource.DriverManagerDataSource
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:1/axiqra?sslmode=disable&currentSchema=public
+    username: root
+    password: ${DB_PASSWORD:change_me_before_production}
     druid:
-      enabled: true
-      driver-class-name: org.postgresql.Driver
-      url: jdbc:postgresql://localhost:26257/axiqra?sslmode=disable&currentSchema=public
-      username: root
-      password: ${DB_PASSWORD:change_me_before_production}
+      enabled: false
       initial-size: 1
       min-idle: 1
       max-active: 2
@@ -28,9 +32,9 @@ spring:
 
 axiqra:
   audit-datasource:
-    enabled: true
-    url: jdbc:postgresql://localhost:5432/axiqra_audit_db
-    username: ${AUDIT_DB_USER:axiqra_audit}
+    enabled: false
+    url: jdbc:postgresql://localhost:5433/axiqra_audit_db
+    username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
     password: ${AUDIT_DB_PASSWORD:change_me_before_production}
     driver-class-name: org.postgresql.Driver
   minio:
@@ -53,7 +57,7 @@ axiqra:
 management:
   health:
     db:
-      enabled: true
+      enabled: false
     redis:
       enabled: true
     rabbit:

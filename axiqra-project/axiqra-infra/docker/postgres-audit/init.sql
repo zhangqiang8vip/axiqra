@@ -1,6 +1,13 @@
 -- axiqra-project/axiqra-infra/docker/postgres-audit/init.sql
 -- PostgreSQL 审计库建表脚本（append-only）
 -- 表前缀统一为 axiqra_（与 axiqra- 项目名一致）
+--
+-- 注意：POSTGRES_USER / POSTGRES_PASSWORD 由 docker-compose 环境变量传入。
+-- 本文件由 init.sh 通过 psql --set 注入变量执行，不能直接挂载为 .sql
+-- 到 /docker-entrypoint-initdb.d，否则 :AUDIT_* 变量不会存在。
+-- 脚本末尾会创建专用应用角色 :AUDIT_APP_DB_USER（NOSUPERUSER）。
+-- 应用应使用 :AUDIT_APP_DB_USER 连接数据库。
+
 
 -- ===================== 通用审计事件 =====================
 CREATE TABLE IF NOT EXISTS axiqra_audit_event (
@@ -203,6 +210,28 @@ CREATE POLICY attr_no_update ON axiqra_tool_model_attribution_log FOR UPDATE USI
 CREATE POLICY attr_no_delete ON axiqra_tool_model_attribution_log FOR DELETE USING (false);
 CREATE POLICY attr_allow_insert ON axiqra_tool_model_attribution_log FOR INSERT WITH CHECK (true);
 
--- 授权给应用用户（axiqra_audit 由 docker-compose 通过 POSTGRES_USER 环境变量创建）
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO axiqra_audit;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO axiqra_audit;
+-- 创建专用应用角色（NOSUPERUSER），用于应用连接。RLS FORCE 仅对非超级用户生效。
+-- :AUDIT_DB_USER 保留为 bootstrap/admin 用户用于运维。
+-- :AUDIT_APP_DB_USER 作为应用连接用户，RLS 可正常拦截 UPDATE/DELETE。
+SELECT format(
+    'CREATE ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER',
+    :'AUDIT_APP_DB_USER',
+    :'AUDIT_DB_PASSWORD'
+)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_roles
+    WHERE rolname = :'AUDIT_APP_DB_USER'
+)\gexec
+
+GRANT CONNECT ON DATABASE axiqra_audit_db TO :"AUDIT_APP_DB_USER";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"AUDIT_APP_DB_USER";
+GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA public TO :"AUDIT_APP_DB_USER";
+-- 注意：UPDATE/DELETE 权限不授予，通过 RLS 策略控制。
+
+-- 降权 POSTGRES_USER（如果它是超级用户则无法执行，这是已知限制；生产环境请手动处理）
+-- ALTER ROLE :"AUDIT_DB_USER" NOSUPERUSER;  -- 需要外部超级用户执行，当前由 docker postgres bootstrap 角色拥有
+
+-- 授权给 bootstrap/admin 用户（由 docker-compose 通过 POSTGRES_USER 环境变量创建）
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"AUDIT_DB_USER";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"AUDIT_DB_USER";

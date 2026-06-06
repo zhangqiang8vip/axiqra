@@ -43,7 +43,15 @@
 
         <!-- Micrometer（已通过 Actuator 传递引入） -->
 
-        <!-- 测试 -->
+        <!-- Audit datasource runtime dependencies -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

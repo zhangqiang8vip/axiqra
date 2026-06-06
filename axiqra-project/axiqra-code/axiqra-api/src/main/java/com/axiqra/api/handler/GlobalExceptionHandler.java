@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public ResponseEntity<ApiResponse<Void>> handleBizException(BizException ex) {
-        log.warn("[Biz] code={}, message={}, traceId={}",
+        log.warn("【业务异常】code={}, message={}, traceId={}",
                 ex.getCode(), ex.getMessage(), getTraceId());
         ApiResponse<Void> resp = ApiResponse.fail(ex.getCode(), ex.getMessage(), getTraceId());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(resp);

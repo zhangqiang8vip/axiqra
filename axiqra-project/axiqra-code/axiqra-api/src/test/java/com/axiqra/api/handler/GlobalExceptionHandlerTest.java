@@ -130,9 +130,16 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("BizException error code should be in valid range 10001~99999")
     void bizException_codeRange() {
-        BizException ex = new BizException(40001, "最大错误码");
-        ResponseEntity<ApiResponse<Void>> resp = handler.handleBizException(ex);
-        assertTrue(resp.getBody().getCode() >= 10001);
-        assertEquals(HttpStatus.CONFLICT, resp.getStatusCode());
+        // Lower bound
+        BizException minEx = new BizException(10001, "最小错误码");
+        ResponseEntity<ApiResponse<Void>> minResp = handler.handleBizException(minEx);
+        assertEquals(10001, minResp.getBody().getCode());
+        assertEquals(HttpStatus.CONFLICT, minResp.getStatusCode());
+
+        // Upper bound
+        BizException maxEx = new BizException(99999, "最大错误码");
+        ResponseEntity<ApiResponse<Void>> maxResp = handler.handleBizException(maxEx);
+        assertEquals(99999, maxResp.getBody().getCode());
+        assertEquals(HttpStatus.CONFLICT, maxResp.getStatusCode());
     }
 }

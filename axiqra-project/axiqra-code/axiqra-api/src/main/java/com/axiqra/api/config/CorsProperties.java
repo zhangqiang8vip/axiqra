@@ -2,7 +2,6 @@ package com.axiqra.api.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -12,12 +11,14 @@ import java.util.List;
  * 绑定 security.cors.* 配置项。
  */
 @Data
-@Component
 @ConfigurationProperties(prefix = "security.cors")
 public class CorsProperties {
 
     /** 允许的来源列表（生产环境用精确域名） */
     private List<String> allowedOrigins;
+
+    /** 是否允许携带凭证（credentials） */
+    private Boolean allowCredentials;
 
     /** 允许的方法 */
     private List<String> allowedMethods;

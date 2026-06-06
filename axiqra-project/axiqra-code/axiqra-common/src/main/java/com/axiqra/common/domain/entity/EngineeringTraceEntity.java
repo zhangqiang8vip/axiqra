@@ -1,5 +1,9 @@
 package com.axiqra.common.domain.entity;
 
+import com.axiqra.common.domain.enums.IndexStatus;
+import com.axiqra.common.domain.enums.RiskLevel;
+import com.axiqra.common.domain.enums.TraceStatus;
+import com.axiqra.common.domain.enums.VisibilityScope;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -36,13 +40,13 @@ public class EngineeringTraceEntity extends BaseEntity {
     @Nullable
     private String rollbackPath;
     private String outcome;
-    private String riskLevel;
-    private String status;
+    private RiskLevel riskLevel;
+    private TraceStatus status;
     private String userConfirmation;
     @Nullable
     private String idempotencyKey;
-    private String visibilityScope;
-    private String indexStatus;
+    private VisibilityScope visibilityScope;
+    private IndexStatus indexStatus;
     @Nullable
     private Long reviewId;
     @Nullable

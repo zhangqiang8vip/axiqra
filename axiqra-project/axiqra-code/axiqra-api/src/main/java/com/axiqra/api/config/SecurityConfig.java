@@ -52,8 +52,13 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = corsProperties.getAllowedOrigins();
         if (origins != null && !origins.isEmpty()) {
+            boolean hasWildcard = origins.stream().anyMatch(o -> "*".equals(o.trim()));
+            if (hasWildcard && Boolean.TRUE.equals(corsProperties.getAllowCredentials())) {
+                throw new IllegalStateException(
+                        "CORS config contains wildcard origin '*' with allowCredentials=true, which is not allowed");
+            }
             config.setAllowedOrigins(origins);
-            config.setAllowCredentials(true);
+            config.setAllowCredentials(Boolean.TRUE.equals(corsProperties.getAllowCredentials()));
         }
         List<String> methods = corsProperties.getAllowedMethods();
         config.setAllowedMethods(methods != null ? methods : List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));

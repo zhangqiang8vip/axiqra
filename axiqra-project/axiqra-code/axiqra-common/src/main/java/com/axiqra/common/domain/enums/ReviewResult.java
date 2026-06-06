@@ -39,6 +39,6 @@ public enum ReviewResult {
 
     /** 是否为终态（不可再变更） */
     public boolean isFinal() {
-        return this == APPROVED || this == REJECTED || this == QUARANTINED;
+        return this == APPROVED || this == REJECTED || this == QUARANTINED || this == APPEAL_REJECTED;
     }
 }

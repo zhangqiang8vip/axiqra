@@ -1,5 +1,6 @@
 package com.axiqra.common.port;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +13,7 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class QuotaInfo {
 
     /** 当日已使用配额 */
@@ -28,6 +29,12 @@ public class QuotaInfo {
     private boolean exceeded;
 
     public static QuotaInfo of(int used, int limit) {
+        if (used < 0) {
+            throw new IllegalArgumentException("used must be non-negative, but was: " + used);
+        }
+        if (limit < 0) {
+            throw new IllegalArgumentException("limit must be non-negative, but was: " + limit);
+        }
         int remaining = Math.max(0, limit - used);
         return new QuotaInfo(used, remaining, limit, used > limit);
     }

@@ -16,15 +16,18 @@ public interface SignaturePort {
      * 签名源字符串格式为：appId|timestamp|nonce|body
      * <ul>
      *   <li>appId: 应用 ID</li>
-     *   <li>timestamp: Unix 时间戳（秒），由调用方传入</li>
+     *   <li>timestamp: Unix 时间戳（秒，非毫秒），由调用方传入</li>
      *   <li>nonce: 随机字符串（建议 16~64 字符）</li>
      *   <li>body: 请求体原文，无 body 时为空字符串 ""</li>
      * </ul>
      * 各字段之间用 ASCII 竖线符 "|" 分隔，字符编码为 UTF-8。
      * 签名算法为 HMAC-SHA256，结果以十六进制小写（Base16）输出。
+     * <p>
+     * <b>重要约束：所有层（生成端、验证端）必须统一使用秒为单位，不得混用毫秒。
+     * 如发现与实际验证器行为不一致，请报告此接口维护者统一修复，不得单独修改一方。</b>
      *
      * @param appId     应用 ID
-     * @param timestamp 时间戳（秒）
+     * @param timestamp 时间戳（秒，非毫秒）
      * @param nonce     随机字符串
      * @param body      请求体（空字符串代表无 body）
      * @return HMAC-SHA256 签名（Base16 十六进制小写）
@@ -37,14 +40,15 @@ public interface SignaturePort {
      * 验签时必须校验以下两项，否则存在安全风险：
      * <ul>
      *   <li>时间戳新鲜度：拒绝时间戳超出配置窗口（建议默认 ±5 分钟）之外的请求，
-     *       以防止重放攻击。可配置 clock skew 容差。</li>
+     *       以防止重放攻击。可配置 clock skew 容差。时间戳单位必须与 sign() 一致（秒）。</li>
      *   <li>Nonce 唯一性：维护每个 appId 的 nonce 缓存（内存或持久化，带 TTL），
-     *       确保同一 nonce 在窗口内只被接受一次。过期 nonce 应被清理。</li>
+     *       确保同一 nonce 在窗口内只被接受一次。过期 nonce 应被清理。
+     *       推荐使用 CachePort.setIfAbsent(key, value, ttlSeconds) 实现原子写入防重放。</li>
      * </ul>
      * 验签失败时返回 false（不抛异常）。
      *
      * @param appId     应用 ID
-     * @param timestamp 时间戳（秒）
+     * @param timestamp 时间戳（秒，与 sign() 必须一致）
      * @param nonce     随机字符串
      * @param body      请求体
      * @param signature 待验证签名

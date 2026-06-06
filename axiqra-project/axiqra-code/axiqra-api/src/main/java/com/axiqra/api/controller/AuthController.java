@@ -12,7 +12,6 @@ import com.axiqra.core.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,20 +23,24 @@ import org.springframework.web.bind.annotation.*;
  */
 @Slf4j
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/auth")
 @Tag(name = "认证", description = "登录、注册、登出")
 public class AuthController {
 
+    private static final String DUMMY_BCRYPT_HASH =
+            "$2a$10$AxL7K9vR2mQ3fT5nP8eW1uHqL4jR6sK0dG8cY7xZmVqN3oI9tU0iW";
+
     private final UserService userService;
+
+    public AuthController(UserService userService) {
+        this.userService = userService;
+    }
 
     @PostMapping("/login")
     @Operation(summary = "登录", description = "用户名密码登录，返回 Sa-Token")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         UserEntity user = userService.getByUsername(request.getUsername());
-        // 执行密码校验前先做 dummy check，防止用户存在性通过响应时间差异泄漏
-        String dummyHash = "$2a$10$dummy.hash.for.timing.balance.placeholder.hash12345678";
-        String targetHash = user != null ? user.getPasswordHash() : dummyHash;
+        String targetHash = user != null ? user.getPasswordHash() : DUMMY_BCRYPT_HASH;
         boolean passwordMatches = userService.checkPassword(request.getPassword(), targetHash);
         if (user == null || !passwordMatches) {
             throw new BizException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
@@ -56,28 +59,39 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "注册", description = "注册新用户")
     public ApiResponse<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
-        UserEntity user = userService.register(
-                request.getUsername(),
-                request.getPassword(),
-                request.getEmail(),
-                request.getNickname()
-        );
-        StpUtil.login(user.getId());
-        String token = StpUtil.getTokenValue();
-        return ApiResponse.ok(LoginResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .nickname(user.getNickname())
-                .token(token)
-                .build());
+        try {
+            UserEntity user = userService.register(
+                    request.getUsername(),
+                    request.getPassword(),
+                    request.getEmail(),
+                    request.getNickname()
+            );
+            StpUtil.login(user.getId());
+            String token = StpUtil.getTokenValue();
+            return ApiResponse.ok(LoginResponse.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .nickname(user.getNickname())
+                    .token(token)
+                    .build());
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("用户注册失败: username={}", request.getUsername(), e);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "注册失败，请稍后重试");
+        }
     }
 
     @PostMapping("/logout")
     @Operation(summary = "登出", description = "注销当前会话")
     public ApiResponse<Void> logout() {
-        long userId = StpUtil.getLoginIdAsLong();
-        StpUtil.logout();
-        log.info("用户登出: userId={}", userId);
+        try {
+            long userId = StpUtil.getLoginIdAsLong();
+            StpUtil.logout();
+            log.info("用户登出: userId={}", userId);
+        } catch (Exception e) {
+            log.warn("登出时发生异常", e);
+        }
         return ApiResponse.ok();
     }
 

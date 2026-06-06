@@ -34,6 +34,9 @@ public class PageResponse<T> {
         if (pageSize == null || pageSize <= 0) {
             throw new IllegalArgumentException("pageSize must be positive");
         }
+        if (total != null && total < 0) {
+            throw new IllegalArgumentException("total must be non-negative");
+        }
         long safeTotal = (total != null) ? total : 0L;
         this.records = records;
         this.pageNum = pageNum;

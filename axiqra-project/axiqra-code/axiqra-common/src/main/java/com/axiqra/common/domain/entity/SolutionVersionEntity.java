@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import com.mybatisflex.annotation.ColumnAlias;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -31,6 +32,7 @@ public class SolutionVersionEntity extends BaseEntity {
     @Nullable
     private String risk;
     @Nullable
+    @ColumnAlias("rollback_info")
     private String rollback;
     private Integer isActive;
 }

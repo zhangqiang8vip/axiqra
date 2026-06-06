@@ -16,6 +16,16 @@ public interface CachePort {
     void set(String key, Object value);
 
     /**
+     * 原子写入：仅当 key 不存在时写入并设置过期时间
+     *
+     * @param key           缓存 key
+     * @param value         缓存值
+     * @param expireSeconds 过期秒数
+     * @return true=写入成功（此前不存在），false=key 已存在未写入
+     */
+    boolean setIfAbsent(String key, Object value, long expireSeconds);
+
+    /**
      * 设置缓存（带过期时间）
      *
      * @param key        缓存 key

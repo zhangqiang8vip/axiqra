@@ -28,7 +28,7 @@ public interface QuotaPort {
     @Deprecated
     default int getRemainingQuota(Long userId) {
         QuotaInfo info = getQuotaInfo(userId);
-        return info.getRemaining();
+        return info != null ? info.getRemaining() : 0;
     }
 
     /**

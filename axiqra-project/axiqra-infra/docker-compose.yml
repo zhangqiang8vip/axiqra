@@ -46,6 +46,7 @@ services:
       AUDIT_DB_USER: ${AUDIT_DB_USER}
       AUDIT_APP_DB_USER: ${AUDIT_APP_DB_USER:-axiqra_audit_app}
       AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}
+      AUDIT_APP_DB_PASSWORD: ${AUDIT_APP_DB_PASSWORD}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:

@@ -216,7 +216,7 @@ CREATE POLICY attr_allow_insert ON axiqra_tool_model_attribution_log FOR INSERT 
 SELECT format(
     'CREATE ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER',
     :'AUDIT_APP_DB_USER',
-    :'AUDIT_DB_PASSWORD'
+    :'AUDIT_APP_DB_PASSWORD'
 )
 WHERE NOT EXISTS (
     SELECT 1

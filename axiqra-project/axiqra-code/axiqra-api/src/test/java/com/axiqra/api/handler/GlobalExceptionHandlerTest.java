@@ -54,7 +54,7 @@ class GlobalExceptionHandlerTest {
         ParamException ex = new ParamException("参数不能为空");
         ResponseEntity<ApiResponse<Void>> resp = handler.handleParamException(ex);
         assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals(40000, resp.getBody().getCode());
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), resp.getBody().getCode());
     }
 
     @Test
@@ -63,7 +63,7 @@ class GlobalExceptionHandlerTest {
         SysException ex = new SysException("数据库连接失败");
         ResponseEntity<ApiResponse<Void>> resp = handler.handleSysException(ex);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
-        assertEquals(50000, resp.getBody().getCode());
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), resp.getBody().getCode());
         assertEquals("数据库连接失败", resp.getBody().getMessage());
     }
 

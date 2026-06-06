@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
  * - 内网 IP                        → INTERNAL_IP
  * - 私钥内容                       → PRIVATE_KEY_REDACTED
  * - AWS/GCP 凭证                   → CLOUD_CREDENTIALS_REDACTED
+ * - GitHub/GitLab 私有仓库 URL      → PRIVATE_REPOSITORY
  *
  * @author Axiqra Team
  * @date 2026-06-06
@@ -132,7 +133,7 @@ public class DataMaskingUtil {
         }
         // 隐藏 GitHub/GitLab 私有仓库格式
         return text.replaceAll(
-                "(https?://[^@/]+@)?[^/]*github\\.com[^/]*/[\\w\\-\\.]+/[\\w\\-\\.]+(\\.git)?",
+                "(https?://[^@/]+@)?[^/]*(github|gitlab)\\.com[^/]*/[\\w\\-\\.]+/[\\w\\-\\.]+(\\.git)?",
                 REDACTED_REPO);
     }
 

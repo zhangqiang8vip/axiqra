@@ -94,11 +94,25 @@ public class ApiSignatureFilter implements Filter {
             return;
         }
 
+        // 对需要读取 body 的请求，先包装缓存（后续 getRequestBody 不再重复包装）
+        CachedBodyHttpServletRequest wrappedRequest;
+        try {
+            wrappedRequest = new CachedBodyHttpServletRequest(request);
+        } catch (CachedBodyHttpServletRequest.PayloadTooLargeException e) {
+            log.warn("【签名验证】请求体超限，size={}", e.getMessage());
+            writeError(response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, ErrorCode.REQUEST_ENTITY_TOO_LARGE);
+            return;
+        } catch (IOException e) {
+            log.warn("【签名验证】读取请求体失败，无法创建缓存请求", e);
+            writeError(response, ErrorCode.API_SIGNATURE_INVALID);
+            return;
+        }
+
         // 获取签名头
-        String appId = request.getHeader(appIdHeader);
-        String timestamp = request.getHeader(timestampHeader);
-        String signature = request.getHeader(signatureHeader);
-        String nonce = request.getHeader(nonceHeader);
+        String appId = wrappedRequest.getHeader(appIdHeader);
+        String timestamp = wrappedRequest.getHeader(timestampHeader);
+        String signature = wrappedRequest.getHeader(signatureHeader);
+        String nonce = wrappedRequest.getHeader(nonceHeader);
 
         // 1. 校验时间戳
         if (!isTimestampValid(timestamp)) {
@@ -114,19 +128,24 @@ public class ApiSignatureFilter implements Filter {
             return;
         }
 
-        // 3. 校验签名
-        if (!isSignatureValid(appId, timestamp, nonce, signature, request)) {
+        // 3. 校验签名（从已缓存的 wrapper 读取 body）
+        if (!isSignatureValid(appId, timestamp, nonce, signature, wrappedRequest)) {
             log.warn("【签名验证】签名不匹配，appId={}", appId);
             writeError(response, ErrorCode.API_SIGNATURE_INVALID);
             return;
         }
 
         log.debug("【签名验证】验证通过，appId={}", appId);
-        chain.doFilter(request, response);
+        chain.doFilter(wrappedRequest, response);
     }
 
     private boolean isPublicPath(String path) {
-        return PUBLIC_PATH_PREFIXES.stream().anyMatch(path::startsWith);
+        for (String prefix : PUBLIC_PATH_PREFIXES) {
+            if (path.equals(prefix) || path.startsWith(prefix + "/")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isTimestampValid(String timestamp) {
@@ -193,8 +212,7 @@ public class ApiSignatureFilter implements Filter {
 
     private String getRequestBody(HttpServletRequest request) {
         try {
-            CachedBodyHttpServletRequest wrapped = new CachedBodyHttpServletRequest(request);
-            byte[] body = wrapped.getInputStream().readAllBytes();
+            byte[] body = request.getInputStream().readAllBytes();
             return new String(body, StandardCharsets.UTF_8);
         } catch (IOException e) {
             log.warn("【签名验证】读取请求体失败", e);
@@ -204,7 +222,6 @@ public class ApiSignatureFilter implements Filter {
 
     private String hmacSha256(String data, String secret) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
             javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
             mac.init(new javax.crypto.spec.SecretKeySpec(
                     secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
@@ -220,7 +237,11 @@ public class ApiSignatureFilter implements Filter {
     }
 
     private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        writeError(response, HttpServletResponse.SC_FORBIDDEN, errorCode);
+    }
+
+    private void writeError(HttpServletResponse response, int status, ErrorCode errorCode) throws IOException {
+        response.setStatus(status);
         response.setContentType("application/json;charset=UTF-8");
         Map<String, Object> body = Map.of(
                 "code", errorCode.getCode(),

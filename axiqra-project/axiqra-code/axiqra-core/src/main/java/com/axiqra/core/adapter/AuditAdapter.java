@@ -224,13 +224,13 @@ public class AuditAdapter implements AuditPort {
 
     private String toJson(Map<String, Object> payload) {
         if (payload == null || payload.isEmpty()) {
-            return null;
+            return "{}";
         }
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
             log.warn("【审计】JSON 序列化失败", e);
-            return null;
+            return "{}";
         }
     }
 }

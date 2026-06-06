@@ -11,6 +11,8 @@ package com.axiqra.common.exception;
  */
 public class BizException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     private final int code;
 
     public BizException(int code) {

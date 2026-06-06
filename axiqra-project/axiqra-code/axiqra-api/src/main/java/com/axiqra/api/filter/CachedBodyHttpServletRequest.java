@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -16,17 +17,38 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * 用途：ApiSignatureFilter 需要读取请求体进行签名校验，
  * 但请求体只能读一次，需要包装后缓存供后续使用。
+ * <p>
+ * 安全：构造函数限制最大缓存大小，防止 OOM 攻击。
  *
  * @author Axiqra Team
  * @date 2026-06-06
  */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
+    /** 最大允许缓存的请求体大小（1 MB） */
+    private static final int MAX_BODY_SIZE = 1024 * 1024;
+
     private final byte[] cachedBody;
 
     public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
         super(request);
-        this.cachedBody = request.getInputStream().readAllBytes();
+        this.cachedBody = readBoundedBody(request.getInputStream());
+    }
+
+    private byte[] readBoundedBody(java.io.InputStream inputStream) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        int total = 0;
+        int read;
+        while ((read = inputStream.read(chunk)) != -1) {
+            total += read;
+            if (total > MAX_BODY_SIZE) {
+                throw new PayloadTooLargeException(
+                        "Request body exceeds maximum allowed size of " + MAX_BODY_SIZE + " bytes");
+            }
+            buffer.write(chunk, 0, read);
+        }
+        return buffer.toByteArray();
     }
 
     @Override
@@ -39,6 +61,15 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
         return new BufferedReader(
                 new InputStreamReader(
                         new ByteArrayInputStream(this.cachedBody), StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 请求体超限异常
+     */
+    public static class PayloadTooLargeException extends IOException {
+        public PayloadTooLargeException(String message) {
+            super(message);
+        }
     }
 
     private static class CachedBodyServletInputStream extends ServletInputStream {

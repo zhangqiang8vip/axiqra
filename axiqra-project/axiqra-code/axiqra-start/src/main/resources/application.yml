@@ -169,5 +169,5 @@ axiqra:
     enabled: true
     url: jdbc:postgresql://${AUDIT_DB_HOST:localhost}:${AUDIT_DB_PORT:5432}/axiqra_audit_db
     username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
-    password: ${AUDIT_DB_PASSWORD:change_me_before_production}
+    password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
     driver-class-name: org.postgresql.Driver

@@ -27,7 +27,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <!-- Spring Boot 3.5.x -->
         <spring-boot.version>3.5.14</spring-boot.version>
-        <!-- Spring Security 6.5.x（Spring Boot 3.5.x 内置） -->
+        <!-- Spring Security（由 dependencyManagement 显式管理版本，Spring Boot 3.5.x 依赖 6.5.x 系列） -->
         <spring-security.version>6.5.2</spring-security.version>
         <!-- 核心依赖版本（与 Spring Boot BOM 一致） -->
         <mybatis-flex.version>1.11.7</mybatis-flex.version>
@@ -106,7 +106,7 @@
                 <version>${druid.version}</version>
             </dependency>
 
-            <!-- Spring Security Crypto（BCrypt 密码哈希） -->
+            <!-- Spring Security Crypto（BCrypt 密码哈希，由 Spring Boot BOM 管理版本） -->
             <dependency>
                 <groupId>org.springframework.security</groupId>
                 <artifactId>spring-security-crypto</artifactId>

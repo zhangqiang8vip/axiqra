@@ -13,12 +13,12 @@
 | 模块 | 测试类/场景 | 文件路径 | 覆盖重点 | 当前状态 | 归档报告 |
 | --- | --- | --- | --- | --- | --- |
 | axiqra-api | SecurityConfigTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/config/SecurityConfigTest.java` | 健康检查白名单、受保护接口认证、错误凭证拒绝 | 已执行，已归档 | `reports/security-config-test-report.md` |
-| axiqra-start | InfraConnectionIT | `axiqra-start/src/test/java/com/axiqra/start/InfraConnectionIT.java` | CockroachDB/PG Audit 连接、表前缀、risk_level 默认值、RLS append-only 策略 | 已执行，已归档 | `reports/pr11-infra-schema-prefix-rls-test-record.md` |
-| axiqra-common | AesEncryptUtilTest | `axiqra-common/src/test/java/com/axiqra/common/util/AesEncryptUtilTest.java` | AES-256-GCM 加密解密往返、随机 IV、错误密钥拒绝、密钥格式校验 | 待执行 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
-| axiqra-common | PasswordHashUtilTest | `axiqra-common/src/test/java/com/axiqra/common/util/PasswordHashUtilTest.java` | BCrypt 哈希验证、随机盐、错误密码拒绝、哈希格式校验 | 待执行 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
-| axiqra-common | DataMaskingUtilTest | `axiqra-common/src/test/java/com/axiqra/common/util/DataMaskingUtilTest.java` | API Key/Token/Password/内网 IP/私钥/AWS 凭证脱敏，非敏感字段不变 | 待执行 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
-| axiqra-api | GlobalExceptionHandlerTest | `axiqra-api/src/test/java/com/axiqra/api/handler/GlobalExceptionHandlerTest.java` | BizException/SysException/ParamException 等 8 种异常统一响应格式 | 待执行 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
-| axiqra-api | TraceIdFilterTest | `axiqra-api/src/test/java/com/axiqra/api/filter/TraceIdFilterTest.java` | traceId 生成/复用/MDC 注入/响应头/清理 | 待执行 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-start | InfraConnectionIT | `axiqra-code/axiqra-start/src/test/java/com/axiqra/start/InfraConnectionIT.java` | CockroachDB/PG Audit 连接、表前缀、risk_level 默认值、RLS append-only 策略 | 已执行，已归档 | `reports/pr11-infra-schema-prefix-rls-test-record.md` |
+| axiqra-common | AesEncryptUtilTest | `axiqra-code/axiqra-common/src/test/java/com/axiqra/common/util/AesEncryptUtilTest.java` | AES-256-GCM 加密解密往返、随机 IV、错误密钥拒绝、密钥格式校验 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-common | PasswordHashUtilTest | `axiqra-code/axiqra-common/src/test/java/com/axiqra/common/util/PasswordHashUtilTest.java` | BCrypt 哈希验证、随机盐、错误密码拒绝、哈希格式校验 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-common | DataMaskingUtilTest | `axiqra-code/axiqra-common/src/test/java/com/axiqra/common/util/DataMaskingUtilTest.java` | API Key/Token/Password/内网 IP/私钥/AWS 凭证脱敏，非敏感字段不变 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-api | GlobalExceptionHandlerTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/handler/GlobalExceptionHandlerTest.java` | BizException/SysException/ParamException 等 8 种异常统一响应格式 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-api | TraceIdFilterTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/filter/TraceIdFilterTest.java` | traceId 生成/复用/MDC 注入/响应头/清理 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
 
 ## 4. 待补充建议
 - [x] `InfraConnectionIT` 已补充正式执行记录并归档

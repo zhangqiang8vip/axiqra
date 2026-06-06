@@ -10,11 +10,13 @@ package com.axiqra.common.exception;
  */
 public class ParamException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     private final int code;
 
     public ParamException(String message) {
         super(message);
-        this.code = 40000;
+        this.code = ErrorCode.PARAM_INVALID.getCode();
     }
 
     public ParamException(int code, String message) {

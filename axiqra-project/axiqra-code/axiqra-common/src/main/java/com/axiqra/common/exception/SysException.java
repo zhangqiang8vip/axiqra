@@ -11,11 +11,13 @@ package com.axiqra.common.exception;
  */
 public class SysException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     private final int code;
 
     public SysException(String message) {
         super(message);
-        this.code = 50000;
+        this.code = ErrorCode.SYSTEM_ERROR.getCode();
     }
 
     public SysException(int code, String message) {
@@ -25,7 +27,7 @@ public class SysException extends RuntimeException {
 
     public SysException(String message, Throwable cause) {
         super(message, cause);
-        this.code = 50000;
+        this.code = ErrorCode.SYSTEM_ERROR.getCode();
     }
 
     public SysException(int code, String message, Throwable cause) {

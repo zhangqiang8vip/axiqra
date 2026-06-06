@@ -38,7 +38,7 @@ public class AesEncryptUtil {
      */
     public static String encrypt(String plaintext, String key) {
         if (plaintext == null || plaintext.isBlank()) {
-            return plaintext;
+            throw new IllegalArgumentException("plaintext must not be null or blank");
         }
         try {
             byte[] keyBytes = Base64.getDecoder().decode(key);

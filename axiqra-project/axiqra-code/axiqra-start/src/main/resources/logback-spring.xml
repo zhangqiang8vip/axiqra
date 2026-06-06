@@ -95,9 +95,10 @@
     <!--
         配置说明：
         - queueSize: 阻塞队列大小（512）
-        - discardingThreshold: 0 = 队列满时拒绝日志（不丢失），默认 -1 则丢弃 INFO 以下
+        - discardingThreshold: 0 = 队列满时拒绝所有新日志（不阻塞），默认 -1 则仅丢弃 INFO 以下
         - includeCallerData: false = 不捕获调用位置（性能优化）
-        - neverBlock: true = 队列满时不阻塞业务线程
+        - neverBlock: true = 队列满时不阻塞，直接丢弃事件；neverBlock=false = 队列满时阻塞等待（保证送达）
+        注意：ASYNC_ERROR 设置 neverBlock=false，确保 ERROR 级别日志不被丢弃
     -->
     <appender name="ASYNC_INFO" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>512</queueSize>
@@ -116,10 +117,10 @@
     </appender>
 
     <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
-        <queueSize>512</queueSize>
+        <queueSize>4096</queueSize>
         <discardingThreshold>0</discardingThreshold>
         <includeCallerData>false</includeCallerData>
-        <neverBlock>true</neverBlock>
+        <neverBlock>false</neverBlock>
         <appender-ref ref="ERROR_FILE"/>
     </appender>
 

@@ -50,29 +50,20 @@ class AesEncryptUtilTest {
     @Test
     @DisplayName("null 明文应抛出 IllegalArgumentException")
     void encrypt_null_shouldThrow() {
-        IllegalArgumentException thrown = null;
-        try {
-            AesEncryptUtil.encrypt(null, TEST_KEY);
-        } catch (IllegalArgumentException e) {
-            thrown = e;
-        } catch (Exception e) {
-            // AES 加密失败抛 RuntimeException，但 null 输入应在 check 阶段抛 IllegalArgumentException
-            thrown = null;
-        }
-        assertNotNull(thrown, "encrypt(null, key) 应抛出 IllegalArgumentException");
+        IllegalArgumentException thrown = assertThrows(
+                IllegalArgumentException.class,
+                () -> AesEncryptUtil.encrypt(null, TEST_KEY)
+        );
         assertEquals("plaintext must not be null or blank", thrown.getMessage());
     }
 
     @Test
     @DisplayName("空白明文应抛出 IllegalArgumentException")
     void encrypt_blank_shouldThrow() {
-        IllegalArgumentException thrown = null;
-        try {
-            AesEncryptUtil.encrypt("  ", TEST_KEY);
-        } catch (IllegalArgumentException e) {
-            thrown = e;
-        }
-        assertNotNull(thrown, "encrypt(blank, key) 应抛出 IllegalArgumentException");
+        IllegalArgumentException thrown = assertThrows(
+                IllegalArgumentException.class,
+                () -> AesEncryptUtil.encrypt("  ", TEST_KEY)
+        );
         assertEquals("plaintext must not be null or blank", thrown.getMessage());
     }
 

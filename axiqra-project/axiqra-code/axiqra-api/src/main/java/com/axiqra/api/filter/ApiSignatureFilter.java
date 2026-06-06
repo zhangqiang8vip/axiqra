@@ -124,17 +124,17 @@ public class ApiSignatureFilter implements Filter {
             return;
         }
 
-        // 2. 校验 Nonce
-        if (!isNonceUnique(nonce)) {
-            log.warn("【签名验证】Nonce 已使用，appId={}, nonce={}", appId, nonce);
-            writeError(response, ErrorCode.API_NONCE_REUSED);
+        // 2. 校验签名（从已缓存的 wrapper 读取 body）
+        if (!isSignatureValid(appId, timestamp, nonce, signature, wrappedRequest)) {
+            log.warn("[Sig] Signature mismatch, appId={}", appId);
+            writeError(response, ErrorCode.API_SIGNATURE_INVALID);
             return;
         }
 
-        // 3. 校验签名（从已缓存的 wrapper 读取 body）
-        if (!isSignatureValid(appId, timestamp, nonce, signature, wrappedRequest)) {
-            log.warn("【签名验证】签名不匹配，appId={}", appId);
-            writeError(response, ErrorCode.API_SIGNATURE_INVALID);
+        // 3. 校验 Nonce（仅在签名通过后写入 Redis，避免未认证流量污染；key 按 appId 隔离）
+        if (!isNonceUnique(appId, nonce)) {
+            log.warn("[Sig] Nonce reused, appId={}, nonce={}", appId, nonce);
+            writeError(response, ErrorCode.API_NONCE_REUSED);
             return;
         }
 
@@ -164,13 +164,13 @@ public class ApiSignatureFilter implements Filter {
         }
     }
 
-    private boolean isNonceUnique(String nonce) {
+    private boolean isNonceUnique(String appId, String nonce) {
         if (nonce == null || nonce.isBlank()) {
             return false;
         }
-        // Redis SETNX，TTL=5min；返回 true=新 nonce，false=已存在（重放）
+        // Redis SETNX with TTL=5min; scoped by appId to avoid cross-app collisions
         Boolean success = redisTemplate.opsForValue()
-                .setIfAbsent("nonce:" + nonce, "1", NONCE_TTL);
+                .setIfAbsent("nonce:" + appId + ":" + nonce, "1", NONCE_TTL);
         return Boolean.TRUE.equals(success);
     }
 

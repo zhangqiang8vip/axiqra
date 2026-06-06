@@ -163,15 +163,28 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== Uncaught exceptions (fallback) ====================
-    // Excludes Error subclasses (e.g. OutOfMemoryError, StackOverflowError)
-    // which should never be caught and converted to a JSON response.
+    // Explicitly handle RuntimeException (unchecked) so unexpected issues are clear.
+    // Error subclasses are rethrown — they should never be caught and serialized.
+    // Anything else (checked exceptions, etc.) falls through to the Throwable handler.
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRuntimeException(RuntimeException ex) {
+        log.error("【运行时异常】type={}, message={}, traceId={}",
+                ex.getClass().getName(), ex.getMessage(), getTraceId(), ex);
+        ApiResponse<Void> resp = ApiResponse.fail(
+                ErrorCode.UNKNOWN_ERROR.getCode(),
+                "Internal server error. Please contact administrator.",
+                getTraceId()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
+    }
 
     @ExceptionHandler(Throwable.class)
     public ResponseEntity<ApiResponse<Void>> handleThrowable(Throwable ex) {
         if (ex instanceof Error) {
             throw (Error) ex;
         }
-        log.error("[Unknown] type={}, message={}, traceId={}",
+        log.error("【未知异常】type={}, message={}, traceId={}",
                 ex.getClass().getName(), ex.getMessage(), getTraceId(), ex);
         ApiResponse<Void> resp = ApiResponse.fail(
                 ErrorCode.UNKNOWN_ERROR.getCode(),

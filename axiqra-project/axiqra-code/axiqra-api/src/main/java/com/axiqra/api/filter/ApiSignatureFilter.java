@@ -198,7 +198,9 @@ public class ApiSignatureFilter implements Filter {
 
     @SuppressWarnings("unchecked")
     private String getAppSecret(String appId) {
-        // TODO (S2): query appSecret from database
+        // TODO (S2): replace with secure key vault (e.g. Spring Cloud Config + Vault,
+        //            AWS Secrets Manager, or a dedicated KMS). Environment variables are
+        //            acceptable for local dev only — never rely on them in production.
         String secret = System.getenv("AXIQRA_APP_SECRET_" + appId);
         if (secret == null || secret.isBlank()) {
             return null;
@@ -228,7 +230,9 @@ public class ApiSignatureFilter implements Filter {
             }
             return sb.toString();
         } catch (Exception e) {
-            throw new RuntimeException("HMAC-SHA256 计算失败", e);
+            // Init or compute failed — return dummy so caller still gets timing-safe comparison
+            log.warn("[Sig] HMAC compute failed, using dummy signature for timing-safe compare", e);
+            return DUMMY_SECRET.replace("\u0000", "00");
         }
     }
 

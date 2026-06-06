@@ -56,11 +56,6 @@ public class DataMaskingUtil {
                     + "172\\.(1[6-9]|2\\d|3[0-1])\\.\\d{1,3}\\.\\d{1,3}|"
                     + "192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b");
 
-    // 匹配私钥内容
-    private static final Pattern PRIVATE_KEY_PATTERN = Pattern.compile(
-            "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
-            Pattern.CASE_INSENSITIVE);
-
     // 匹配 AWS/GCP 凭证
     private static final Pattern AWS_CREDS_PATTERN = Pattern.compile(
             "(?i)(AKIA|ABIA|ACID|AGPA|ASIA)[A-Z0-9]{12,}");
@@ -100,11 +95,9 @@ public class DataMaskingUtil {
                 .replaceAll(REDACTED_INTERNAL_IP);
 
         // 私钥内容脱敏（整个文件内容）
-        if (PRIVATE_KEY_PATTERN.matcher(masked).find()) {
-            masked = masked.replaceAll(
-                    "-----BEGIN[\\s\\S]*?-----END[\\s\\S]*?PRIVATE KEY-----",
-                    REDACTED_PRIVATE_KEY);
-        }
+        masked = masked.replaceAll(
+                "-----BEGIN[\\s\\S]*?-----END[\\s\\S]*?PRIVATE KEY-----",
+                REDACTED_PRIVATE_KEY);
 
         // AWS 凭证脱敏
         masked = AWS_CREDS_PATTERN.matcher(masked)

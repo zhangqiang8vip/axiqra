@@ -3,60 +3,140 @@ name: Axiqra Quality Gates
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
-      - "src/**"
+      - "axiqra-project/**"
+      - "docs/**"
       - "tests/**"
-      - "fixtures/**"
-      - "docs/evidence/**"
-      - "docs/Axiqra_功能开发与验收明细.xlsx"
-      - "docs/S1-S4功能开发清单闭环状态.md"
-      - "scripts/**"
+      - ".github/workflows/**"
+      - ".gitignore"
+      - "**/.gitignore"
+      - "*.java"
+      - "**/*.java"
+      - "*.xml"
+      - "**/*.xml"
+      - "*.yml"
+      - "**/*.yml"
+      - "*.yaml"
+      - "**/*.yaml"
+      - "*.sql"
+      - "**/*.sql"
+      - "Dockerfile*"
+      - "**/Dockerfile*"
 
-# 确保同一时间只运行一个 PR 检查
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # 1. 单元 & 集成测试门控
-  test-gates:
-    name: Unit & Integration Tests
+  java-gates:
+    name: Java Build & Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Detect Java project changes
+        id: changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            changed_files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")
+          else
+            changed_files=$(git ls-files)
+          fi
 
-      - name: Run S1 Core service boundary tests
-        run: node --test tests/s1-core/s1_core_service_boundaries.test.mjs
+          if printf '%s\n' "$changed_files" | grep -Eq '^axiqra-project/axiqra-code/'; then
+            echo "java_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "java_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No Java project changes detected; skipping Maven gates."
+          fi
 
-      - name: Run S1 Core closed-loop tests
-        run: node --test tests/s1-core/s1_core_closed_loop.test.mjs
+      - name: Setup Java
+        if: steps.changes.outputs.java_changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: axiqra-project/axiqra-code/**/pom.xml
 
-      - name: Run sample API quota checks
-        run: node --test tests/api/s1-d04_mcp_quota_boundary.sample.test.mjs || echo "Sample test - skip on failure"
+      - name: Validate Maven project
+        if: steps.changes.outputs.java_changed == 'true'
+        run: mvn -B -ntp -f axiqra-project/axiqra-code/pom.xml validate
 
-      - name: Run sample audit checks
-        run: node --test tests/audit/s1-d04_search_audit_events.sample.test.mjs || echo "Sample test - skip on failure"
+      - name: Run unit tests
+        if: steps.changes.outputs.java_changed == 'true'
+        run: mvn -B -ntp -f axiqra-project/axiqra-code/pom.xml test
 
-      - name: Run sample permission matrix checks
-        run: node --test tests/authz/s1-d04_permission_quota_matrix.sample.test.mjs || echo "Sample test - skip on failure"
+  infra-gates:
+    name: Infra Config Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Run sample anonymous search checks
-        run: node --test tests/e2e/s1-d01_anonymous_public_search.sample.test.mjs || echo "Sample test - skip on failure"
+      - name: Detect infra changes
+        id: changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            changed_files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")
+          else
+            changed_files=$(git ls-files)
+          fi
 
-  # 2. 安全扫描
+          if printf '%s\n' "$changed_files" | grep -Eq '^axiqra-project/axiqra-infra/|^\.github/workflows/'; then
+            echo "infra_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "infra_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No infra changes detected; skipping infra gates."
+          fi
+
+      - name: Validate Docker Compose config
+        if: steps.changes.outputs.infra_changed == 'true'
+        working-directory: axiqra-project/axiqra-infra
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: Validate XML syntax
+        if: steps.changes.outputs.infra_changed == 'true'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          for path in Path("axiqra-project").rglob("*.xml"):
+              ET.parse(path)
+              print(f"valid xml: {path}")
+          PY
+
+      - name: Validate SQL files are non-empty
+        if: steps.changes.outputs.infra_changed == 'true'
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            if [ ! -s "$file" ]; then
+              echo "::error file=$file::SQL file is empty"
+              exit 1
+            fi
+            echo "checked sql: $file"
+          done < <(find axiqra-project/axiqra-infra -name '*.sql' -print0)
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,17 +146,18 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "sarif"
-          output: "trivy-results.sarif"
-          severity: "CRITICAL,HIGH"
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
           exit-code: "1"
 
       - name: Upload Trivy results to GitHub Security
+        if: always() && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: "trivy-results.sarif"
+          sarif_file: trivy-results.sarif
 
       - name: Detect secrets
         uses: trufflesecurity/trufflehog@main
@@ -87,41 +168,23 @@ jobs:
           formatter: json
         continue-on-error: true
 
-  # 3. 代码质量检查
-  quality-check:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Run ESLint
-        run: npm install eslint && npx eslint src/ tests/ --ext .mjs,.js --format stylish || echo "ESLint not configured - skipping"
-
-  # 4. AI 审查汇总
   ai-review-summary:
     name: AI Review Summary
     runs-on: ubuntu-latest
-    needs: [test-gates, security-scan]
+    needs: [java-gates, infra-gates, security-scan]
     if: always()
     steps:
       - name: Generate summary
         run: |
-          echo "## AI Review Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit & Integration: ${{ needs.test-gates.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### AI Reviewers" >> $GITHUB_STEP_SUMMARY
-          echo "- CodeRabbit: Reviewing PR automatically (requires CodeRabbit App installation)" >> $GITHUB_STEP_SUMMARY
-          echo "- Gemini: Reviewing PR (requires GEMINI_API_KEY secret)" >> $GITHUB_STEP_SUMMARY
-          echo "- Codex: Reviewing PR (requires OPENAI_API_KEY secret)" >> $GITHUB_STEP_SUMMARY
-          echo "- Copilot: Analyzing change scope" >> $GITHUB_STEP_SUMMARY
-
+          echo "## Axiqra Quality Gates Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Java Build & Tests: ${{ needs.java-gates.result }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Infra Config Checks: ${{ needs.infra-gates.result }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Security Scan: ${{ needs.security-scan.result }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### AI Reviewers" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CodeRabbit: requires CodeRabbit App installation" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Gemini: requires GEMINI_API_KEY secret" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Codex: requires OPENAI_API_KEY and API_BASE_URL secrets" >> "$GITHUB_STEP_SUMMARY"
+          echo "- OpenRouter: requires OPENROUTER_API_KEY secret" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Agnes: requires AGNES_API_KEY and AGNES_API_BASE_URL secrets" >> "$GITHUB_STEP_SUMMARY"

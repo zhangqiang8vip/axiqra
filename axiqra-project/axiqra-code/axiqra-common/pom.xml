@@ -20,12 +20,6 @@
     <description>通用层：DO/DTO/VO/枚举/异常/工具类/常量类，无业务逻辑依赖</description>
 
     <dependencies>
-        <!-- Spring Boot Web（仅用于 @Valid 注解，不启动 Web） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-
         <!-- Spring Boot 验证（JSR-380 Bean Validation） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

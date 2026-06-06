@@ -2,7 +2,6 @@ package com.axiqra.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -28,19 +27,15 @@ public class DataSourceConfig {
         @Value("${axiqra.audit-datasource.password}")
         private String auditPassword;
 
-        @PostConstruct
-        void validateAuditPassword() {
-                if (auditPassword == null || auditPassword.isBlank()
-                                || SENTINEL_VALUE.equals(auditPassword)) {
-                        throw new IllegalStateException(
-                                "审计库密码未配置或仍为默认哨兵值。"
-                                        + "请设置环境变量 AUDIT_APP_DB_PASSWORD 为实际密码。");
-                }
-        }
-
         @Bean("auditDataSource")
         @ConditionalOnMissingBean(name = "auditDataSource")
         public DataSource auditDataSource() {
+                if (auditPassword == null || auditPassword.isBlank()
+                                || SENTINEL_VALUE.equals(auditPassword)) {
+                        throw new IllegalStateException(
+                                "Audit DB password not configured or still at default sentinel value. "
+                                        + "Set environment variable AUDIT_APP_DB_PASSWORD.");
+                }
                 HikariConfig config = new HikariConfig();
                 config.setJdbcUrl(auditUrl);
                 config.setUsername(auditUsername);

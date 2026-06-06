@@ -52,8 +52,7 @@ public class AuditAdapter implements AuditPort {
                     event.tenantId()
             );
         } catch (Exception e) {
-            log.error("【审计】写入通用审计事件失败，action={}, actorId={}",
-                    event.action(), event.actorId(), e);
+            log.error("[Audit] Failed to write generic audit event, action={}, actorId={}: {}", event.action(), event.actorId(), e.getMessage());
         }
     }
 
@@ -78,7 +77,7 @@ public class AuditAdapter implements AuditPort {
                     event.tenantId()
             );
         } catch (Exception e) {
-            log.error("【审计】写入策略决策日志失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write policy decision log, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 
@@ -106,7 +105,7 @@ public class AuditAdapter implements AuditPort {
                     event.status()
             );
         } catch (Exception e) {
-            log.error("【审计】写入调用日志失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write invocation log, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 
@@ -130,7 +129,7 @@ public class AuditAdapter implements AuditPort {
                     event.tenantId()
             );
         } catch (Exception e) {
-            log.error("【审计】写入审核决策日志失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write review decision log, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 
@@ -153,7 +152,7 @@ public class AuditAdapter implements AuditPort {
                     event.result()
             );
         } catch (Exception e) {
-            log.error("【审计】写入 Quota 事件失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write Quota event, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 
@@ -176,7 +175,7 @@ public class AuditAdapter implements AuditPort {
                     event.retryAfter()
             );
         } catch (Exception e) {
-            log.error("【审计】写入限流事件失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write rate limit event, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 
@@ -197,7 +196,7 @@ public class AuditAdapter implements AuditPort {
                     event.licenseScope()
             );
         } catch (Exception e) {
-            log.error("【审计】写入授权变更日志失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write authorization change log, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 
@@ -218,7 +217,7 @@ public class AuditAdapter implements AuditPort {
                     event.result()
             );
         } catch (Exception e) {
-            log.error("【审计】写入工具模型归因日志失败，requestId={}", event.requestId(), e);
+            log.error("[Audit] Failed to write tool model attribution log, requestId={}: {}", event.requestId(), e.getMessage());
         }
     }
 

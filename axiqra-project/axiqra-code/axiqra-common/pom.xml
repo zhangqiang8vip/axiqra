@@ -32,12 +32,11 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
-        <!-- Lombok（必须标注 scope=provided，防止传递） -->
+        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
-            <scope>provided</scope>
         </dependency>
 
         <!-- MyBatis-Flex（仅需要注解） -->

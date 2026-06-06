@@ -1,6 +1,7 @@
 package com.axiqra.common.util;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Component;
 
 /**
  * 密码哈希工具类
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
  * @author Axiqra Team
  * @date 2026-06-06
  */
+@Component
 public class PasswordHashUtil {
 
     private static final int BCRYPT_COST = 12;

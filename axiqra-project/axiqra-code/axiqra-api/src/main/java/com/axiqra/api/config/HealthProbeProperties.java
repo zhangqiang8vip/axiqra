@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class HealthProbeProperties {
 
     private static final String DEFAULT_POSTGRES_HOST = "localhost";
-    private static final int DEFAULT_POSTGRES_PORT = 5432;
+    private static final int DEFAULT_POSTGRES_PORT = 5433;
     private static final String DEFAULT_MINIO_HEALTH_URL = "http://localhost:9000/minio/health/live";
 
     private String postgresHost = DEFAULT_POSTGRES_HOST;

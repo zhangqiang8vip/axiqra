@@ -148,41 +148,57 @@ CREATE INDEX IF NOT EXISTS idx_attr_log_solution ON axiqra_tool_model_attributio
 
 -- ===================== RLS：所有审计表禁止 UPDATE 和 DELETE =====================
 ALTER TABLE axiqra_audit_event ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_audit_event FORCE ROW LEVEL SECURITY;
+CREATE POLICY audit_allow_select ON axiqra_audit_event FOR SELECT USING (true);
 CREATE POLICY audit_no_update ON axiqra_audit_event FOR UPDATE USING (false);
 CREATE POLICY audit_no_delete ON axiqra_audit_event FOR DELETE USING (false);
 CREATE POLICY audit_allow_insert ON axiqra_audit_event FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_policy_decision_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_policy_decision_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY policy_allow_select ON axiqra_policy_decision_log FOR SELECT USING (true);
 CREATE POLICY policy_no_update ON axiqra_policy_decision_log FOR UPDATE USING (false);
 CREATE POLICY policy_no_delete ON axiqra_policy_decision_log FOR DELETE USING (false);
 CREATE POLICY policy_allow_insert ON axiqra_policy_decision_log FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_invocation_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_invocation_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY invoke_allow_select ON axiqra_invocation_log FOR SELECT USING (true);
 CREATE POLICY invoke_no_update ON axiqra_invocation_log FOR UPDATE USING (false);
 CREATE POLICY invoke_no_delete ON axiqra_invocation_log FOR DELETE USING (false);
 CREATE POLICY invoke_allow_insert ON axiqra_invocation_log FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_review_decision_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_review_decision_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY review_allow_select ON axiqra_review_decision_log FOR SELECT USING (true);
 CREATE POLICY review_no_update ON axiqra_review_decision_log FOR UPDATE USING (false);
 CREATE POLICY review_no_delete ON axiqra_review_decision_log FOR DELETE USING (false);
 CREATE POLICY review_allow_insert ON axiqra_review_decision_log FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_quota_event ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_quota_event FORCE ROW LEVEL SECURITY;
+CREATE POLICY quota_allow_select ON axiqra_quota_event FOR SELECT USING (true);
 CREATE POLICY quota_no_update ON axiqra_quota_event FOR UPDATE USING (false);
 CREATE POLICY quota_no_delete ON axiqra_quota_event FOR DELETE USING (false);
 CREATE POLICY quota_allow_insert ON axiqra_quota_event FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_rate_limit_event ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_rate_limit_event FORCE ROW LEVEL SECURITY;
+CREATE POLICY rate_allow_select ON axiqra_rate_limit_event FOR SELECT USING (true);
 CREATE POLICY rate_no_update ON axiqra_rate_limit_event FOR UPDATE USING (false);
 CREATE POLICY rate_no_delete ON axiqra_rate_limit_event FOR DELETE USING (false);
 CREATE POLICY rate_allow_insert ON axiqra_rate_limit_event FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_authorization_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_authorization_audit_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY auth_allow_select ON axiqra_authorization_audit_log FOR SELECT USING (true);
 CREATE POLICY auth_no_update ON axiqra_authorization_audit_log FOR UPDATE USING (false);
 CREATE POLICY auth_no_delete ON axiqra_authorization_audit_log FOR DELETE USING (false);
 CREATE POLICY auth_allow_insert ON axiqra_authorization_audit_log FOR INSERT WITH CHECK (true);
 
 ALTER TABLE axiqra_tool_model_attribution_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE axiqra_tool_model_attribution_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY attr_allow_select ON axiqra_tool_model_attribution_log FOR SELECT USING (true);
 CREATE POLICY attr_no_update ON axiqra_tool_model_attribution_log FOR UPDATE USING (false);
 CREATE POLICY attr_no_delete ON axiqra_tool_model_attribution_log FOR DELETE USING (false);
 CREATE POLICY attr_allow_insert ON axiqra_tool_model_attribution_log FOR INSERT WITH CHECK (true);

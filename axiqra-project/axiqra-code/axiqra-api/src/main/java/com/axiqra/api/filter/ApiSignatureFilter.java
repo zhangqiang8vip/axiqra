@@ -17,8 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * API 签名认证过滤器
@@ -60,6 +60,9 @@ public class ApiSignatureFilter implements Filter {
     @Value("${security.api-signature.clock-skew-seconds:300}")
     private long clockSkewSeconds;
 
+    @Value("${security.api-signature.max-body-size:1048576}")
+    private int maxBodySize;
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -97,7 +100,7 @@ public class ApiSignatureFilter implements Filter {
         // 对需要读取 body 的请求，先包装缓存（后续 getRequestBody 不再重复包装）
         CachedBodyHttpServletRequest wrappedRequest;
         try {
-            wrappedRequest = new CachedBodyHttpServletRequest(request);
+            wrappedRequest = new CachedBodyHttpServletRequest(request, maxBodySize);
         } catch (CachedBodyHttpServletRequest.PayloadTooLargeException e) {
             log.warn("【签名验证】请求体超限，size={}", e.getMessage());
             writeError(response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, ErrorCode.REQUEST_ENTITY_TOO_LARGE);
@@ -177,34 +180,27 @@ public class ApiSignatureFilter implements Filter {
             return false;
         }
 
-        // 从数据库或配置获取 appSecret（暂时用内存模拟，S2 改为 DB 查询）
+        // Timing-safe: always compute HMAC even if appSecret is missing (invalid).
+        // Returning early would leak appId existence via timing difference.
         String appSecret = getAppSecret(appId);
-        if (appSecret == null) {
-            log.warn("【签名验证】未找到 appSecret，appId={}", appId);
-            return false;
-        }
-
-        // 构造签名字符串：appId + timestamp + nonce + requestBody
         String payload = appId + timestamp + nonce + getRequestBody(request);
+        String expected = hmacSha256(payload, appSecret != null ? appSecret : DUMMY_SECRET);
 
-        // 计算 HMAC-SHA256
-        String expected = hmacSha256(payload, appSecret);
-
-        // 常量时间比较（防时序攻击）
+        // Constant-time comparison prevents timing attacks
         return MessageDigest.isEqual(
                 signature.getBytes(StandardCharsets.UTF_8),
                 expected.getBytes(StandardCharsets.UTF_8)
         );
     }
 
+    // Dummy secret used only when appId is unknown, to maintain constant-time behavior
+    private static final String DUMMY_SECRET = "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
+
     @SuppressWarnings("unchecked")
     private String getAppSecret(String appId) {
-        // TODO (S2): 从数据库查询 appSecret
-        // 必须通过环境变量配置，否则拒绝验证（防止硬编码密钥上线）
+        // TODO (S2): query appSecret from database
         String secret = System.getenv("AXIQRA_APP_SECRET_" + appId);
         if (secret == null || secret.isBlank()) {
-            log.error("【签名验证】未配置 appSecret，appId={}，请设置环境变量 AXIQRA_APP_SECRET_{}",
-                    appId, appId);
             return null;
         }
         return secret;

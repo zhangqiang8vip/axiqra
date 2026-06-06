@@ -103,6 +103,7 @@ security:
     signature-header: X-Axiqra-Signature
     nonce-header: X-Axiqra-Nonce
     clock-skew-seconds: 300
+    max-body-size: 1048576  # 1MB, configurable limit for request body caching
   cors:
     allowed-origins:
       - http://localhost:5173

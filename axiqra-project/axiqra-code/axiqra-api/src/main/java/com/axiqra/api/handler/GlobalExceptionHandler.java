@@ -49,10 +49,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public ResponseEntity<ApiResponse<Void>> handleBizException(BizException ex) {
-        log.warn("【业务异常】code={}, message={}, traceId={}",
+        log.warn("[Biz] code={}, message={}, traceId={}",
                 ex.getCode(), ex.getMessage(), getTraceId());
         ApiResponse<Void> resp = ApiResponse.fail(ex.getCode(), ex.getMessage(), getTraceId());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resp);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(resp);
     }
 
     // ==================== 参数异常 ====================
@@ -162,15 +162,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resp);
     }
 
-    // ==================== 未预期异常（兜底） ====================
+    // ==================== Uncaught exceptions (fallback) ====================
+    // Excludes Error subclasses (e.g. OutOfMemoryError, StackOverflowError)
+    // which should never be caught and converted to a JSON response.
 
     @ExceptionHandler(Throwable.class)
     public ResponseEntity<ApiResponse<Void>> handleThrowable(Throwable ex) {
-        log.error("【未预期异常】type={}, message={}, traceId={}",
+        if (ex instanceof Error) {
+            throw (Error) ex;
+        }
+        log.error("[Unknown] type={}, message={}, traceId={}",
                 ex.getClass().getName(), ex.getMessage(), getTraceId(), ex);
         ApiResponse<Void> resp = ApiResponse.fail(
                 ErrorCode.UNKNOWN_ERROR.getCode(),
-                "系统内部错误，请联系管理员",
+                "Internal server error. Please contact administrator.",
                 getTraceId()
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);

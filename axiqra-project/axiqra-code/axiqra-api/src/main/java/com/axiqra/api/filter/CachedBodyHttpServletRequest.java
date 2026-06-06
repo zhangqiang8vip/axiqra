@@ -25,26 +25,23 @@ import java.nio.charset.StandardCharsets;
  */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
-    /** 最大允许缓存的请求体大小（1 MB） */
-    private static final int MAX_BODY_SIZE = 1024 * 1024;
-
     private final byte[] cachedBody;
 
-    public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
+    public CachedBodyHttpServletRequest(HttpServletRequest request, int maxBodySize) throws IOException {
         super(request);
-        this.cachedBody = readBoundedBody(request.getInputStream());
+        this.cachedBody = readBoundedBody(request.getInputStream(), maxBodySize);
     }
 
-    private byte[] readBoundedBody(java.io.InputStream inputStream) throws IOException {
+    private byte[] readBoundedBody(java.io.InputStream inputStream, int maxBodySize) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] chunk = new byte[8192];
         int total = 0;
         int read;
         while ((read = inputStream.read(chunk)) != -1) {
             total += read;
-            if (total > MAX_BODY_SIZE) {
+            if (total > maxBodySize) {
                 throw new PayloadTooLargeException(
-                        "Request body exceeds maximum allowed size of " + MAX_BODY_SIZE + " bytes");
+                        "Request body exceeds maximum allowed size of " + maxBodySize + " bytes");
             }
             buffer.write(chunk, 0, read);
         }

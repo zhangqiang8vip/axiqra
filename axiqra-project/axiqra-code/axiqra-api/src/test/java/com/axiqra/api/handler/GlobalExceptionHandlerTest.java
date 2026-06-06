@@ -39,11 +39,11 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
-    @DisplayName("BizException 应返回 400 + 错误码")
+    @DisplayName("BizException should return 409 Conflict + error code")
     void handleBizException() {
         BizException ex = new BizException(40003, "状态转换无效");
         ResponseEntity<ApiResponse<Void>> resp = handler.handleBizException(ex);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+        assertEquals(HttpStatus.CONFLICT, resp.getStatusCode());
         assertEquals(40003, resp.getBody().getCode());
         assertEquals("状态转换无效", resp.getBody().getMessage());
     }
@@ -118,20 +118,21 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("Throwable 兜底应返回 500 + UNKNOWN_ERROR")
+    @DisplayName("Throwable fallback should return 500 + UNKNOWN_ERROR")
     void handleThrowable() {
         RuntimeException ex = new RuntimeException("Unexpected error");
         ResponseEntity<ApiResponse<Void>> resp = handler.handleThrowable(ex);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
         assertEquals(99999, resp.getBody().getCode());
-        assertEquals("系统内部错误，请联系管理员", resp.getBody().getMessage());
+        assertEquals("Internal server error. Please contact administrator.", resp.getBody().getMessage());
     }
 
     @Test
-    @DisplayName("BizException 错误码应在允许范围 10001~99999")
+    @DisplayName("BizException error code should be in valid range 10001~99999")
     void bizException_codeRange() {
-        BizException ex = new BizException(99999, "最大错误码");
+        BizException ex = new BizException(40001, "最大错误码");
         ResponseEntity<ApiResponse<Void>> resp = handler.handleBizException(ex);
         assertTrue(resp.getBody().getCode() >= 10001);
+        assertEquals(HttpStatus.CONFLICT, resp.getStatusCode());
     }
 }

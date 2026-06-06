@@ -31,20 +31,19 @@ public class DataMaskingUtil {
     public static final String REDACTED_CLOUD_CREDS  = "CLOUD_CREDENTIALS_REDACTED";
     public static final String REDACTED_REPO         = "PRIVATE_REPOSITORY";
 
-    // 匹配 API Key 模式（各种常见格式）
+    // 匹配 API Key 模式（JSON: "api_key": "sk-xxx"）
+    // 值部分用 "..." 显式匹配，替换时只替换引号内的内容
     private static final Pattern API_KEY_PATTERN = Pattern.compile(
-            "(?i)(api[_-]?key|apikey|api[_-]?secret|api[_-]?token)\\s*[:=]\\s*[\"']?([\\w\\-]{8,})[\"']?",
-            Pattern.CASE_INSENSITIVE);
+            "(?i)\"((?:api[_-]?)?key(?:[_-]?(?:secret|token))?)\"\\s*:\\s*\"[^\"]{8,}\"");
 
     // 匹配 Token 模式
+    // 支持 "token" / "bearer_token" / "access_token" 等格式
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
-            "(?i)(bearer[_-]?token|access[_-]?token|refresh[_-]?token|auth[_-]?token)\\s*[:=]\\s*[\"']?([\\w\\-\\.]{16,})[\"']?",
-            Pattern.CASE_INSENSITIVE);
+            "(?i)\"((?:(?:bearer|access|refresh|auth)[_-])?token)\"\\s*:\\s*\"[^\"]{16,}\"");
 
-    // 匹配密码字段
+    // 匹配密码/秘钥字段（JSON: "password": "xxx"）
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
-            "(?i)(password|pwd|passwd|secret|app[_-]?secret)\\s*[:=]\\s*[\"']?([\\S]{4,})[\"']?",
-            Pattern.CASE_INSENSITIVE);
+            "(?i)\"(password|pwd|passwd|secret|app[_-]?secret)\"\\s*:\\s*\"[^\"]{4,}\"");
 
     // 匹配邮箱
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
@@ -83,17 +82,17 @@ public class DataMaskingUtil {
 
         String masked = json;
 
-        // API Key 脱敏
+        // API Key 脱敏：匹配 "key": "value"，替换为 "key": "SECRET_REDACTED"
         masked = API_KEY_PATTERN.matcher(masked)
-                .replaceAll("$1: \"" + REDACTED_API_KEY + "\"");
+                .replaceAll(mr -> "\"" + mr.group(1).toLowerCase() + "\": \"" + REDACTED_API_KEY + "\"");
 
         // Token 脱敏
         masked = TOKEN_PATTERN.matcher(masked)
-                .replaceAll("$1: \"" + REDACTED_TOKEN + "\"");
+                .replaceAll(mr -> "\"" + mr.group(1).toLowerCase() + "\": \"" + REDACTED_TOKEN + "\"");
 
         // 密码/秘钥脱敏
         masked = PASSWORD_PATTERN.matcher(masked)
-                .replaceAll("$1: \"" + REDACTED_PASSWORD + "\"");
+                .replaceAll(mr -> "\"" + mr.group(1).toLowerCase() + "\": \"" + REDACTED_PASSWORD + "\"");
 
         // 内网 IP 脱敏
         masked = INTERNAL_IP_PATTERN.matcher(masked)

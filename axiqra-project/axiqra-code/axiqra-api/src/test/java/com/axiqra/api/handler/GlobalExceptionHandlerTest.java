@@ -7,23 +7,24 @@ import com.axiqra.common.exception.SysException;
 import com.axiqra.common.response.ApiResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.Path;
+import jakarta.validation.metadata.ConstraintDescriptor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * GlobalExceptionHandler 单元测试
@@ -32,15 +33,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author Axiqra Team
  * @date 2026-06-06
  */
+@ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
-
-    @RestController
-    static class DummyController {
-        @GetMapping("/test")
-        public String test() { return "ok"; }
-    }
 
     @Test
     @DisplayName("BizException 应返回 400 + 错误码")
@@ -83,11 +79,17 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("ConstraintViolationException 应返回参数校验错误码")
     void handleConstraintViolation() {
+        ConstraintViolation<Object> v1 = mock(ConstraintViolation.class);
+        when(v1.getMessage()).thenReturn("不能为空");
+        when(v1.getPropertyPath()).thenReturn(mock(Path.class));
+
+        ConstraintViolation<Object> v2 = mock(ConstraintViolation.class);
+        when(v2.getMessage()).thenReturn("格式错误");
+        when(v2.getPropertyPath()).thenReturn(mock(Path.class));
+
         ConstraintViolationException ex = new ConstraintViolationException(
-                Set.of(
-                        createViolation("name", "不能为空"),
-                        createViolation("email", "格式错误")
-                ));
+                Set.of(v1, v2));
+
         ResponseEntity<ApiResponse<Void>> resp = handler.handleConstraintViolation(ex);
         assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
         assertEquals(ErrorCode.PARAM_VALIDATION_FAILED.getCode(), resp.getBody().getCode());
@@ -131,20 +133,5 @@ class GlobalExceptionHandlerTest {
         BizException ex = new BizException(99999, "最大错误码");
         ResponseEntity<ApiResponse<Void>> resp = handler.handleBizException(ex);
         assertTrue(resp.getBody().getCode() >= 10001);
-    }
-
-    private static ConstraintViolation<Object> createViolation(String path, String message) {
-        return new ConstraintViolation<>() {
-            @Override public String getMessage() { return message; }
-            @Override public String getMessageTemplate() { return message; }
-            @Override public Object getInvalidValue() { return null; }
-            @Override public Object getRootBean() { return null; }
-            @Override public Class<Object> getRootBeanClass() { return Object.class; }
-            @Override public Object getLeafBean() { return null; }
-            @Override public Object[] getExecutableParameters() { return new Object[0]; }
-            @Override public Object getExecutable() { return null; }
-            @Override public String getPropertyPath() { return path; }
-            @Override public ConstraintViolation<?> getCause() { return null; }
-        };
     }
 }

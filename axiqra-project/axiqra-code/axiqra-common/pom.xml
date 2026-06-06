@@ -28,7 +28,7 @@
 
         <!-- Spring Security Crypto（BCrypt 密码哈希） -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
+            <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 

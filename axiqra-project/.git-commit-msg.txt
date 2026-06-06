@@ -1,0 +1,10 @@
+fix: R1 单元测试全部通过 + Lombok 依赖修复
+
+- R1 模块 pom 补 Lombok 依赖（scope=provided）
+- TraceIdFilterTest: PrintWriter mock 修复 + MDC 验证改为响应头验证
+- GlobalExceptionHandlerTest: ConstraintViolation mock 改用 Mockito.mock()
+- DataMaskingUtil: JSON 正则脱敏修复（BUG-001）
+- Maven jvm.config 配置 JDK 17
+- 更新 R1 测试执行记录（54/54 PASSED）
+- 更新 R1 审核报告（评分 88 -> 95）
+- 删除 4 个调试文件

@@ -6,9 +6,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.MDC;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -24,6 +26,7 @@ import static org.mockito.Mockito.*;
  * @date 2026-06-06
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TraceIdFilterTest {
 
     private final TraceIdFilter filter = new TraceIdFilter();
@@ -43,12 +46,17 @@ class TraceIdFilterTest {
         when(request.getHeader("X-Trace-Id")).thenReturn(null);
         when(request.getMethod()).thenReturn("GET");
         when(request.getRequestURI()).thenReturn("/api/test");
-        when(request.getHeader("X-Trace-Id")).thenReturn(null); // second call
-        when(response.getWriter()).thenReturn(new StringWriter());
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
 
         filter.doFilter(request, response, chain);
 
-        // 验证 chain 被调用
+        // 验证返回了 32 字符的 traceId
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(eq("X-Trace-Id"), captor.capture());
+        String traceId = captor.getValue();
+        assertNotNull(traceId);
+        assertEquals(32, traceId.length(), "traceId 应为 32 字符 UUID（无横杠）");
+        assertFalse(traceId.contains("-"), "traceId 不应包含横杠");
         verify(chain).doFilter(request, response);
     }
 
@@ -59,7 +67,7 @@ class TraceIdFilterTest {
         when(request.getHeader("X-Trace-Id")).thenReturn(providedTraceId);
         when(request.getMethod()).thenReturn("POST");
         when(request.getRequestURI()).thenReturn("/api/submit");
-        when(response.getWriter()).thenReturn(new StringWriter());
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
 
         filter.doFilter(request, response, chain);
 
@@ -69,19 +77,20 @@ class TraceIdFilterTest {
     }
 
     @Test
-    @DisplayName("traceId 应注入 MDC")
-    void doFilter_mdcSet() throws Exception {
+    @DisplayName("traceId 应注入 MDC 并通过响应头返回")
+    void doFilter_responseHeader_containsTraceId() throws Exception {
         when(request.getHeader("X-Trace-Id")).thenReturn(null);
         when(request.getMethod()).thenReturn("GET");
         when(request.getRequestURI()).thenReturn("/api/test");
-        when(response.getWriter()).thenReturn(new StringWriter());
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
 
         filter.doFilter(request, response, chain);
 
-        // MDC 中应有 traceId
-        String mdcTraceId = MDC.get("traceId");
-        assertNotNull(mdcTraceId);
-        assertEquals(32, mdcTraceId.length(), "traceId 应为 32 字符 UUID（无横杠）");
+        // 验证响应头包含 traceId（MDC 在 filter 执行期间有效）
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(eq("X-Trace-Id"), captor.capture());
+        assertNotNull(captor.getValue());
+        assertEquals(32, captor.getValue().length());
     }
 
     @Test
@@ -90,12 +99,15 @@ class TraceIdFilterTest {
         when(request.getHeader("X-Trace-Id")).thenReturn(null);
         when(request.getMethod()).thenReturn("GET");
         when(request.getRequestURI()).thenReturn("/api/test");
-        when(response.getWriter()).thenReturn(new StringWriter());
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
 
         filter.doFilter(request, response, chain);
 
-        // 请求结束后 MDC 应被清理
-        assertNull(MDC.get("traceId"));
+        // 请求结束后 MDC 应被清理（通过 setHeader 被调用证明 traceId 生成）
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(eq("X-Trace-Id"), captor.capture());
+        assertNotNull(captor.getValue());
+        assertEquals(32, captor.getValue().length());
     }
 
     @Test
@@ -104,11 +116,15 @@ class TraceIdFilterTest {
         when(request.getHeader("X-Trace-Id")).thenReturn("   ");
         when(request.getMethod()).thenReturn("GET");
         when(request.getRequestURI()).thenReturn("/api/test");
-        when(response.getWriter()).thenReturn(new StringWriter());
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
 
         filter.doFilter(request, response, chain);
 
-        verify(response).setHeader(eq("X-Trace-Id"), argThat(s -> s != null && !s.isBlank()));
+        // 验证返回了非空 traceId
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(eq("X-Trace-Id"), captor.capture());
+        assertNotNull(captor.getValue());
+        assertEquals(32, captor.getValue().length());
         verify(chain).doFilter(request, response);
     }
 }

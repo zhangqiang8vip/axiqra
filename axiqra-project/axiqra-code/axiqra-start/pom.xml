@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.axiqra</groupId>
+        <artifactId>axiqra-code</artifactId>
+        <version>1.0.0-S1</version>
+    </parent>
+
+    <!-- ============================================================
+         axiqra-start — 启动模块
+         包含：主类（@SpringBootApplication）+ 资源配置 + Dockerfile
+         ============================================================ -->
+    <artifactId>axiqra-start</artifactId>
+    <packaging>jar</packaging>
+    <name>Axiqra Start</name>
+    <description>启动模块：Spring Boot 主类 + application.yml + logback-spring.xml + Dockerfile</description>
+
+    <dependencies>
+        <!-- 依赖 API 层（传递依赖 common/core） -->
+        <dependency>
+            <groupId>com.axiqra</groupId>
+            <artifactId>axiqra-api</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <!-- Spring Boot Actuator 已通过 axiqra-api 传递引入 -->
+
+        <!-- Spring Boot Web（含嵌入式 Tomcat） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 端点安全（Actuator 端点认证） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Micrometer（已通过 Actuator 传递引入） -->
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>axiqra-start</finalName>
+        <plugins>
+            <!-- Spring Boot 打包插件：生成可执行 fat jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>com.axiqra.AxiqraApplication</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

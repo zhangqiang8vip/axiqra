@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.axiqra</groupId>
+        <artifactId>axiqra-code</artifactId>
+        <version>1.0.0-S1</version>
+    </parent>
+
+    <!-- ============================================================
+         axiqra-api — API 层
+         包含：Controller + Spring Security + Knife4j + 全局异常处理
+         ============================================================ -->
+    <artifactId>axiqra-api</artifactId>
+    <packaging>jar</packaging>
+    <name>Axiqra API (Spring Security)</name>
+    <description>API 层：REST Controller + Spring Security + Knife4j 文档 + 全局异常处理</description>
+
+    <dependencies>
+        <!-- 依赖核心业务层 -->
+        <dependency>
+            <groupId>com.axiqra</groupId>
+            <artifactId>axiqra-core</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <!-- Spring MVC -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Knife4j API 文档（Swagger 增强） -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Spring Security（已在 axiqra-core 引入，此处引入是为了让 Controller 层使用安全配置） -->
+        <!-- spring-boot-starter-aop 已通过下游安全依赖按需引入 -->
+
+        <!-- Spring Boot Actuator（健康检查、指标监控） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer Prometheus（可观测性） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Spring Security（最小放行健康检查端点） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

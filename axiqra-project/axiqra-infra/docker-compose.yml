@@ -76,6 +76,28 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # -------------------- RabbitMQ 消息队列 --------------------
+  axiqra_rabbitmq_broker:
+    image: rabbitmq:3.13-management-alpine
+    container_name: axiqra_rabbitmq_broker
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "127.0.0.1:${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - axiqra_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - axiqra_internal_net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
   # -------------------- MinIO 对象存储（S1 预留） --------------------
   axiqra_minio_storage:
     image: minio/minio:latest
@@ -109,6 +131,7 @@ services:
   #   container_name: axiqra_core
   #   environment:
   #     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  #     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
   #     DB_PASSWORD: ${DB_PASSWORD}
   #     REDIS_PASSWORD: ${REDIS_PASSWORD}
   #     AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}
@@ -127,6 +150,8 @@ services:
   #     axiqra_postgres_audit:
   #       condition: service_healthy
   #     axiqra_redis_cache:
+  #       condition: service_healthy
+  #     axiqra_rabbitmq_broker:
   #       condition: service_healthy
   #     axiqra_minio_storage:
   #       condition: service_healthy
@@ -173,5 +198,7 @@ volumes:
     name: axiqra_redis_data
   axiqra_minio_data:
     name: axiqra_minio_data
+  axiqra_rabbitmq_data:
+    name: axiqra_rabbitmq_data
   axiqra_logs:
     name: axiqra_logs

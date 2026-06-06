@@ -1,0 +1,164 @@
+spring:
+  application:
+    name: axiqra-core
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  main:
+    banner-mode: off
+    lazy-initialization: false
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 20MB
+  threads:
+    virtual:
+      enabled: false
+
+server:
+  port: 8080
+  shutdown: graceful
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    min-response-size: 2KB
+    mime-types: application/json,application/xml,text/html,text/plain,text/css,application/javascript
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    accept-count: 100
+    connection-timeout: 10s
+    max-connections: 8192
+
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    rabbit:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      env: ${spring.profiles.active}
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+
+sa-token:
+  token-name: Authorization
+  timeout: 2592000
+  active-timeout: -1
+  is-concurrent: false
+  is-share: false
+  is-log: false
+  token-style: uuid
+  is-read-cookie: false
+  is-read-header: true
+  is-read-body: false
+
+security:
+  algorithm:
+    api-signature: HMAC-SHA256
+    field-encryption: AES-256-GCM
+    password-hash: BCRYPT
+    jwt-signature: HS256
+    digest: SHA-256
+  api-signature:
+    app-id-header: X-Axiqra-App-Id
+    timestamp-header: X-Axiqra-Timestamp
+    signature-header: X-Axiqra-Signature
+    nonce-header: X-Axiqra-Nonce
+    clock-skew-seconds: 300
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+      - http://localhost:8080
+      - https://www.axiqra.com
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - '*'
+    exposed-headers:
+      - X-Trace-Id
+      - Authorization
+
+mybatis-flex:
+  configuration:
+    map-underscore-to-camel-case: true
+    call-setters-on-nulls: true
+    cache-enabled: false
+    jdbc-type-for-null: 'NULL'
+  global-config:
+    print-banner: false
+
+logging:
+  config: classpath:logback-spring.xml
+  level:
+    root: INFO
+    com.axiqra: INFO
+    org.springframework: WARN
+    org.apache.shardingsphere: WARN
+    com.mybatisflex: WARN
+  file:
+    path: /var/log/axiqra
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms

@@ -1,0 +1,60 @@
+spring:
+  datasource:
+    druid:
+      enabled: true
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:26257/axiqra?sslmode=disable&currentSchema=public
+      username: root
+      password: ${DB_PASSWORD:change_me_before_production}
+      initial-size: 1
+      min-idle: 1
+      max-active: 2
+      validation-query: SELECT 1
+      test-while-idle: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:change_me_before_production}
+      timeout: 5s
+      database: 0
+  rabbitmq:
+    host: localhost
+    port: ${RABBITMQ_AMQP_PORT:5672}
+    username: ${RABBITMQ_DEFAULT_USER:axq_rabbit}
+    password: ${RABBITMQ_DEFAULT_PASS:change_me_before_production}
+    virtual-host: /
+    connection-timeout: 5s
+
+axiqra:
+  audit-datasource:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/axq_audit_db
+    username: ${AUDIT_DB_USER:axq_audit}
+    password: ${AUDIT_DB_PASSWORD:change_me_before_production}
+    driver-class-name: org.postgresql.Driver
+  minio:
+    endpoint: http://localhost:9000
+    access-key: ${MINIO_ACCESS_KEY:change_me_before_production}
+    secret-key: ${MINIO_SECRET_KEY:change_me_before_production}
+    bucket: axiqra-evidence
+    secure: false
+  jwt:
+    secret: ${JWT_SECRET:change_me_before_production_use_256bit_key_here}
+    issuer: axiqra
+    expire-seconds: 7200
+  crypto:
+    field-encrypt-key: ${FIELD_ENCRYPT_KEY:change_me_before_production_32bytes}
+  feature:
+    enable-api-signature: true
+    enable-rate-limit: true
+    enable-minio: false
+
+management:
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    rabbit:
+      enabled: true

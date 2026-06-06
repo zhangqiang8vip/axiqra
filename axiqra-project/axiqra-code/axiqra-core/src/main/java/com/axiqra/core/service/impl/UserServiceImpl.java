@@ -1,0 +1,73 @@
+package com.axiqra.core.service.impl;
+
+import com.axiqra.common.domain.entity.UserEntity;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
+import com.axiqra.common.util.PasswordHashUtil;
+import com.axiqra.core.mapper.UserMapper;
+import com.axiqra.core.service.UserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 用户服务实现
+ *
+ * @author Axiqra Team
+ * @date 2026-06-06
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final UserMapper userMapper;
+    private final PasswordHashUtil passwordHashUtil;
+
+    @Override
+    public UserEntity getByUsername(String username) {
+        return userMapper.selectByUsername(username);
+    }
+
+    @Override
+    public UserEntity getByEmail(String email) {
+        return userMapper.selectByEmail(email);
+    }
+
+    @Override
+    public UserEntity getById(Long id) {
+        return userMapper.selectActiveById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserEntity register(String username, String password, String email, String nickname) {
+        UserEntity user = new UserEntity()
+                .setUsername(username)
+                .setPasswordHash(passwordHashUtil.hash(password))
+                .setEmail(email)
+                .setNickname(nickname)
+                .setIsDeleted(0);
+        try {
+            userMapper.insertSelective(user);
+        } catch (DataIntegrityViolationException e) {
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("username") || msg.contains("idx_username")) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "用户名已存在");
+            }
+            if (msg.contains("email") || msg.contains("idx_email")) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被注册");
+            }
+            throw new BizException(ErrorCode.DUPLICATE_ENTRY, "记录已存在");
+        }
+        log.info("用户注册成功: userId={}", user.getId());
+        return user;
+    }
+
+    @Override
+    public boolean checkPassword(String rawPassword, String encodedPassword) {
+        return passwordHashUtil.matches(rawPassword, encodedPassword);
+    }
+}

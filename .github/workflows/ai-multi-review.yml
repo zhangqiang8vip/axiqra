@@ -22,7 +22,7 @@ on:
       - "**/Dockerfile*"
 
 permissions:
-  pull-requests: write
+  pull-requests: read
   contents: read
 
 concurrency:
@@ -40,7 +40,7 @@ jobs:
       base: ${{ steps.info.outputs.base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -94,7 +94,7 @@ jobs:
       review_body: ${{ steps.review.outputs.review_body }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -198,7 +198,7 @@ jobs:
       review_body: ${{ steps.review.outputs.review_body }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -304,7 +304,7 @@ jobs:
       review_body: ${{ steps.review.outputs.review_body }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -372,7 +372,7 @@ jobs:
 
           if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
-            -H "Authorization: Bearer $GEMINI_API_KEY" \
+            -H "x-goog-api-key: $GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" 2>/dev/null); then
             REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null || true)
@@ -397,7 +397,7 @@ jobs:
       review_body: ${{ steps.review.outputs.review_body }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -503,7 +503,7 @@ jobs:
       review_body: ${{ steps.summary.outputs.review_body }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -561,10 +561,13 @@ jobs:
     name: Post Reviews
     runs-on: ubuntu-latest
     needs: [codex, agnes, gemini, openrouter, copilot]
+    permissions:
+      pull-requests: write
+      contents: read
     if: always()
     steps:
       - name: Delete previous bot review comments
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
@@ -572,9 +575,10 @@ jobs:
           script: |
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (!prNumber) { return; }
+            const { owner, repo } = context.repo;
             const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
               issue_number: prNumber,
             });
             const botComments = comments.data.filter(c =>
@@ -588,8 +592,8 @@ jobs:
             );
             for (const comment of botComments) {
               await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner,
+                repo,
                 comment_id: comment.id,
               });
               console.log(`Deleted previous bot comment: ${comment.id}`);
@@ -597,7 +601,7 @@ jobs:
 
       - name: Post Codex Review
         if: needs.codex.outputs.review_body != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           REVIEW_BODY: ${{ needs.codex.outputs.review_body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -607,18 +611,17 @@ jobs:
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (prNumber && reviewBody) {
-              await github.rest.pulls.createReview({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber,
+                issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by Codex AI (gpt-4o-mini)*`,
-                event: 'COMMENT',
               });
             }
 
       - name: Post Agnes Review
         if: needs.agnes.outputs.review_body != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           REVIEW_BODY: ${{ needs.agnes.outputs.review_body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -630,18 +633,17 @@ jobs:
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const model = process.env.REVIEW_MODEL || 'default';
             if (prNumber && reviewBody) {
-              await github.rest.pulls.createReview({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber,
+                issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by Agnes AI (${model})*`,
-                event: 'COMMENT',
               });
             }
 
       - name: Post Gemini Review
         if: needs.gemini.outputs.review_body != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           REVIEW_BODY: ${{ needs.gemini.outputs.review_body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -651,18 +653,17 @@ jobs:
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (prNumber && reviewBody) {
-              await github.rest.pulls.createReview({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber,
+                issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by Gemini AI*`,
-                event: 'COMMENT',
               });
             }
 
       - name: Post OpenRouter Review
         if: needs.openrouter.outputs.review_body != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           REVIEW_BODY: ${{ needs.openrouter.outputs.review_body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -672,18 +673,17 @@ jobs:
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (prNumber && reviewBody) {
-              await github.rest.pulls.createReview({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber,
+                issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by OpenRouter (openrouter/free model)*`,
-                event: 'COMMENT',
               });
             }
 
       - name: Post Diff Summary
         if: needs.copilot.outputs.review_body != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           REVIEW_BODY: ${{ needs.copilot.outputs.review_body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -693,11 +693,10 @@ jobs:
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (prNumber && reviewBody) {
-              await github.rest.pulls.createReview({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber,
+                issue_number: prNumber,
                 body: reviewBody,
-                event: 'COMMENT',
               });
             }

@@ -1,8 +1,9 @@
 package com.axiqra.common.domain.entity;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
 import java.io.Serial;
@@ -15,9 +16,10 @@ import java.time.Instant;
  * @author Axiqra Team
  * @date 2026-06-06
  */
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
+@EqualsAndHashCode(exclude = {"gmtCreate", "gmtModified"})
 @Accessors(chain = true)
 public abstract class BaseEntity implements Serializable {
 

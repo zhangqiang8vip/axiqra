@@ -2,8 +2,10 @@ package com.axiqra.common.domain.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 /**
  * 登录请求 DTO
@@ -11,8 +13,10 @@ import lombok.NoArgsConstructor;
  * @author Axiqra Team
  * @date 2026-06-06
  */
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = "password")
 public class LoginRequest {
 
     @NotBlank(message = "用户名不能为空")

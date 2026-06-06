@@ -12,19 +12,22 @@ import lombok.Getter;
 @Getter
 public enum RiskLevel {
 
-    R0(0, "无风险", "无需审核"),
-    R1(1, "低风险", "自动审核"),
-    R2(2, "中风险", "人工抽检"),
-    R3(3, "高风险", "人工必检"),
-    R4(4, "极高风险", "禁止执行");
+    R0(0, "R0", "无风险", "无需审核"),
+    R1(1, "R1", "低风险", "自动审核"),
+    R2(2, "R2", "中风险", "人工抽检"),
+    R3(3, "R3", "高风险", "人工必检"),
+    R4(4, "R4", "极高风险", "禁止执行");
+
+    private final int level;
 
     @EnumValue
-    private final int level;
+    private final String code;
     private final String desc;
     private final String reviewPolicy;
 
-    RiskLevel(int level, String desc, String reviewPolicy) {
+    RiskLevel(int level, String code, String desc, String reviewPolicy) {
         this.level = level;
+        this.code = code;
         this.desc = desc;
         this.reviewPolicy = reviewPolicy;
     }
@@ -36,10 +39,18 @@ public enum RiskLevel {
         return null;
     }
 
+    /**
+     * 优先按精确 code 匹配（如 "R0"），fallback 按数字 level 解析。
+     * 兼容 MyBatis-Flex @EnumValue 映射及旧数据。
+     */
     public static RiskLevel ofLevel(String levelStr) {
         if (levelStr == null) return null;
+        String trimmed = levelStr.trim();
+        for (RiskLevel r : values()) {
+            if (r.code.equalsIgnoreCase(trimmed)) return r;
+        }
         try {
-            return of(Integer.parseInt(levelStr.trim()));
+            return of(Integer.parseInt(trimmed));
         } catch (NumberFormatException e) {
             return null;
         }

@@ -43,11 +43,15 @@ services:
       POSTGRES_DB: axiqra_audit_db
       POSTGRES_USER: ${AUDIT_DB_USER}
       POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
+      AUDIT_DB_USER: ${AUDIT_DB_USER}
+      AUDIT_APP_DB_USER: ${AUDIT_APP_DB_USER:-axiqra_audit_app}
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - axiqra_audit_data:/var/lib/postgresql/data
-      - ./docker/postgres-audit/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/postgres-audit/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - ./docker/postgres-audit/init.sql:/docker-entrypoint-initdb.d/init.sql.template:ro
     networks:
       - axiqra_internal_net
     healthcheck:
@@ -134,6 +138,7 @@ services:
   #     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
   #     DB_PASSWORD: ${DB_PASSWORD}
   #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #     AUDIT_APP_DB_USER: ${AUDIT_APP_DB_USER}
   #     AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}
   #     JWT_SECRET: ${JWT_SECRET}
   #     FIELD_ENCRYPT_KEY: ${FIELD_ENCRYPT_KEY}

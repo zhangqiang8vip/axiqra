@@ -40,7 +40,7 @@ services:
     image: postgres:16-alpine
     container_name: axiqra_postgres_audit
     environment:
-      POSTGRES_DB: axq_audit_db
+      POSTGRES_DB: axiqra_audit_db
       POSTGRES_USER: ${AUDIT_DB_USER}
       POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
     ports:
@@ -51,7 +51,7 @@ services:
     networks:
       - axiqra_internal_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER} -d axq_audit_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER} -d axiqra_audit_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -127,7 +127,7 @@ services:
   # axiqra_core:
   #   build:
   #     context: ../axiqra-code
-  #     dockerfile: axiom-start/Dockerfile
+  #     dockerfile: axiqra-start/Dockerfile
   #   container_name: axiqra_core
   #   environment:
   #     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}

@@ -3,12 +3,13 @@ spring:
     init:
       mode: never
   datasource:
+    type: org.springframework.jdbc.datasource.DriverManagerDataSource
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:1/axiqra?sslmode=disable&currentSchema=public
+    username: root
+    password: ${DB_PASSWORD:change_me_before_production}
     druid:
       enabled: false
-      driver-class-name: org.postgresql.Driver
-      url: jdbc:postgresql://localhost:26257/axiqra?sslmode=disable&currentSchema=public
-      username: root
-      password: ${DB_PASSWORD:change_me_before_production}
       initial-size: 1
       min-idle: 1
       max-active: 2

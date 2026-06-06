@@ -37,9 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect Java project changes
         id: changes
@@ -60,7 +61,7 @@ jobs:
 
       - name: Setup Java
         if: steps.changes.outputs.java_changed == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
         with:
           distribution: temurin
           java-version: "17"
@@ -73,16 +74,19 @@ jobs:
 
       - name: Run unit tests
         if: steps.changes.outputs.java_changed == 'true'
-        run: mvn -B -ntp -f axiqra-project/axiqra-code/pom.xml test
+        run: |
+          mkdir -p "$RUNNER_TEMP/axiqra-logs"
+          mvn -B -ntp -f axiqra-project/axiqra-code/pom.xml -Dlogging.file.path="$RUNNER_TEMP/axiqra-logs" test
 
   infra-gates:
     name: Infra Config Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect infra changes
         id: changes
@@ -139,12 +143,13 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@bfa4b33a029b9aa80ddb784b45574c30e072c59e
         with:
           scan-type: fs
           scan-ref: axiqra-project/axiqra-infra
@@ -156,18 +161,17 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         if: always() && hashFiles('trivy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@b0c4fd77f6c559021d78430ec4d0d169ae74a4eb
         with:
           sarif_file: trivy-results.sarif
 
       - name: Detect secrets
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@b32841520c47f1bdf1f6f4772bac76afe07a9e92
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          formatter: json
-        continue-on-error: true
+          base: ${{ github.event.pull_request.base.sha || github.event.before }}
+          head: ${{ github.event.pull_request.head.sha || github.sha }}
+          extra_args: --json
 
   ai-review-summary:
     name: AI Review Summary

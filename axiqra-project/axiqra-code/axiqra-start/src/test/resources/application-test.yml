@@ -29,8 +29,8 @@ spring:
 axiqra:
   audit-datasource:
     enabled: true
-    url: jdbc:postgresql://localhost:5432/axq_audit_db
-    username: ${AUDIT_DB_USER:axq_audit}
+    url: jdbc:postgresql://localhost:5432/axiqra_audit_db
+    username: ${AUDIT_DB_USER:axiqra_audit}
     password: ${AUDIT_DB_PASSWORD:change_me_before_production}
     driver-class-name: org.postgresql.Driver
   minio:

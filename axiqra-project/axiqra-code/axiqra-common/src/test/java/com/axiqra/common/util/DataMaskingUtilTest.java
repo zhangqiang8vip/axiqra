@@ -116,6 +116,15 @@ class DataMaskingUtilTest {
     }
 
     @Test
+    @DisplayName("GitLab repository URL should be masked")
+    void maskRepoUrl_gitlab() {
+        String text = "https://gitlab.com/my-org/private-repo.git";
+        String masked = DataMaskingUtil.maskRepoUrl(text);
+        assertFalse(masked.contains("my-org/private-repo"));
+        assertTrue(masked.contains("PRIVATE_REPOSITORY"));
+    }
+
+    @Test
     @DisplayName("脱敏本地路径应隐藏用户目录")
     void maskLocalPath() {
         String text = "File at /home/alice/projects/axiqra/config.yaml";

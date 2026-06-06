@@ -23,6 +23,7 @@ import java.util.Map;
 public class HealthController {
 
     private static final int TCP_CONNECT_TIMEOUT_MS = 2000;
+    private static final int DB_QUERY_TIMEOUT_SECONDS = 3;
 
     private final JdbcTemplate jdbcTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -73,7 +74,9 @@ public class HealthController {
 
     private String checkDatabase() {
         try {
-            Integer result = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+            JdbcTemplate timeoutJdbcTemplate = new JdbcTemplate(jdbcTemplate.getDataSource());
+            timeoutJdbcTemplate.setQueryTimeout(DB_QUERY_TIMEOUT_SECONDS);
+            Integer result = timeoutJdbcTemplate.queryForObject("SELECT 1", Integer.class);
             return Integer.valueOf(1).equals(result) ? "UP" : "DOWN";
         } catch (Exception ex) {
             return "DOWN";
@@ -91,7 +94,8 @@ public class HealthController {
 
     private String checkRabbitMq() {
         try {
-            return rabbitTemplate.execute(channel -> channel.isOpen() ? "UP" : "DOWN");
+            String status = rabbitTemplate.execute(channel -> channel != null && channel.isOpen() ? "UP" : "DOWN");
+            return "UP".equals(status) ? "UP" : "DOWN";
         } catch (Exception ex) {
             return "DOWN";
         }

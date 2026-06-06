@@ -6,7 +6,7 @@ spring:
       url: jdbc:postgresql://localhost:26257/axiqra?sslmode=disable&currentSchema=public
       username: root
       password: ${DB_PASSWORD}
-      initial-size: 5
+      initial-size: 10
       min-idle: 10
       max-active: 20
       max-wait: 60000

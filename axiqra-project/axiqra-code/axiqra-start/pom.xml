@@ -57,6 +57,7 @@
     </dependencies>
 
     <build>
+        <finalName>axiqra-start</finalName>
         <plugins>
             <!-- Spring Boot 打包插件：生成可执行 fat jar -->
             <plugin>

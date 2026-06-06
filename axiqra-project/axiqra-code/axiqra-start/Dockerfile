@@ -5,7 +5,7 @@ WORKDIR /app
 RUN addgroup -S axiqra && adduser -S axiqra -G axiqra && \
     mkdir -p /var/log/axiqra && chown -R axiqra:axiqra /app /var/log/axiqra
 
-COPY target/axiqra-start-*.jar app.jar
+COPY target/axiqra-start.jar app.jar
 
 USER axiqra
 

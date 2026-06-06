@@ -1,5 +1,7 @@
 package com.axiqra.common.util;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.regex.Pattern;
 
 /**
@@ -21,7 +23,11 @@ import java.util.regex.Pattern;
  * @author Axiqra Team
  * @date 2026-06-06
  */
+@Slf4j
 public class DataMaskingUtil {
+
+    /** 超过此长度的 JSON 直接返回占位符，防止正则 DoS（灾难性回溯） */
+    private static final int MAX_JSON_LENGTH = 512 * 1024; // 512 KB
 
     public static final String REDACTED_API_KEY     = "SECRET_REDACTED";
     public static final String REDACTED_TOKEN       = "TOKEN_REDACTED";
@@ -74,6 +80,10 @@ public class DataMaskingUtil {
     public static String maskJson(String json) {
         if (json == null || json.isBlank()) {
             return json;
+        }
+        if (json.length() > MAX_JSON_LENGTH) {
+            log.warn("JSON length {} exceeds cap {}, returning masked payload identifier", json.length(), MAX_JSON_LENGTH);
+            return "\"__PAYLOAD_TOO_LARGE_TO_MASK__\"";
         }
 
         String masked = json;

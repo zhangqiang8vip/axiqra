@@ -84,6 +84,24 @@ class AesEncryptUtilTest {
         assertFalse(AesEncryptUtil.isValidKey("too-short"));
         assertFalse(AesEncryptUtil.isValidKey(
                 java.util.Base64.getEncoder().encodeToString(new byte[16])));
+        assertFalse(AesEncryptUtil.isValidKey("not-valid-base64!!!"));
+    }
+
+    @Test
+    @DisplayName("无效 Base64 密钥加密应抛出 RuntimeException")
+    void encrypt_invalidBase64Key_shouldThrow() {
+        String invalidKey = "!!!not-base64!!!";
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> AesEncryptUtil.encrypt("plaintext", invalidKey));
+        assertTrue(thrown.getMessage().contains("AES"));
+    }
+
+    @Test
+    @DisplayName("加密后密文格式应包含冒号分隔符")
+    void encrypt_outputFormat() {
+        String ciphertext = AesEncryptUtil.encrypt("test", TEST_KEY);
+        assertTrue(ciphertext.contains(":"), "密文应为 Base64(iv):Base64(ciphertext) 格式");
+        assertEquals(2, ciphertext.split(":").length);
     }
 
     @Test

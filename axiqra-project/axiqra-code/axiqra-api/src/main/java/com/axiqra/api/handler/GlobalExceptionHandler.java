@@ -46,6 +46,9 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== 业务异常 ====================
+    // TODO (S2): BizException currently returns 409 CONFLICT. Evaluate whether 400 or 422
+    // is more semantically correct — 409 suits "resource already exists" but not all business
+    // errors. Consider adding a status-code field to BizException for per-case control.
 
     @ExceptionHandler(BizException.class)
     public ResponseEntity<ApiResponse<Void>> handleBizException(BizException ex) {

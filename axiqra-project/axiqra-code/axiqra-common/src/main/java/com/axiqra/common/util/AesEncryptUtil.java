@@ -33,7 +33,9 @@ public class AesEncryptUtil {
      * 加密字符串
      *
      * @param plaintext 明文
-     * @param key       Base64 编码的 AES-256 密钥（32 字节）
+     * @param key       Base64 编码的 AES-256 密钥（必须恰好 32 字节的加密安全随机密钥，
+     *                  不得使用用户密码直接派生。生产环境应从安全密钥库加载，如 AWS Secrets
+     *                  Manager / HashiCorp Vault，并定期轮换）
      * @return Base64 编码的 IV + 密文（格式：Base64(iv):Base64(ciphertext)）
      */
     public static String encrypt(String plaintext, String key) {
@@ -68,7 +70,7 @@ public class AesEncryptUtil {
      * 解密字符串
      *
      * @param ciphertext Base64 编码的 IV + 密文
-     * @param key        Base64 编码的 AES-256 密钥
+     * @param key        Base64 编码的 AES-256 密钥（必须与 encrypt 时使用同一密钥）
      * @return 明文
      */
     public static String decrypt(String ciphertext, String key) {

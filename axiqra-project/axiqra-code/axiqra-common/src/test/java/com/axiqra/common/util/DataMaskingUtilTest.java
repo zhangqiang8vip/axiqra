@@ -134,6 +134,22 @@ class DataMaskingUtilTest {
     }
 
     @Test
+    @DisplayName("超长 JSON 应返回占位符，防止正则 DoS")
+    void maskJson_oversizedPayload() {
+        String hugeJson = "{\"data\": \"" + "x".repeat(600 * 1024) + "\"}";
+        String masked = DataMaskingUtil.maskJson(hugeJson);
+        assertEquals("\"__PAYLOAD_TOO_LARGE_TO_MASK__\"", masked);
+    }
+
+    @Test
+    @DisplayName("恰好 512KB JSON 应正常处理")
+    void maskJson_maxSizeAllowed() {
+        String maxJson = "{\"data\": \"" + "a".repeat(512 * 1024 - 16) + "\"}";
+        String masked = DataMaskingUtil.maskJson(maxJson);
+        assertFalse(masked.contains("__PAYLOAD_TOO_LARGE"));
+    }
+
+    @Test
     @DisplayName("多层嵌套 JSON 应正确脱敏")
     void maskJson_nested() {
         String json = """

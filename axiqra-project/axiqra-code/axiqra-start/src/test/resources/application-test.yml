@@ -1,7 +1,10 @@
 spring:
+  sql:
+    init:
+      mode: never
   datasource:
     druid:
-      enabled: true
+      enabled: false
       driver-class-name: org.postgresql.Driver
       url: jdbc:postgresql://localhost:26257/axiqra?sslmode=disable&currentSchema=public
       username: root
@@ -53,7 +56,7 @@ axiqra:
 management:
   health:
     db:
-      enabled: true
+      enabled: false
     redis:
       enabled: true
     rabbit:

@@ -146,14 +146,14 @@ class InfraConnectionIT {
                 try (Connection conn = DriverManager.getConnection(PG_URL, PG_USER, PG_PASSWORD);
                      Statement st = conn.createStatement();
                      ResultSet rs = st.executeQuery(
-                             "SELECT relname, relrowsecurity " +
+                             "SELECT relname, relforcerowsecurity " +
                                      "FROM pg_class " +
                                      "WHERE relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public') " +
                                      "AND relkind = 'r' " +
                                      "ORDER BY relname")) {
                         int count = 0;
                         while (rs.next()) {
-                                assertEquals(true, rs.getBoolean("relrowsecurity"),
+                                assertEquals(true, rs.getBoolean("relforcerowsecurity"),
                                         "Table " + rs.getString("relname") + " should have FORCE RLS enabled");
                                 count++;
                         }
@@ -178,11 +178,12 @@ class InfraConnectionIT {
         @DisplayName("PostgreSQL Audit: INSERT succeeds, UPDATE and DELETE blocked by RLS")
         void auditAppendOnly() throws Exception {
                 long id;
+                String requestId = "it_test_" + java.util.UUID.randomUUID();
                 try (Connection conn = DriverManager.getConnection(PG_URL, PG_USER, PG_PASSWORD);
                      Statement st = conn.createStatement()) {
                         try (ResultSet rs = st.executeQuery(
                                 "INSERT INTO axiqra_audit_event(request_id, action) " +
-                                        "VALUES('it_test', 'integration_test') RETURNING id")) {
+                                        "VALUES('" + requestId + "', 'integration_test') RETURNING id")) {
                                 assertTrue(rs.next());
                                 id = rs.getLong("id");
                         }

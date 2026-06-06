@@ -62,11 +62,11 @@ mvn clean test -pl axiqra-start -am \
 | `auditTablesHaveFourPolicies` | PASS | 全 32 条策略（4/表） |
 | `auditAppendOnly` | PASS | INSERT 成功，UPDATE/DELETE 被 RLS 策略正确拦截 |
 
-- Tests run：10
-- Failures：0
-- Errors：0
-- Skipped：0
-- Time elapsed：5.485 s
+- Tests run: 10
+- Failures: 0
+- Errors: 0
+- Skipped: 0
+- Time elapsed: 5.485 s
 - 最终结论：**PASSED**
 
 ## 6. 归档摘要

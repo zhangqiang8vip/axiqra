@@ -43,7 +43,7 @@
 
         <!-- Micrometer（已通过 Actuator 传递引入） -->
 
-        <!-- 测试 -->
+        <!-- Audit datasource runtime dependencies -->
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>

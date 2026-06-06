@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -46,8 +47,11 @@ class InfraConnectionIT {
                                      "ORDER BY table_name")) {
                         List<String> tables = new ArrayList<>();
                         while (rs.next()) tables.add(rs.getString("table_name"));
+                        assertEquals(19, tables.size(),
+                                "Should have exactly 19 base tables total. Found: " + tables);
                         long count = tables.stream().filter(t -> t.startsWith("axiqra_")).count();
-                        assertEquals(19, count, "Should have 19 tables with axiqra_ prefix. Found: " + tables);
+                        assertEquals(19, count,
+                                "All 19 tables must use axiqra_ prefix. Found: " + tables);
                 }
         }
 
@@ -179,18 +183,25 @@ class InfraConnectionIT {
         void auditAppendOnly() throws Exception {
                 long id;
                 String requestId = "it_test_" + java.util.UUID.randomUUID();
-                try (Connection conn = DriverManager.getConnection(PG_URL, PG_USER, PG_PASSWORD);
-                     Statement st = conn.createStatement()) {
-                        try (ResultSet rs = st.executeQuery(
-                                "INSERT INTO axiqra_audit_event(request_id, action) " +
-                                        "VALUES('" + requestId + "', 'integration_test') RETURNING id")) {
-                                assertTrue(rs.next());
-                                id = rs.getLong("id");
+                try (Connection conn = DriverManager.getConnection(PG_URL, PG_USER, PG_PASSWORD)) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO axiqra_audit_event(request_id, action) VALUES(?, ?) RETURNING id")) {
+                                ps.setString(1, requestId);
+                                ps.setString(2, "integration_test");
+                                try (ResultSet rs = ps.executeQuery()) {
+                                        assertTrue(rs.next());
+                                        id = rs.getLong("id");
+                                }
                         }
                         assertTrue(id > 0, "INSERT should succeed and return id");
 
                         try {
-                                st.execute("UPDATE axiqra_audit_event SET ip_address = 'blocked' WHERE id = " + id);
+                                try (PreparedStatement ps = conn.prepareStatement(
+                                        "UPDATE axiqra_audit_event SET ip_address = ? WHERE id = ?")) {
+                                        ps.setString(1, "blocked");
+                                        ps.setLong(2, id);
+                                        ps.executeUpdate();
+                                }
                                 fail("UPDATE should be blocked by RLS policy");
                         } catch (java.sql.SQLException expected) {
                                 assertTrue(expected.getMessage().contains("permission denied") ||
@@ -200,7 +211,11 @@ class InfraConnectionIT {
                         }
 
                         try {
-                                st.execute("DELETE FROM axiqra_audit_event WHERE id = " + id);
+                                try (PreparedStatement ps = conn.prepareStatement(
+                                        "DELETE FROM axiqra_audit_event WHERE id = ?")) {
+                                        ps.setLong(1, id);
+                                        ps.executeUpdate();
+                                }
                                 fail("DELETE should be blocked by RLS policy");
                         } catch (java.sql.SQLException expected) {
                                 assertTrue(expected.getMessage().contains("permission denied") ||
@@ -209,10 +224,13 @@ class InfraConnectionIT {
                                         "Should throw permission denied, got: " + expected.getMessage());
                         }
 
-                        try (ResultSet rs = st.executeQuery(
-                                "SELECT 1 FROM axiqra_audit_event WHERE id = " + id)) {
-                                assertTrue(rs.next(),
-                                        "Row should still exist after blocked UPDATE/DELETE (append-only)");
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "SELECT 1 FROM axiqra_audit_event WHERE id = ?")) {
+                                ps.setLong(1, id);
+                                try (ResultSet rs = ps.executeQuery()) {
+                                        assertTrue(rs.next(),
+                                                "Row should still exist after blocked UPDATE/DELETE (append-only)");
+                                }
                         }
                 }
         }

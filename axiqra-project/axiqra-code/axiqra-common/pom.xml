@@ -26,6 +26,12 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Spring Security Crypto（BCrypt 密码哈希） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
         <!-- Lombok（必须标注 scope=provided，防止传递） -->
         <dependency>
             <groupId>org.projectlombok</groupId>

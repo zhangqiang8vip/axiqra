@@ -18,7 +18,6 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * API 签名认证过滤器
@@ -31,8 +30,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * 请求头：
  * - X-Axiqra-App-Id: 应用 ID
- * - X-Axiqra-Timestamp: 时间戳（毫秒）
- * - X-Axiqra-Signature: HMAC-SHA256(appId + timestamp + nonce + requestBody, appSecret)
+ * - X-Axiqra-Timestamp: Unix 时间戳（秒，非毫秒）
+ * - X-Axiqra-Signature: HMAC-SHA256(appId|timestamp|nonce|body, appSecret)，字段以 ASCII "|" 分隔
  * - X-Axiqra-Nonce: UUID（防重放）
  *
  * @author Axiqra Team
@@ -156,9 +155,9 @@ public class ApiSignatureFilter implements Filter {
             return false;
         }
         try {
-            long ts = Long.parseLong(timestamp);
-            long now = System.currentTimeMillis();
-            return Math.abs(now - ts) <= clockSkewSeconds * 1000L;
+            long tsSeconds = Long.parseLong(timestamp);
+            long nowSeconds = System.currentTimeMillis() / 1000;
+            return Math.abs(nowSeconds - tsSeconds) <= clockSkewSeconds;
         } catch (NumberFormatException e) {
             return false;
         }
@@ -183,7 +182,7 @@ public class ApiSignatureFilter implements Filter {
         // Timing-safe: always compute HMAC even if appSecret is missing (invalid).
         // Returning early would leak appId existence via timing difference.
         String appSecret = getAppSecret(appId);
-        String payload = appId + timestamp + nonce + getRequestBody(request);
+        String payload = appId + "|" + timestamp + "|" + nonce + "|" + getRequestBody(request);
         String expected = hmacSha256(payload, appSecret != null ? appSecret : DUMMY_SECRET);
 
         // Constant-time comparison prevents timing attacks

@@ -23,5 +23,5 @@ public class ProjectEntity extends BaseEntity {
     private String environment;
     private Long ownerId;
     private String status;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

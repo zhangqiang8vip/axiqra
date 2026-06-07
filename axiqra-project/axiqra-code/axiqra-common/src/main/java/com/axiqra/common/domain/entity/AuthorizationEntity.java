@@ -28,4 +28,5 @@ public class AuthorizationEntity extends BaseEntity {
     private Instant revokedAt;
     @Nullable
     private Long tenantId;
+    private boolean isDeleted = false;
 }

@@ -26,5 +26,5 @@ public class PublicCaseEntity extends BaseEntity {
     @Nullable
     private Long reviewId;
     private com.axiqra.common.domain.enums.PublicCaseStatus status;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

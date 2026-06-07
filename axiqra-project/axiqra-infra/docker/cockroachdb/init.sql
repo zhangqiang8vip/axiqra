@@ -14,8 +14,10 @@ CREATE TABLE IF NOT EXISTS axiqra_user (
     password_hash VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     nickname VARCHAR(100) NULL,
+    avatar VARCHAR(500) NULL,
     tenant_id BIGINT NULL,
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_username (username),
     UNIQUE INDEX idx_email (email),
@@ -32,12 +34,14 @@ CREATE TABLE IF NOT EXISTS axiqra_workspace (
     workspace_name VARCHAR(255) NOT NULL,
     workspace_type VARCHAR(20) NOT NULL DEFAULT 'personal',
     tenant_id BIGINT NULL,
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     INDEX idx_owner_id (owner_id),
     INDEX idx_tenant_id (tenant_id),
     INDEX idx_workspace_type (workspace_type),
-    INDEX idx_gmt_create (gmt_create)
+    INDEX idx_gmt_create (gmt_create),
+    UNIQUE INDEX idx_owner_workspace_name (owner_id, workspace_name) WHERE is_deleted = FALSE
 );
 
 -- ===================== 空间成员关系 =====================
@@ -49,10 +53,14 @@ CREATE TABLE IF NOT EXISTS axiqra_membership (
     workspace_id BIGINT NOT NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'member',
     status VARCHAR(32) NOT NULL DEFAULT 'active',
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_user_workspace (user_id, workspace_id),
     INDEX idx_workspace_id (workspace_id),
-    INDEX idx_user_id (user_id)
+    INDEX idx_user_id (user_id),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== 工程项目 =====================
@@ -66,7 +74,8 @@ CREATE TABLE IF NOT EXISTS axiqra_project (
     environment VARCHAR(255) NULL,
     owner_id BIGINT NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'active',
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     INDEX idx_workspace_id (workspace_id),
     INDEX idx_owner_id (owner_id),
@@ -98,7 +107,8 @@ CREATE TABLE IF NOT EXISTS axiqra_engineering_trace (
     review_id BIGINT NULL,
     solution_id BIGINT NULL,
     evolution_suggestion VARCHAR(32) NULL,
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_idempotency_key (idempotency_key),
     INDEX idx_workspace_id (workspace_id),
@@ -110,6 +120,12 @@ CREATE TABLE IF NOT EXISTS axiqra_engineering_trace (
 );
 
 -- ===================== Trace 证据引用 =====================
+-- 首次创建时 gmt_modified 为 NULL，请执行以下迁移后再改为 NOT NULL：
+--   UPDATE axiqra_trace_evidence_ref
+--   SET gmt_modified = COALESCE(gmt_create, now())
+--   WHERE gmt_modified IS NULL;
+--   ALTER TABLE axiqra_trace_evidence_ref ALTER COLUMN gmt_modified SET NOT NULL;
+--   ALTER TABLE axiqra_trace_evidence_ref ALTER COLUMN gmt_modified SET DEFAULT now();
 CREATE TABLE IF NOT EXISTS axiqra_trace_evidence_ref (
     id BIGINT NOT NULL DEFAULT unique_rowid(),
     gmt_create TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -118,8 +134,13 @@ CREATE TABLE IF NOT EXISTS axiqra_trace_evidence_ref (
     hash VARCHAR(128) NULL,
     type VARCHAR(32) NOT NULL,
     size_bytes BIGINT NULL,
+    gmt_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
-    INDEX idx_trace_id (trace_id)
+    INDEX idx_trace_id (trace_id),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Project Case =====================
@@ -137,7 +158,8 @@ CREATE TABLE IF NOT EXISTS axiqra_project_case (
     redaction_status VARCHAR(32) NOT NULL DEFAULT 'pending',
     status VARCHAR(32) NOT NULL DEFAULT 'draft',
     review_id BIGINT NULL,
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     INDEX idx_trace_id (trace_id),
     INDEX idx_workspace_id (workspace_id),
@@ -157,7 +179,8 @@ CREATE TABLE IF NOT EXISTS axiqra_public_case (
     redaction_status VARCHAR(32) NOT NULL DEFAULT 'pending',
     review_id BIGINT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'candidate',
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_source_case (source_case_id),
     INDEX idx_workspace_id (workspace_id),
@@ -184,7 +207,8 @@ CREATE TABLE IF NOT EXISTS axiqra_solution (
     license_scope VARCHAR(32) NULL,
     tenant_id BIGINT NULL,
     source_case_id BIGINT NULL,
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_solution_code (solution_code),
     INDEX idx_workspace_id (workspace_id),
@@ -210,6 +234,8 @@ CREATE TABLE IF NOT EXISTS axiqra_solution_version (
     risk TEXT NULL,
     rollback TEXT NULL,
     is_active SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_solution_version (solution_id, version_number),
     INDEX idx_solution_id (solution_id)
@@ -233,7 +259,8 @@ CREATE TABLE IF NOT EXISTS axiqra_invocation (
     confirmation_obtained SMALLINT NOT NULL DEFAULT 0,
     result_type VARCHAR(20) NULL,
     tenant_id BIGINT NULL,
-    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_request_id (request_id),
     UNIQUE INDEX idx_invocation_code (invocation_code),
@@ -257,10 +284,14 @@ CREATE TABLE IF NOT EXISTS axiqra_feedback (
     context_delta TEXT NULL,
     boundary_notes TEXT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'accepted',
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_invocation_id (invocation_id),
     INDEX idx_user_id (user_id),
-    INDEX idx_feedback_type (feedback_type)
+    INDEX idx_feedback_type (feedback_type),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Review 审核任务 =====================
@@ -274,11 +305,15 @@ CREATE TABLE IF NOT EXISTS axiqra_review (
     reviewer_id BIGINT NULL,
     risk_level VARCHAR(32) NOT NULL DEFAULT 'R0',
     status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_object (object_type, object_id),
     INDEX idx_reviewer_id (reviewer_id),
     INDEX idx_queue (queue),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Authorization 授权快照 =====================
@@ -292,6 +327,8 @@ CREATE TABLE IF NOT EXISTS axiqra_authorization (
     status VARCHAR(32) NOT NULL DEFAULT 'active',
     revoked_at TIMESTAMPTZ NULL,
     tenant_id BIGINT NULL,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     INDEX idx_owner_id (owner_id),
     INDEX idx_status (status),
@@ -310,11 +347,15 @@ CREATE TABLE IF NOT EXISTS axiqra_contribution_ledger (
     points INT NOT NULL DEFAULT 0,
     evidence_refs JSONB NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'recorded',
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_actor_id (actor_id),
     INDEX idx_event_type (event_type),
     INDEX idx_object (object_type, object_id),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Candidate Seed =====================
@@ -331,14 +372,24 @@ CREATE TABLE IF NOT EXISTS axiqra_candidate_seed (
     status VARCHAR(32) NOT NULL DEFAULT 'candidate',
     assignee_id BIGINT NULL,
     solution_id BIGINT NULL,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_query_hash (query_hash),
     INDEX idx_workspace_id (workspace_id),
     INDEX idx_author_id (author_id),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== 工具模型归因 =====================
+-- 首次创建时 gmt_modified 为 NULL，请执行以下迁移后再改为 NOT NULL：
+--   UPDATE axiqra_tool_model_attribution
+--   SET gmt_modified = COALESCE(gmt_create, now())
+--   WHERE gmt_modified IS NULL;
+--   ALTER TABLE axiqra_tool_model_attribution ALTER COLUMN gmt_modified SET NOT NULL;
+--   ALTER TABLE axiqra_tool_model_attribution ALTER COLUMN gmt_modified SET DEFAULT now();
 CREATE TABLE IF NOT EXISTS axiqra_tool_model_attribution (
     id BIGINT NOT NULL DEFAULT unique_rowid(),
     gmt_create TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -358,11 +409,16 @@ CREATE TABLE IF NOT EXISTS axiqra_tool_model_attribution (
     model_reported_at TIMESTAMPTZ NULL,
     missing_reason VARCHAR(255) NULL,
     request_id VARCHAR(96) NOT NULL,
+    gmt_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_solution_id (solution_id),
     INDEX idx_tool_name (tool_name),
     INDEX idx_reported_model (reported_model_name),
-    INDEX idx_request_id (request_id)
+    INDEX idx_request_id (request_id),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== 工具模型日粒度表现统计 =====================
@@ -381,6 +437,8 @@ CREATE TABLE IF NOT EXISTS axiqra_tool_model_performance_daily (
     failed_count_7d INT NOT NULL DEFAULT 0,
     not_applicable_count_7d INT NOT NULL DEFAULT 0,
     success_rate_7d DECIMAL(5,4) NULL,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_daily_stat (stat_date, solution_id, tool_name, reported_model_name),
     INDEX idx_date (stat_date),
@@ -403,6 +461,8 @@ CREATE TABLE IF NOT EXISTS axiqra_tool_model_leaderboard_snapshot (
     success_rate_7d DECIMAL(5,4) NOT NULL,
     sample_size INT NOT NULL,
     rank_score DECIMAL(10,4) NULL,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     INDEX idx_window (window_start, window_end),
     INDEX idx_scope (scope_type, scope_id),

@@ -53,5 +53,5 @@ public class EngineeringTraceEntity extends BaseEntity {
     private Long solutionId;
     @Nullable
     private String evolutionSuggestion;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

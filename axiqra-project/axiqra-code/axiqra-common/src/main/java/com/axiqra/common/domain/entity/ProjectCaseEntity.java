@@ -32,5 +32,5 @@ public class ProjectCaseEntity extends BaseEntity {
     private String status;
     @Nullable
     private Long reviewId;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

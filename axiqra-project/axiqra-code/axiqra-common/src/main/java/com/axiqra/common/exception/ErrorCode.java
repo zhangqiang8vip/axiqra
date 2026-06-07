@@ -69,6 +69,7 @@ public enum ErrorCode {
     USER_CONFIRMATION_REQUIRED(40007, "需要用户确认", 409),
     INVOCATION_ALREADY_EXISTS(40008, "Invocation 记录已存在", 409),
     AUTHORIZATION_REVOKED(40009, "授权已撤回", 409),
+    CONCURRENT_MODIFICATION(40010, "数据已被其他人修改，请刷新后重试", 409),
 
     // ==================== 系统错误（5xxxx） ====================
     SYSTEM_ERROR(50001, "系统内部错误", 500),

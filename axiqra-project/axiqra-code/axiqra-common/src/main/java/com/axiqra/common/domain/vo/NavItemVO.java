@@ -6,21 +6,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 登录响应 VO
+ * 导航菜单项 VO
  *
  * @author Axiqra Team
- * @date 2026-06-06
+ * @date 2026-06-07
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LoginResponse {
+public class NavItemVO {
 
-    private Long userId;
-    private String username;
-    private String nickname;
-    private String email;
-    private String avatar;
-    private String token;
+    private String id;
+
+    private String label;
+
+    private String icon;
+
+    private String path;
+
+    private String category;
 }

@@ -31,6 +31,11 @@ public interface WorkspaceService {
     WorkspaceVO getById(Long workspaceId, Long userId);
 
     /**
+     * 更新工作空间（仅 owner 可操作）
+     */
+    WorkspaceVO update(Long workspaceId, Long userId, String workspaceName, String workspaceType);
+
+    /**
      * 删除工作空间（仅 owner 可操作）
      */
     void delete(Long workspaceId, Long userId);

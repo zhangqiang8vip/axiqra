@@ -43,5 +43,5 @@ public class SolutionEntity extends BaseEntity {
     private Long tenantId;
     @Nullable
     private Long sourceCaseId;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

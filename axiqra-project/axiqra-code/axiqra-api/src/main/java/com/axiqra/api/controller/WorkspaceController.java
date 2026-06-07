@@ -6,6 +6,7 @@ import com.axiqra.api.annotation.WorkspaceRole;
 import com.axiqra.common.domain.dto.MemberQueryRequest;
 import com.axiqra.common.domain.dto.MemberRoleUpdateRequest;
 import com.axiqra.common.domain.dto.WorkspaceCreateRequest;
+import com.axiqra.common.domain.dto.WorkspaceUpdateRequest;
 import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.vo.MemberVO;
 import com.axiqra.common.domain.vo.PageResponse;
@@ -64,6 +65,23 @@ public class WorkspaceController {
     public ApiResponse<WorkspaceVO> getById(@PathVariable Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
         WorkspaceVO workspace = workspaceService.getById(workspaceId, userId);
+        return ApiResponse.ok(workspace);
+    }
+
+    @PutMapping("/{workspaceId}")
+    @Operation(summary = "更新工作空间", description = "更新工作空间名称或类型，仅 owner 可操作")
+    @RequireWorkspaceRole(role = WorkspaceRole.OWNER, workspaceParam = "workspaceId")
+    public ApiResponse<WorkspaceVO> update(
+            @PathVariable Long workspaceId,
+            @Valid @RequestBody WorkspaceUpdateRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        WorkspaceVO workspace = workspaceService.update(
+                workspaceId,
+                userId,
+                request.getWorkspaceName(),
+                request.getWorkspaceType()
+        );
+        log.info("更新工作空间: workspaceId={}, userId={}", workspaceId, userId);
         return ApiResponse.ok(workspace);
     }
 

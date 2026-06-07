@@ -3,6 +3,7 @@ package com.axiqra.api.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.dto.LoginRequest;
+import com.axiqra.common.domain.dto.ProfileUpdateRequest;
 import com.axiqra.common.domain.dto.RegisterRequest;
 import com.axiqra.common.domain.vo.LoginResponse;
 import com.axiqra.common.exception.BizException;
@@ -59,6 +60,8 @@ public class AuthController {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
                 .token(token)
                 .build());
     }
@@ -79,6 +82,8 @@ public class AuthController {
                     .userId(user.getId())
                     .username(user.getUsername())
                     .nickname(user.getNickname())
+                    .email(user.getEmail())
+                    .avatar(user.getAvatar())
                     .token(token)
                     .build());
         } catch (BizException e) {
@@ -105,15 +110,40 @@ public class AuthController {
     @GetMapping("/me")
     @Operation(summary = "当前用户信息", description = "获取登录用户信息")
     public ApiResponse<LoginResponse> me() {
-        long userId = StpUtil.getLoginIdAsLong();
-        UserEntity user = userService.getById(userId);
-        if (user == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        try {
+            long userId = StpUtil.getLoginIdAsLong();
+            UserEntity user = userService.getById(userId);
+            if (user == null) {
+                throw new BizException(ErrorCode.USER_NOT_FOUND);
+            }
+            return ApiResponse.ok(LoginResponse.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .nickname(user.getNickname())
+                    .email(user.getEmail())
+                    .avatar(user.getAvatar())
+                    .token(StpUtil.getTokenValue())
+                    .build());
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取当前用户信息异常", e);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "获取用户信息失败，请稍后重试");
         }
+    }
+
+    @PutMapping("/profile")
+    @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname、email 和 avatar")
+    public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail(), request.getAvatar());
+        log.info("更新个人资料: userId={}", userId);
         return ApiResponse.ok(LoginResponse.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
                 .token(StpUtil.getTokenValue())
                 .build());
     }

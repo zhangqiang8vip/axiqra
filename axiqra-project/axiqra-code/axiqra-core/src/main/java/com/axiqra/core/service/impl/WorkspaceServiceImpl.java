@@ -18,9 +18,11 @@ import com.axiqra.core.service.WorkspaceService;
 import com.axiqra.core.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -121,7 +123,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .setOwnerId(userId)
                 .setWorkspaceName(workspaceName)
                 .setWorkspaceType(workspaceType)
-                .setIsDeleted(0);
+                .setDeleted(false);
         workspaceMapper.insertSelective(workspace);
 
         // 自动将自己加入成员表，角色为 owner
@@ -150,7 +152,6 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
         }
 
-        // 检查访问权限
         boolean canAccess = rbacService.isMember(userId, workspaceId)
                 || rbacService.isOwner(userId, workspaceId);
         if (!canAccess) {
@@ -162,6 +163,79 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         return WorkspaceVO.from(workspace)
                 .withMyRole(role != null ? role.getCode() : null)
+                .withMemberCount(memberCount);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WorkspaceVO update(Long workspaceId, Long userId, String workspaceName, String workspaceType) {
+        if (workspaceId == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "workspaceId 不能为空");
+        }
+        if (userId == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "userId 不能为空");
+        }
+
+        if (!rbacService.isOwner(userId, workspaceId)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "只有所有者可以更新工作空间");
+        }
+
+        WorkspaceEntity existing = workspaceMapper.selectById(workspaceId);
+        if (existing == null) {
+            throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
+        }
+
+        boolean hasNameUpdate = workspaceName != null && !workspaceName.isBlank();
+        boolean hasTypeUpdate = workspaceType != null && !workspaceType.isBlank();
+
+        if (!hasNameUpdate && !hasTypeUpdate) {
+            MemberRole role = rbacService.getRole(userId, workspaceId);
+            long memberCount = membershipMapper.countByWorkspaceId(workspaceId);
+            return WorkspaceVO.from(existing)
+                    .withMyRole(role != null ? role.getCode() : null)
+                    .withMemberCount(memberCount);
+        }
+
+        WorkspaceType newType = null;
+        if (hasTypeUpdate) {
+            newType = WorkspaceType.of(workspaceType);
+            if (newType == null) {
+                throw new BizException(ErrorCode.PARAM_INVALID, "不支持的工作空间类型: " + workspaceType);
+            }
+        }
+
+        if (hasNameUpdate) {
+            String trimmedName = workspaceName.trim();
+            WorkspaceEntity conflict = workspaceMapper.selectByOwnerAndName(existing.getOwnerId(), trimmedName);
+            if (conflict != null && !conflict.getId().equals(workspaceId)) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "工作空间名称已存在");
+            }
+        }
+
+        String cleanedName = hasNameUpdate ? workspaceName.trim() : null;
+        String cleanedType = hasTypeUpdate ? newType.getCode() : null;
+
+        int rows;
+        try {
+            rows = workspaceMapper.updateSelective(workspaceId, cleanedName, cleanedType,
+                    existing.getVersion(), Instant.now());
+        } catch (DataAccessException e) {
+            log.error("更新工作空间数据库异常: workspaceId={}, userId={}", workspaceId, userId, e);
+            throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
+        }
+
+        if (rows == 0) {
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "数据已被其他人修改，请刷新后重试");
+        }
+
+        WorkspaceEntity updated = workspaceMapper.selectById(workspaceId);
+        if (updated == null) {
+            throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
+        }
+        long memberCount = membershipMapper.countByWorkspaceId(workspaceId);
+        log.info("更新工作空间: workspaceId={}, userId={}", workspaceId, userId);
+        return WorkspaceVO.from(updated)
+                .withMyRole(MemberRole.OWNER.getCode())
                 .withMemberCount(memberCount);
     }
 
@@ -179,8 +253,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
         }
 
-        // 软删除工作空间
-        workspaceMapper.softDeleteById(workspaceId);
+        // 软删除工作空间（幂等：version 检查 + is_deleted 保护）
+        int rows = workspaceMapper.softDeleteById(workspaceId, workspace.getVersion(), Instant.now());
+        if (rows == 0) {
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "工作空间已被修改或删除，请刷新后重试");
+        }
 
         // 软删除所有成员关系
         membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode());

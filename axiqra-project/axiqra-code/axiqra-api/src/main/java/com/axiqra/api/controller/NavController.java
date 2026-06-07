@@ -1,5 +1,6 @@
 package com.axiqra.api.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.vo.NavResponseVO;
 import com.axiqra.common.response.ApiResponse;
@@ -27,6 +28,7 @@ public class NavController {
 
     private final NavService navService;
 
+    @SaCheckLogin
     @GetMapping("/nav")
     @Operation(summary = "获取导航菜单", description = "累加式返回当前用户可见的全部菜单")
     public ApiResponse<NavResponseVO> getNav() {

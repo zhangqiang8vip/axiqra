@@ -22,7 +22,11 @@ public class UrlValidator implements ConstraintValidator<ValidUrl, String> {
         try {
             URI uri = new URI(value);
             String scheme = uri.getScheme();
-            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                return false;
+            }
+            String host = uri.getHost();
+            return host != null && !host.isBlank();
         } catch (URISyntaxException e) {
             return false;
         }

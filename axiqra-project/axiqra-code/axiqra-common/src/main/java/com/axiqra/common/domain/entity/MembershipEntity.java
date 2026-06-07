@@ -6,8 +6,6 @@ import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.springframework.lang.Nullable;
 
-import java.time.Instant;
-
 /**
  * 空间成员关系表 axiqra_membership
  *
@@ -24,7 +22,7 @@ public class MembershipEntity extends BaseEntity {
     private Long workspaceId;
     private String role;
     private String status;
-    private Boolean isDeleted;
+    private boolean isDeleted = false;
     @Nullable
     private Long tenantId;
 }

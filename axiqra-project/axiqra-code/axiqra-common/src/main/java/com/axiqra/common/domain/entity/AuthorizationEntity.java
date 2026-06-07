@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import jakarta.validation.constraints.NotNull;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -26,6 +27,7 @@ public class AuthorizationEntity extends BaseEntity {
     private String status;
     @Nullable
     private Instant revokedAt;
+    @NotNull
     private Long tenantId;
-    private Boolean isDeleted;
+    private boolean isDeleted = false;
 }

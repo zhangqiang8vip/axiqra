@@ -114,6 +114,9 @@ CREATE TABLE IF NOT EXISTS axiqra_engineering_trace (
 );
 
 -- ===================== Trace 证据引用 =====================
+-- 首次创建时 gmt_modified 为 NULL，请执行以下迁移后再改为 NOT NULL：
+--   ALTER TABLE axiqra_trace_evidence_ref ALTER COLUMN gmt_modified SET NOT NULL;
+--   ALTER TABLE axiqra_trace_evidence_ref ALTER COLUMN gmt_modified SET DEFAULT now();
 CREATE TABLE IF NOT EXISTS axiqra_trace_evidence_ref (
     id BIGINT NOT NULL DEFAULT unique_rowid(),
     gmt_create TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -360,6 +363,9 @@ CREATE TABLE IF NOT EXISTS axiqra_candidate_seed (
 );
 
 -- ===================== 工具模型归因 =====================
+-- 首次创建时 gmt_modified 为 NULL，请执行以下迁移后再改为 NOT NULL：
+--   ALTER TABLE axiqra_tool_model_attribution ALTER COLUMN gmt_modified SET NOT NULL;
+--   ALTER TABLE axiqra_tool_model_attribution ALTER COLUMN gmt_modified SET DEFAULT now();
 CREATE TABLE IF NOT EXISTS axiqra_tool_model_attribution (
     id BIGINT NOT NULL DEFAULT unique_rowid(),
     gmt_create TIMESTAMPTZ NOT NULL DEFAULT now(),

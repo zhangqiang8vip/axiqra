@@ -56,13 +56,14 @@ public class UserServiceImpl implements UserService {
         try {
             userMapper.insertSelective(user);
         } catch (DataIntegrityViolationException e) {
-            if (isUsernameDuplicate(e)) {
-                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "用户名已存在");
+            if (isUniqueViolation(e)) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "用户名或邮箱已被注册");
             }
-            if (isEmailDuplicate(e)) {
-                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被注册");
-            }
-            throw new BizException(ErrorCode.DUPLICATE_ENTRY, "记录已存在");
+            log.error("用户注册数据约束异常: username={}, email={}", username, email, e);
+            throw new BizException(ErrorCode.DATABASE_ERROR, "注册失败，请稍后重试");
+        } catch (DataAccessException e) {
+            log.error("用户注册数据库异常: username={}, email={}", username, email, e);
+            throw new BizException(ErrorCode.DATABASE_ERROR, "注册失败，请稍后重试");
         }
         log.info("用户注册成功: userId={}", user.getId());
         return user;
@@ -97,7 +98,7 @@ public class UserServiceImpl implements UserService {
             rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail, cleanedAvatar,
                     existing.getVersion(), Instant.now());
         } catch (DataIntegrityViolationException e) {
-            if (isEmailDuplicate(e)) {
+            if (isUniqueViolation(e)) {
                 throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被其他用户使用");
             }
             log.error("更新用户资料数据库约束异常: userId={}", userId, e);
@@ -124,13 +125,10 @@ public class UserServiceImpl implements UserService {
         return passwordHashUtil.matches(rawPassword, encodedPassword);
     }
 
-    private boolean isEmailDuplicate(DataIntegrityViolationException e) {
+    private boolean isUniqueViolation(DataIntegrityViolationException e) {
         String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-        return msg.contains("email") || msg.contains("idx_email");
-    }
-
-    private boolean isUsernameDuplicate(DataIntegrityViolationException e) {
-        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-        return msg.contains("username") || msg.contains("idx_username");
+        return msg.contains("unique") || msg.contains("duplicate") ||
+               msg.contains("idx_username") || msg.contains("idx_email") ||
+               msg.contains("23505");
     }
 }

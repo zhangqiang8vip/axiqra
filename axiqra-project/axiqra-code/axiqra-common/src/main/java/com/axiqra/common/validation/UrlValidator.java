@@ -7,7 +7,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * Validates that a string is a valid HTTP or HTTPS URL.
+ * Validates that a string is a valid HTTPS URL.
  *
  * @author Axiqra Team
  * @date 2026-06-07

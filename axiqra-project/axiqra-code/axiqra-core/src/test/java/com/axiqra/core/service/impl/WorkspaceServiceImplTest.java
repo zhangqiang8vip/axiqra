@@ -283,6 +283,7 @@ class WorkspaceServiceImplTest {
             when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
             when(workspaceMapper.selectById(WORKSPACE_ID))
                     .thenReturn(createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID));
+            when(workspaceMapper.softDeleteById(eq(WORKSPACE_ID), eq(1L), any(Instant.class))).thenReturn(1);
 
             workspaceService.delete(WORKSPACE_ID, USER_ID);
 

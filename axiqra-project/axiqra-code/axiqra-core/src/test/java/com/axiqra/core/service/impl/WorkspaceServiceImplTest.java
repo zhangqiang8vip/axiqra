@@ -388,6 +388,18 @@ class WorkspaceServiceImplTest {
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("不能将您自己"));
         }
+
+        @Test
+        @DisplayName("admin 移除有效成员应成功")
+        void shouldRemoveMemberSuccessfully() {
+            when(rbacService.isAdmin(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            MembershipEntity member = createMembership(1L, OTHER_USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
+            when(membershipMapper.selectById(1L)).thenReturn(member);
+
+            workspaceService.removeMember(WORKSPACE_ID, USER_ID, 1L);
+
+            verify(membershipMapper).updateStatus(1L, MemberStatus.SUSPENDED.getCode());
+        }
     }
 
     @Nested
@@ -416,6 +428,18 @@ class WorkspaceServiceImplTest {
             BizException ex = assertThrows(BizException.class,
                     () -> workspaceService.updateMemberRole(WORKSPACE_ID, USER_ID, 1L, MemberRole.OWNER));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("owner 变更成员角色应成功")
+        void shouldUpdateMemberRoleSuccessfully() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            MembershipEntity member = createMembership(1L, OTHER_USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
+            when(membershipMapper.selectById(1L)).thenReturn(member);
+
+            workspaceService.updateMemberRole(WORKSPACE_ID, USER_ID, 1L, MemberRole.ADMIN);
+
+            verify(membershipMapper).updateRole(1L, MemberRole.ADMIN.getCode());
         }
     }
 

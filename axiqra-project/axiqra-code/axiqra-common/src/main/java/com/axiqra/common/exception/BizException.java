@@ -55,7 +55,7 @@ public class BizException extends RuntimeException {
         this.httpStatus = errorCode.getHttpStatus();
     }
 
-    public Integer httpStatus() {
+    public Integer getHttpStatus() {
         return httpStatus;
     }
 

@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
         log.warn("【业务异常】code={}, message={}, traceId={}",
                 ex.getCode(), ex.getMessage(), getTraceId());
         ApiResponse<Void> resp = ApiResponse.fail(ex.getCode(), ex.getMessage(), getTraceId());
-        Integer status = ex.httpStatus();
+        Integer status = ex.getHttpStatus();
         return ResponseEntity.status(status != null ? status : HttpStatus.CONFLICT.value()).body(resp);
     }
 

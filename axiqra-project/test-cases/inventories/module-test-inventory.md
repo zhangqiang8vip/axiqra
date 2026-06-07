@@ -28,7 +28,7 @@
 ## 4. 待补充建议
 - [x] `InfraConnectionIT` 已补充正式执行记录并归档
 - [x] `ApplicationContextTest` 已更新为 `InfraConnectionIT`（替换为有意义的集成测试）
-- [ ] R3 Auth 模块 Service 层测试已补充（WorkspaceServiceImplTest / RbacServiceImplTest / PolicyEngineServiceImplTest）
-- [ ] R3 Auth 模块 Controller 层测试已补充（WorkspaceControllerTest / PolicyControllerTest）
+- [x] R3 Auth 模块 Service 层测试已补充（WorkspaceServiceImplTest / RbacServiceImplTest / PolicyEngineServiceImplTest）
+- [x] R3 Auth 模块 Controller 层测试已补充（WorkspaceControllerTest / PolicyControllerTest）
 - 后续若新增 `*IT.java` 或 `*E2ETest.java`，应按测试类型补充分组说明；
 - 若某模块已有多组测试，可拆分为更细粒度的模块清单文件。

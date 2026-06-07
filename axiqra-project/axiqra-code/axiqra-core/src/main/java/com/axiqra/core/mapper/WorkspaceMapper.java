@@ -47,10 +47,10 @@ public interface WorkspaceMapper extends BaseMapper<WorkspaceEntity> {
 
     @org.apache.ibatis.annotations.Update("<script>" +
             "UPDATE axiqra_workspace SET gmt_modified = now() " +
-            "<if test='workspaceName != null and workspaceName.length() > 0'>" +
+            "<if test='workspaceName != null and workspaceName.trim().length() &gt; 0'>" +
             ", workspace_name = #{workspaceName}" +
             "</if>" +
-            "<if test='workspaceType != null and workspaceType.length() > 0'>" +
+            "<if test='workspaceType != null and workspaceType.trim().length() &gt; 0'>" +
             ", workspace_type = #{workspaceType}" +
             "</if>" +
             " WHERE id = #{id} AND is_deleted = 0" +

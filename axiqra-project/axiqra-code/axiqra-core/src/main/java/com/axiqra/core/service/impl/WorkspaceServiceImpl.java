@@ -199,15 +199,19 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         if (hasNameUpdate) {
-            WorkspaceEntity conflict = workspaceMapper.selectByOwnerAndName(existing.getOwnerId(), workspaceName);
+            String trimmedName = workspaceName.trim();
+            WorkspaceEntity conflict = workspaceMapper.selectByOwnerAndName(existing.getOwnerId(), trimmedName);
             if (conflict != null && !conflict.getId().equals(workspaceId)) {
                 throw new BizException(ErrorCode.DUPLICATE_ENTRY, "工作空间名称已存在");
             }
         }
 
+        String cleanedName = hasNameUpdate ? workspaceName.trim() : null;
+        String cleanedType = hasTypeUpdate ? workspaceType.trim() : null;
+
         int rows;
         try {
-            rows = workspaceMapper.updateSelective(workspaceId, workspaceName, workspaceType);
+            rows = workspaceMapper.updateSelective(workspaceId, cleanedName, cleanedType);
         } catch (Exception e) {
             log.error("更新工作空间失败: workspaceId={}, userId={}", workspaceId, userId, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");

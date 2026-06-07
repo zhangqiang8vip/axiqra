@@ -48,4 +48,12 @@ public class PageResponse<T> {
     public static <T> PageResponse<T> of(List<T> records, long pageNum, long pageSize, long total) {
         return new PageResponse<>(records, pageNum, pageSize, total);
     }
+
+    public static <T> PageResponse<T> of(List<T> records, long total) {
+        return new PageResponse<>(records, 1L, 20L, total);
+    }
+
+    public static <T> PageResponse<T> empty() {
+        return new PageResponse<>(List.of(), 1L, 20L, 0L);
+    }
 }

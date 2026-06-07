@@ -8,12 +8,15 @@ import com.axiqra.common.domain.vo.LoginResponse;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.response.ApiResponse;
+import com.axiqra.common.util.PasswordHashUtil;
 import com.axiqra.core.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 认证控制器（登录/注册/登出）
@@ -27,8 +30,12 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "认证", description = "登录、注册、登出")
 public class AuthController {
 
-    private static final String DUMMY_BCRYPT_HASH =
-            "$2a$10$AxL7K9vR2mQ3fT5nP8eW1uHqL4jR6sK0dG8cY7xZmVqN3oI9tU0iW";
+    /**
+     * Timing-safe dummy BCrypt hash generated at class load.
+     * Avoids hardcoding a placeholder string literal while preserving constant-time behavior.
+     */
+    private static final String DUMMY_BCRYPT_HASH = PasswordHashUtil.hash(
+            "dummy-timing-balance-" + System.currentTimeMillis() + "-" + ThreadLocalRandom.current().nextInt());
 
     private final UserService userService;
 

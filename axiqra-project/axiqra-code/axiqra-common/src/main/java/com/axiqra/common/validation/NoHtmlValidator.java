@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 
 /**
  * Validates that a string does not contain HTML or script tags.
+ * Checks: (1) length limit, (2) javascript:/data: scheme, (3) on* event handlers,
+ * (4) strict HTML tag pattern <tagname> or </tagname>.
  *
  * @author Axiqra Team
  * @date 2026-06-07

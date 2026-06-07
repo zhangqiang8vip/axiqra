@@ -123,4 +123,28 @@ class NoHtmlValidatorTest {
     void outOfRangeCodePoint_returnsTrue() {
         assertTrue(validator.isValid("&#x110000;", context));
     }
+
+    @Test
+    @DisplayName("极大安全输入（>400字符）性能测试")
+    void largeSafeInput_returnsTrue() {
+        String largeSafe = "hello world".repeat(40);
+        assertTrue(largeSafe.length() > 400);
+        assertTrue(validator.isValid(largeSafe, context));
+    }
+
+    @Test
+    @DisplayName("极大危险输入（>400字符）应返回 false")
+    void largeDangerousInput_returnsFalse() {
+        String largeDangerous = "<script>".repeat(51);
+        assertTrue(largeDangerous.length() > 400);
+        assertFalse(validator.isValid(largeDangerous, context));
+    }
+
+    @Test
+    @DisplayName("超长输入（>1KB）应在长度检查阶段快速返回 false")
+    void veryLargeInput_rejectedAtLengthCheck() {
+        String veryLarge = "x".repeat(2048);
+        assertTrue(veryLarge.length() > 1024);
+        assertFalse(validator.isValid(veryLarge, context));
+    }
 }

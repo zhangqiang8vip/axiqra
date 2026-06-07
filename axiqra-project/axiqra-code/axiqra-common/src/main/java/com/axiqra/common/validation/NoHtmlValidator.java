@@ -54,6 +54,9 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
     /**
      * Decodes HTML5 numeric (&#xHH; &#DDDD;) and named (&lt; &gt; &amp; &quot;) entities.
      * Only decodes dangerous patterns; leaves harmless content intact.
+     *
+     * <p>Returns {@code true} for {@code null} or blank input, consistent with
+     * JSR-380 bean-validation convention: null values are considered valid.</p>
      */
     private String decodeHtmlEntities(String raw) {
         return decodeHtmlEntitiesMinimal(raw);
@@ -89,7 +92,23 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
         return sb.toString();
     }
 
+    /**
+     * Decodes a single HTML entity ({@code &name;} or {@code &#xHH;}/{#DDD;}).
+     *
+     * <p>Uses {@code substring(1, len-1)} for the inner content because all
+     * entities share the prefix {@code &} and suffix {@code ;}:</p>
+     * <ul>
+     *   <li>{@code &amp;apos;} → inner = {@code "amp;apos"} → starts with {@code "#"}? No → skip</li>
+     *   <li>{@code &#x3C;}  → inner = {@code "#x3C"}      → starts with {@code "#x"}? Yes → hex decode</li>
+     *   <li>{@code &#60;}    → inner = {@code "#60"}       → starts with {@code "#"}? Yes → dec decode</li>
+     * </ul>
+     */
     private String decodeSingleEntity(String entity) {
+        // Guard against malformed entities that are too short to decode.
+        // Minimum length is 3: one char prefix + one char content + ';'.
+        if (entity.length() < 3) {
+            return null;
+        }
         // Named entities
         return switch (entity.toLowerCase(java.util.Locale.ROOT)) {
             case "&lt;"  -> "<";

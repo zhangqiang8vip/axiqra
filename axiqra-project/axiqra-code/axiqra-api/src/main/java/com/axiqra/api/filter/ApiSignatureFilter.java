@@ -1,6 +1,7 @@
 package com.axiqra.api.filter;
 
 import com.axiqra.common.exception.ErrorCode;
+import com.axiqra.common.port.KeyVaultPort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +65,7 @@ public class ApiSignatureFilter implements Filter {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final KeyVaultPort keyVaultPort;
 
     // 公开接口白名单（路径匹配则跳过签名验证）
     private static final Set<String> PUBLIC_PATH_PREFIXES = Set.of(
@@ -77,9 +79,10 @@ public class ApiSignatureFilter implements Filter {
             "/favicon.ico"
     );
 
-    public ApiSignatureFilter(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public ApiSignatureFilter(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, KeyVaultPort keyVaultPort) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.keyVaultPort = keyVaultPort;
     }
 
     @Override
@@ -197,14 +200,10 @@ public class ApiSignatureFilter implements Filter {
 
     @SuppressWarnings("unchecked")
     private String getAppSecret(String appId) {
-        // TODO (S2): replace with secure key vault (e.g. Spring Cloud Config + Vault,
-        //            AWS Secrets Manager, or a dedicated KMS). Environment variables are
-        //            acceptable for local dev only — never rely on them in production.
-        String secret = System.getenv("AXIQRA_APP_SECRET_" + appId);
-        if (secret == null || secret.isBlank()) {
-            return null;
-        }
-        return secret;
+        // TODO (S2): replace KeyVaultAdapter with a production-grade implementation
+        //            (e.g. AWS Secrets Manager, HashiCorp Vault, or Spring Cloud Config).
+        //            Environment variables are acceptable for local dev only.
+        return keyVaultPort.getSecret(appId);
     }
 
     private String getRequestBody(HttpServletRequest request) {

@@ -14,12 +14,12 @@ import lombok.Getter;
  * 1 - 参数错误（10001~19999）               → HTTP 400
  * 2 - 认证授权错误（20001~29999）            → HTTP 401/403
  * 3 - 资源不存在（30001~39999）              → HTTP 404
- * 4 - 业务逻辑错误（40001~49999）            → HTTP 409（默认；个别条目可覆盖，如 40004/40005/40006 返回 400）
- * 5 - 系统错误（50001~59999）                → HTTP 500（默认；个别条目可覆盖，如 50008 返回 429，50010 返回 413）
- * 6 - 配额/限流错误（60001~69999）            → HTTP 429（默认；个别条目可覆盖，如 60002 QUOTA_WARNING 返回 200）
- * 7 - 治理/审核错误（70001~79999）            → HTTP 403
- * 8 - 搜索/Solution 错误（80001~89999）       → HTTP 400（默认；个别条目可覆盖，如 80001 SEARCH_RESULT_EMPTY 返回 200）
- * 9 - Trace/Case 错误（90001~99999）          → HTTP 400
+ * 4 - 业务逻辑错误（40001~49999）            → HTTP 409（默认；覆盖：40004/40005/40006 → 400）
+ * 5 - 系统错误（50001~59999）                → HTTP 500（默认；覆盖：50008 → 429，50010 → 413）
+ * 6 - 配额/限流错误（60001~69999）            → HTTP 429（默认；覆盖：60002 QUOTA_WARNING → 200）
+ * 7 - 治理/审核错误（70001~79999）            → HTTP 403（默认；覆盖：70004 REASON_CODE_MISSING → 400，70006 APPEAL_IN_PROGRESS → 202）
+ * 8 - 搜索/Solution 错误（80001~89999）       → HTTP 400（默认；覆盖：80001 SEARCH_RESULT_EMPTY → 200，80002 SEARCH_NO_PERMISSION → 403，80004 SOLUTION_QUARANTINED → 403，80005 SOLUTION_DEPRECATED → 410，80006 VERIFICATION_LEVEL_TOO_LOW → 403）
+ * 9 - Trace/Case 错误（90001~99999）          → HTTP 400（默认；覆盖：90002 TRACE_USER_CONFIRMATION_PENDING → 202，90004 CASE_PUBLISH_PENDING → 202，90006 CASE_DUPLICATE_SOURCE → 409）
  *
  * <p>每个枚举条目可通过 {@code httpStatus} 字段覆盖上述默认映射。
  *

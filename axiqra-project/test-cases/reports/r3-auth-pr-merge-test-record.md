@@ -63,6 +63,8 @@ mvn test
 
 ## 7. 后续动作
 
+**注：以下动作项已在后续 PR 中完成，详见 `r3-auth-test-execution-record.md`。**
+
 ### 高优先级
 - [ ] 为 `WorkspaceServiceImpl`、`RbacServiceImpl`、`PolicyEngineServiceImpl` 补充单元测试
 - [ ] 为 `WorkspaceController`、`PolicyController` 补充接口测试

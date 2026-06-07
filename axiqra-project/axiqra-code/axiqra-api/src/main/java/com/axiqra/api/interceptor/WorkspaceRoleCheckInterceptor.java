@@ -75,12 +75,7 @@ public class WorkspaceRoleCheckInterceptor implements HandlerInterceptor {
                 return null;
             }
             try {
-                long id = Long.parseLong(val);
-                if (id <= 0) {
-                    throw new BizException(ErrorCode.PARAM_INVALID,
-                            paramName + " 必须为正数");
-                }
-                return id;
+                return parseAndValidateId(val, paramName);
             } catch (NumberFormatException e) {
                 throw new BizException(ErrorCode.PARAM_INVALID,
                         paramName + " 参数格式错误，应为数字");
@@ -89,17 +84,21 @@ public class WorkspaceRoleCheckInterceptor implements HandlerInterceptor {
         String value = request.getParameter(paramName);
         if (value != null) {
             try {
-                long id = Long.parseLong(value);
-                if (id <= 0) {
-                    throw new BizException(ErrorCode.PARAM_INVALID,
-                            paramName + " 必须为正数");
-                }
-                return id;
+                return parseAndValidateId(value, paramName);
             } catch (NumberFormatException e) {
                 throw new BizException(ErrorCode.PARAM_INVALID,
                         paramName + " 参数格式错误，应为数字");
             }
         }
         return null;
+    }
+
+    private long parseAndValidateId(String value, String paramName) {
+        long id = Long.parseLong(value);
+        if (id <= 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID,
+                    paramName + " 必须为正数");
+        }
+        return id;
     }
 }

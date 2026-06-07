@@ -6,8 +6,9 @@ package com.axiqra.common.exception;
  * <p>用于业务层校验失败、无权限、资源不存在等业务错误。
  * 使用 ErrorCode 中的错误码。
  *
- * <p>每个异常可携带语义化的 HTTP 状态码，默认返回 409 CONFLICT。
- * 如需覆盖，由 ErrorCode 中的 httpStatus 决定。
+ * <p>每个异常可携带语义化的 HTTP 状态码。如未指定 {@code httpStatus}，由
+ * {@link GlobalExceptionHandler#handleBizException} 默认返回 409 CONFLICT。
+ * 如需覆盖，由 ErrorCode 中的 {@code httpStatus} 决定。
  *
  * @author Axiqra Team
  * @date 2026-06-06

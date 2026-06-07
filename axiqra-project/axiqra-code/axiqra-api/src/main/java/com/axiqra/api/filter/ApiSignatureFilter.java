@@ -178,13 +178,19 @@ public class ApiSignatureFilter implements Filter {
 
     private boolean isSignatureValid(String appId, String timestamp, String nonce,
                                      String signature, HttpServletRequest request) {
-        if (appId == null || signature == null) {
+        if (appId == null || appId.isBlank() || signature == null) {
             return false;
         }
 
         // Timing-safe: always compute HMAC even if appSecret is missing (invalid).
         // Returning early would leak appId existence via timing difference.
-        String appSecret = getAppSecret(appId);
+        String appSecret;
+        try {
+            appSecret = getAppSecret(appId);
+        } catch (IllegalArgumentException e) {
+            log.warn("[Sig] Invalid appId format: {}", e.getMessage());
+            appSecret = null;
+        }
         String payload = appId + "|" + timestamp + "|" + nonce + "|" + getRequestBody(request);
         String expected = hmacSha256(payload, appSecret != null ? appSecret : DUMMY_SECRET);
 
@@ -200,9 +206,9 @@ public class ApiSignatureFilter implements Filter {
 
     @SuppressWarnings("unchecked")
     private String getAppSecret(String appId) {
-        // TODO (S2): replace KeyVaultAdapter with a production-grade implementation
-        //            (e.g. AWS Secrets Manager, HashiCorp Vault, or Spring Cloud Config).
-        //            Environment variables are acceptable for local dev only.
+        // TODO (S2): replace environment-variable-based secret storage with a production-grade
+        //            implementation (e.g. AWS Secrets Manager, HashiCorp Vault, or Spring Cloud Config).
+        //            KeyVaultPort is the stable interface; only the adapter implementation changes.
         return keyVaultPort.getSecret(appId);
     }
 

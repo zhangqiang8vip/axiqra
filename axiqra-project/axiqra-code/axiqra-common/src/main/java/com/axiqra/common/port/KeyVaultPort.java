@@ -34,9 +34,13 @@ public interface KeyVaultPort {
      * 且去除首尾空白字符后包含非空白内容。
      * 实现类（如 {@code KeyVaultAdapter}）仅在存储的密钥满足上述
      * 非 null、非空白条件时才应返回 {@code true}。
+     * 实现必须对 null 或空白的 {@code appId} 抛出
+     * {@link IllegalArgumentException}，而非静默返回 {@code false}，
+     * 与 {@link #getSecret(String)} 保持一致的契约。
      *
      * @param appId 应用标识
      * @return true 表示已配置有效密钥
+     * @throws IllegalArgumentException if {@code appId} is null or blank
      */
     boolean hasSecret(String appId);
 }

@@ -40,7 +40,8 @@ public class KeyVaultAdapter implements KeyVaultPort {
      * Sanitizes {@code appId} to a POSIX-compliant environment variable name segment.
      * Transforms the value by trimming, converting to upper-case, and replacing
      * any invalid characters (hyphens, spaces, dots, etc.) with underscores.
-     * Returns null if the result is empty or starts with a digit (illegal for env vars).
+     * @throws IllegalArgumentException if the sanitized result is empty or starts
+     *         with a digit (illegal for env vars) or if {@code appId} is null/blank
      */
     private String sanitizeEnvName(String appId) {
         String trimmed = appId.trim();

@@ -8,6 +8,7 @@ import com.axiqra.core.mapper.UserMapper;
 import com.axiqra.core.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,8 +101,8 @@ public class UserServiceImpl implements UserService {
             }
             log.error("更新用户资料数据库约束异常: userId={}", userId, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
-        } catch (Exception e) {
-            log.error("更新用户资料失败: userId={}", userId, e);
+        } catch (DataAccessException e) {
+            log.error("更新用户资料数据库异常: userId={}", userId, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
         }
 

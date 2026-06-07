@@ -126,7 +126,7 @@ public class AuthController {
     }
 
     @PutMapping("/profile")
-    @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname 和 email")
+    @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname、email 和 avatar")
     public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail(), request.getAvatar());

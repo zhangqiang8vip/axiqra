@@ -58,7 +58,7 @@ public class KeyVaultAdapter implements KeyVaultPort {
         }
         String result = sb.toString();
         if (result.isEmpty() || Character.isDigit(result.charAt(0))) {
-            log.warn("[KeyVault] Sanitized appId '{}' resulted in invalid env var name, rejecting", appId);
+            log.debug("[KeyVault] Sanitized appId '{}' resulted in invalid env var name, rejecting", appId);
             throw new IllegalArgumentException(
                     "appId '" + appId + "' cannot be mapped to a valid environment variable name");
         }

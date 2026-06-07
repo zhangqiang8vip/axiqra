@@ -22,29 +22,32 @@ class NoHtmlValidatorTest {
     }
 
     // ==================== Null/Blank ====================
+    // null/blank values are valid per JSR-380 convention (ConstraintValidator contract)
 
     @Test
-    @DisplayName("null 应返回 true")
+    @DisplayName("null 应返回 true / null returns true")
     void nullValue_returnsTrue() {
         assertTrue(validator.isValid(null, context));
     }
 
     @Test
-    @DisplayName("空白字符串应返回 true")
+    @DisplayName("空白字符串应返回 true / Blank string returns true")
     void blankValue_returnsTrue() {
         assertTrue(validator.isValid("   ", context));
     }
 
     // ==================== Length ====================
+    // Inputs exceeding MAX_LENGTH (500) are rejected without further processing
 
     @Test
-    @DisplayName("超过 500 字符应返回 false")
+    @DisplayName("超过 500 字符应返回 false / >500 chars returns false")
     void tooLong_returnsFalse() {
         String longStr = "a".repeat(501);
         assertFalse(validator.isValid(longStr, context));
     }
 
     // ==================== Basic XSS ====================
+    // Dangerous tags (<script>, <img>, <svg>), protocols (javascript:, data:), and event handlers (on*)
 
     @ParameterizedTest
     @ValueSource(strings = {
@@ -54,10 +57,13 @@ class NoHtmlValidatorTest {
             "data:text/html,<h1>test</h1>",
             "<svg onload=alert(1)>"
     })
-    @DisplayName("危险标签和协议应返回 false")
+    @DisplayName("危险标签和协议应返回 false / Dangerous tags and protocols return false")
     void dangerousInput_returnsFalse(String input) {
         assertFalse(validator.isValid(input, context));
     }
+
+    // ==================== Safe Inputs ====================
+    // Ordinary text should pass validation
 
     private static final String LONG_SAFE_STRING =
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -69,63 +75,64 @@ class NoHtmlValidatorTest {
             "中文昵称",
             LONG_SAFE_STRING
     })
-    @DisplayName("普通文本应返回 true")
+    @DisplayName("普通文本应返回 true / Normal text returns true")
     void safeInput_returnsTrue(String input) {
         assertTrue(validator.isValid(input, context));
     }
 
     // ==================== HTML Entity Bypass ====================
+    // Tests that HTML-entity-encoded XSS payloads (named, hex, decimal) are decoded and blocked
 
     @Test
-    @DisplayName("命名实体 &lt;script&gt; 解码后应被拦截")
+    @DisplayName("命名实体 &lt;script&gt; 解码后应被拦截 / Named entity decoded and blocked")
     void namedEntityLessThanScript_returnsFalse() {
         assertFalse(validator.isValid("&lt;script&gt;alert(1)&lt;/script&gt;", context));
     }
 
     @Test
-    @DisplayName("十六进制数字实体 &#60;script&#62; 解码后应被拦截")
+    @DisplayName("十六进制数字实体应被拦截 / Hex numeric entity decoded and blocked")
     void hexNumericEntityScript_returnsFalse() {
         assertFalse(validator.isValid("&#60;script&#62;alert(1)&#60;/script&#62;", context));
     }
 
     @Test
-    @DisplayName("十进制数字实体 &#60;script&#62; 解码后应被拦截")
+    @DisplayName("十进制数字实体应被拦截 / Decimal numeric entity decoded and blocked")
     void decimalNumericEntityScript_returnsFalse() {
         assertFalse(validator.isValid("&#60;script&#62;alert(1)&#60;/script&#62;", context));
     }
 
     @Test
-    @DisplayName("混合大小写十六进制实体应被拦截")
+    @DisplayName("混合大小写十六进制实体应被拦截 / Mixed-case hex entity blocked")
     void mixedCaseHexEntity_returnsFalse() {
         assertFalse(validator.isValid("&#X3C;SCRIPT&#X3E;alert(1)&#X3C;/SCRIPT&#X3E;", context));
     }
 
     @Test
-    @DisplayName("无害命名实体（&amp; &quot;）不应触发误报")
+    @DisplayName("无害命名实体不应触发误报 / Safe named entities cause no false positive")
     void safeNamedEntities_returnsTrue() {
         assertTrue(validator.isValid("Tom & Jerry &quot;friends&quot;", context));
     }
 
     @Test
-    @DisplayName("普通文本中的 &amp; 字符不应触发误报")
+    @DisplayName("普通文本中的 &amp; 字符不应触发误报 / Ampersand in normal text causes no false positive")
     void ampersandInNormalText_returnsTrue() {
         assertTrue(validator.isValid("A & B", context));
     }
 
     @Test
-    @DisplayName("不带分号的实体应返回 true（未解析则不过滤）")
+    @DisplayName("不带分号的实体应返回 true / Entity without semicolon returns true (not decoded)")
     void entityWithoutSemicolon_returnsTrue() {
         assertTrue(validator.isValid("Tom & Jerry", context));
     }
 
     @Test
-    @DisplayName("超出范围的码点应返回 true（不崩溃）")
+    @DisplayName("超出范围的码点应返回 true / Out-of-range code point returns true (no crash)")
     void outOfRangeCodePoint_returnsTrue() {
         assertTrue(validator.isValid("&#x110000;", context));
     }
 
     @Test
-    @DisplayName("极大安全输入（>400字符）性能测试")
+    @DisplayName("极大安全输入（>400字符）性能测试 / Large safe input (>400 chars) performance test")
     void largeSafeInput_returnsTrue() {
         String largeSafe = "hello world".repeat(40);
         assertTrue(largeSafe.length() > 400);
@@ -133,7 +140,7 @@ class NoHtmlValidatorTest {
     }
 
     @Test
-    @DisplayName("极大危险输入（>400字符）应返回 false")
+    @DisplayName("极大危险输入（>400字符）应返回 false / Large dangerous input (>400 chars) returns false")
     void largeDangerousInput_returnsFalse() {
         String largeDangerous = "<script>".repeat(51);
         assertTrue(largeDangerous.length() > 400);
@@ -141,7 +148,7 @@ class NoHtmlValidatorTest {
     }
 
     @Test
-    @DisplayName("超长输入（>1KB）应在长度检查阶段快速返回 false")
+    @DisplayName("超长输入（>1KB）快速返回 false / Very large input (>1KB) fast-rejected at length check")
     void veryLargeInput_rejectedAtLengthCheck() {
         String veryLarge = "x".repeat(2048);
         assertTrue(veryLarge.length() > 1024);

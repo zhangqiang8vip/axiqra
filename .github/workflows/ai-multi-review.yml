@@ -532,20 +532,19 @@ jobs:
               }
             }
 
-            // Delete CodeRabbit's pull request review comments (inline diff comments)
-            const diffComments = await github.rest.pulls.listComments({
-              owner,
-              repo,
-              pull_number: prNumber,
-            });
-            for (const c of diffComments.data) {
+            // Delete CodeRabbit's pull request inline diff comments
+            // Use raw request since pull review comments use a different endpoint
+            const { data: diffComments } = await github.request(
+              'GET /repos/{owner}/{repo}/pulls/{pull_number}/comments',
+              { owner, repo, pull_number: prNumber }
+            );
+            for (const c of diffComments) {
               if (c.user.login === 'coderabbitai[bot]') {
-                await github.rest.pulls.deleteComment({
-                  owner,
-                  repo,
-                  comment_id: c.id,
-                });
-                console.log(`Deleted diff comment: ${c.id}`);
+                await github.request(
+                  'DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}',
+                  { owner, repo, comment_id: c.id }
+                );
+                console.log(`Deleted coderabbitai inline diff comment: ${c.id}`);
               }
             }
 

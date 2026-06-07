@@ -32,6 +32,8 @@
 |---|------|------|----------|
 | **T-001** | 密钥用环境变量是临时方案，安全性不足 | `ApiSignatureFilter.java:200` | 接口设计要考虑可注入 `KeyVaultPort`，不要硬编码 secret lookup 逻辑 |
 | **T-002** | `BizException` 固定返回 409，不所有场景都语义正确 | `GlobalExceptionHandler.java:49` | 留 `statusCode` 字段或方法，当前先用 409 |
+| **T-003** | `removeMember` 未阻止 self-remove，用户可将自己踢出工作区 | `WorkspaceController.java:121` | S2 在 `WorkspaceService.removeMember` 中加检查：移除者不能是自己，防止用户意外将自己锁在工作区外 |
+| **T-004** | `resolveWorkspaceId` 用 `Long.parseLong` 未限制范围 | `WorkspaceRoleCheckInterceptor.java:70` | S2 在 Service 层加范围校验，或在 DB 层加 `CHECK (workspace_id > 0)` 约束 |
 
 ---
 

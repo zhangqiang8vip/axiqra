@@ -50,10 +50,13 @@ CREATE TABLE IF NOT EXISTS axiqra_membership (
     workspace_id BIGINT NOT NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'member',
     status VARCHAR(32) NOT NULL DEFAULT 'active',
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_user_workspace (user_id, workspace_id),
     INDEX idx_workspace_id (workspace_id),
-    INDEX idx_user_id (user_id)
+    INDEX idx_user_id (user_id),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== 工程项目 =====================
@@ -119,8 +122,12 @@ CREATE TABLE IF NOT EXISTS axiqra_trace_evidence_ref (
     hash VARCHAR(128) NULL,
     type VARCHAR(32) NOT NULL,
     size_bytes BIGINT NULL,
+    gmt_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
-    INDEX idx_trace_id (trace_id)
+    INDEX idx_trace_id (trace_id),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Project Case =====================
@@ -258,10 +265,13 @@ CREATE TABLE IF NOT EXISTS axiqra_feedback (
     context_delta TEXT NULL,
     boundary_notes TEXT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'accepted',
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_invocation_id (invocation_id),
     INDEX idx_user_id (user_id),
-    INDEX idx_feedback_type (feedback_type)
+    INDEX idx_feedback_type (feedback_type),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Review 审核任务 =====================
@@ -275,11 +285,14 @@ CREATE TABLE IF NOT EXISTS axiqra_review (
     reviewer_id BIGINT NULL,
     risk_level VARCHAR(32) NOT NULL DEFAULT 'R0',
     status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_object (object_type, object_id),
     INDEX idx_reviewer_id (reviewer_id),
     INDEX idx_queue (queue),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Authorization 授权快照 =====================
@@ -293,6 +306,7 @@ CREATE TABLE IF NOT EXISTS axiqra_authorization (
     status VARCHAR(32) NOT NULL DEFAULT 'active',
     revoked_at TIMESTAMPTZ NULL,
     tenant_id BIGINT NULL,
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     INDEX idx_owner_id (owner_id),
     INDEX idx_status (status),
@@ -311,11 +325,14 @@ CREATE TABLE IF NOT EXISTS axiqra_contribution_ledger (
     points INT NOT NULL DEFAULT 0,
     evidence_refs JSONB NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'recorded',
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_actor_id (actor_id),
     INDEX idx_event_type (event_type),
     INDEX idx_object (object_type, object_id),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== Candidate Seed =====================
@@ -332,11 +349,14 @@ CREATE TABLE IF NOT EXISTS axiqra_candidate_seed (
     status VARCHAR(32) NOT NULL DEFAULT 'candidate',
     assignee_id BIGINT NULL,
     solution_id BIGINT NULL,
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     UNIQUE INDEX idx_query_hash (query_hash),
     INDEX idx_workspace_id (workspace_id),
     INDEX idx_author_id (author_id),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== 工具模型归因 =====================
@@ -359,11 +379,15 @@ CREATE TABLE IF NOT EXISTS axiqra_tool_model_attribution (
     model_reported_at TIMESTAMPTZ NULL,
     missing_reason VARCHAR(255) NULL,
     request_id VARCHAR(96) NOT NULL,
+    gmt_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_deleted SMALLINT NOT NULL DEFAULT 0,
+    tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     INDEX idx_solution_id (solution_id),
     INDEX idx_tool_name (tool_name),
     INDEX idx_reported_model (reported_model_name),
-    INDEX idx_request_id (request_id)
+    INDEX idx_request_id (request_id),
+    INDEX idx_tenant_id (tenant_id)
 );
 
 -- ===================== 工具模型日粒度表现统计 =====================

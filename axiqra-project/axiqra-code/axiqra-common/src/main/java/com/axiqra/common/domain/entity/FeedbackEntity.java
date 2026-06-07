@@ -30,4 +30,7 @@ public class FeedbackEntity extends BaseEntity {
     @Nullable
     private String boundaryNotes;
     private String status;
+    private Integer isDeleted;
+    @Nullable
+    private Long tenantId;
 }

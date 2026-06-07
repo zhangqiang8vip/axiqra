@@ -26,6 +26,6 @@ public class AuthorizationEntity extends BaseEntity {
     private String status;
     @Nullable
     private Instant revokedAt;
-    @Nullable
     private Long tenantId;
+    private Integer isDeleted;
 }

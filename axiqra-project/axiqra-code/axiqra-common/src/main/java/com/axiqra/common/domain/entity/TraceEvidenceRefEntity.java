@@ -25,4 +25,7 @@ public class TraceEvidenceRefEntity extends BaseEntity {
     private String type;
     @Nullable
     private Long sizeBytes;
+    private Integer isDeleted;
+    @Nullable
+    private Long tenantId;
 }

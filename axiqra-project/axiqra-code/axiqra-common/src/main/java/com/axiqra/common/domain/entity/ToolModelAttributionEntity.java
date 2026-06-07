@@ -41,4 +41,7 @@ public class ToolModelAttributionEntity extends BaseEntity {
     @Nullable
     private String missingReason;
     private String requestId;
+    private Integer isDeleted;
+    @Nullable
+    private Long tenantId;
 }

@@ -28,4 +28,7 @@ public class ReviewEntity extends BaseEntity {
     private Long reviewerId;
     private RiskLevel riskLevel;
     private ReviewResult status;
+    private Integer isDeleted;
+    @Nullable
+    private Long tenantId;
 }

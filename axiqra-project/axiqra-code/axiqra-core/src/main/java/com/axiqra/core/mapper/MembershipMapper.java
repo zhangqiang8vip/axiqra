@@ -20,6 +20,9 @@ public interface MembershipMapper extends BaseMapper<MembershipEntity> {
     @Select("SELECT * FROM axiqra_membership WHERE user_id = #{userId} AND workspace_id = #{workspaceId} LIMIT 1")
     MembershipEntity selectByUserAndWorkspace(@Param("userId") Long userId, @Param("workspaceId") Long workspaceId);
 
+    @Select("SELECT * FROM axiqra_membership WHERE user_id = #{userId} AND workspace_id = #{workspaceId} AND status = 'active' LIMIT 1")
+    MembershipEntity selectActiveByUserAndWorkspace(@Param("userId") Long userId, @Param("workspaceId") Long workspaceId);
+
     @Select("SELECT * FROM axiqra_membership WHERE user_id = #{userId} AND status = 'active'")
     List<MembershipEntity> selectActiveByUserId(@Param("userId") Long userId);
 

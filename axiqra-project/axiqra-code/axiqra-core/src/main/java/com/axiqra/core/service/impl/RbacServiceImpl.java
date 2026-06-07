@@ -55,7 +55,7 @@ public class RbacServiceImpl implements RbacService {
 
     @Override
     public boolean hasScope(Long userId, String scope) {
-        // S1: 登录即有基础 scope，workspace=0 作为全局判断
+        // S1: 登录用户默认拥有基础 scope（由 PolicyEngineAdapter.hasScope 实际校验 scope 有效性）
         return userId != null && scope != null;
     }
 }

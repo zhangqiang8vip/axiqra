@@ -76,6 +76,9 @@ public class RbacAdapter implements RbacPort {
         if (membership == null) {
             return null;
         }
+        if (!MemberStatus.ACTIVE.getCode().equals(membership.getStatus())) {
+            return null;
+        }
         return MemberRole.of(membership.getRole());
     }
 

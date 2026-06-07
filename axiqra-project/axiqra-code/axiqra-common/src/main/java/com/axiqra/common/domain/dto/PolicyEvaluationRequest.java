@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -25,17 +26,18 @@ public class PolicyEvaluationRequest {
     private Long subjectId;
 
     /** 操作主体类型 */
+    @NotBlank(message = "subjectType 不能为空")
     private String subjectType = "user";
 
     /** 资源类型（如 solution, trace, workspace） */
-    @NotNull(message = "objectType 不能为空")
+    @NotBlank(message = "objectType 不能为空")
     private String objectType;
 
     /** 资源 ID（可为 null，表示任意资源） */
     private Long objectId;
 
     /** 操作（如 read, write, delete, publish） */
-    @NotNull(message = "action 不能为空")
+    @NotBlank(message = "action 不能为空")
     private String action;
 
     /** 额外上下文（结构化 KV，如 riskLevel, workspaceId 等） */

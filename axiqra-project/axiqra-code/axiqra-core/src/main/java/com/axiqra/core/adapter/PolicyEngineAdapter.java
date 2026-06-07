@@ -90,17 +90,7 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                     .build();
         }
 
-        // 1. Admin 全局权限 bypass（仅当指定了具体 workspace 时生效）
-        if (objectId != null && rbacPort.isAdmin(subjectId, objectId)) {
-            log.debug("Policy: admin bypass for user={}, workspaceId={}, action={}", subjectId, objectId, action);
-            return PolicyEvaluationVO.builder()
-                    .decision(PolicyDecision.ALLOW)
-                    .policyCode("ABAC-ADMIN-BYPASS")
-                    .reasonCode("ADMIN_PRIVILEGE")
-                    .message("管理员权限")
-                    .build();
-        }
-
+        // 1. Admin 全局权限 bypass（下沉到各分支末尾，避免跳过 action-specific 校验）
         // 2. 按 action 类型分发策略
         return switch (action.toLowerCase()) {
             case "read" -> evaluateReadAction(subjectId, objectType, objectId, context);
@@ -152,6 +142,17 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
             }
         }
 
+        // Admin bypass
+        if (objectId != null && rbacPort.isAdmin(userId, objectId)) {
+            log.debug("Policy: admin bypass read for user={}, workspaceId={}", userId, objectId);
+            return PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.ALLOW)
+                    .policyCode("ABAC-ADMIN-BYPASS")
+                    .reasonCode("ADMIN_PRIVILEGE")
+                    .message("管理员权限")
+                    .build();
+        }
+
         return PolicyEvaluationVO.builder()
                 .decision(PolicyDecision.DENY_SCOPE_MISSING)
                 .policyCode("ABAC-READ-DENY")
@@ -172,12 +173,15 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                     .build();
         }
         if ("R4".equals(riskLevel) || "R5".equals(riskLevel)) {
-            return PolicyEvaluationVO.builder()
-                    .decision(PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH)
-                    .policyCode("ABAC-RISK-DENY")
-                    .reasonCode("RISK_LEVEL_TOO_HIGH")
-                    .message("风险等级 R4/R5 禁止自动执行，请联系管理员")
-                    .build();
+            String executionMode = parseContextField(context, "executionMode");
+            if (!"MANUAL".equalsIgnoreCase(executionMode)) {
+                return PolicyEvaluationVO.builder()
+                        .decision(PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH)
+                        .policyCode("ABAC-RISK-DENY")
+                        .reasonCode("RISK_LEVEL_TOO_HIGH")
+                        .message("风险等级 R4/R5 仅允许手动模式执行")
+                        .build();
+            }
         }
 
         // 写入需要至少 member 角色
@@ -187,6 +191,17 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                     .policyCode("ABAC-WRITE-MEMBER")
                     .reasonCode("MEMBER_WRITE")
                     .message("成员可写入资源")
+                    .build();
+        }
+
+        // Admin bypass
+        if (objectId != null && rbacPort.isAdmin(userId, objectId)) {
+            log.debug("Policy: admin bypass write for user={}, workspaceId={}", userId, objectId);
+            return PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.ALLOW)
+                    .policyCode("ABAC-ADMIN-BYPASS")
+                    .reasonCode("ADMIN_PRIVILEGE")
+                    .message("管理员权限")
                     .build();
         }
 

@@ -66,23 +66,27 @@ public class WorkspaceRoleCheckInterceptor implements HandlerInterceptor {
     }
 
     private Long resolveWorkspaceId(String paramName, HttpServletRequest request) {
-        // First try path-variable map (handles @PathVariable natively, no -parameters needed)
         Map<String, String> pathVars = (Map<String, String>) request.getAttribute(
                 HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
         if (pathVars != null && pathVars.containsKey(paramName)) {
-            try {
-                return Long.parseLong(pathVars.get(paramName));
-            } catch (NumberFormatException e) {
+            String val = pathVars.get(paramName);
+            if (val == null || val.isBlank()) {
                 return null;
             }
+            try {
+                return Long.parseLong(val);
+            } catch (NumberFormatException e) {
+                throw new BizException(ErrorCode.PARAM_INVALID,
+                        paramName + " 参数格式错误，应为数字");
+            }
         }
-        // Fallback to request parameter
         String value = request.getParameter(paramName);
         if (value != null) {
             try {
                 return Long.parseLong(value);
             } catch (NumberFormatException e) {
-                return null;
+                throw new BizException(ErrorCode.PARAM_INVALID,
+                        paramName + " 参数格式错误，应为数字");
             }
         }
         return null;

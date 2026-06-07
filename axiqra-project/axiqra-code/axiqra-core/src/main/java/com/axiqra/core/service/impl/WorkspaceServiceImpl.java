@@ -82,7 +82,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                     boolean bIsOwner = MemberRole.OWNER.getCode().equals(b.getMyRole());
                     if (aIsOwner && !bIsOwner) return -1;
                     if (!aIsOwner && bIsOwner) return 1;
-                    return 0;
+                    return Long.compare(a.getId(), b.getId());
                 })
                 .collect(Collectors.toList());
 
@@ -228,6 +228,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (role == null) {
             role = MemberRole.MEMBER;
         }
+        if (role == MemberRole.OWNER) {
+            throw new BizException(ErrorCode.FORBIDDEN, "不能直接添加所有者");
+        }
 
         // 检查目标用户是否存在
         var targetUser = userMapper.selectActiveById(targetUserId);
@@ -235,10 +238,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
 
-        // 检查是否已存在成员关系
-        var existing = membershipMapper.selectByUserAndWorkspace(targetUserId, workspaceId);
+        // 检查是否已存在活跃成员关系
+        var existing = membershipMapper.selectActiveByUserAndWorkspace(targetUserId, workspaceId);
         if (existing != null) {
-            throw new BizException(ErrorCode.DUPLICATE_ENTRY, "该用户已是空间成员");
+            throw new BizException(ErrorCode.DUPLICATE_ENTRY, "该用户已是空间的活跃成员");
         }
 
         MembershipEntity membership = new MembershipEntity()

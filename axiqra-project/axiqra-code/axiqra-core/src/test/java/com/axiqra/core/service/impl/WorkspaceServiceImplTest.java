@@ -286,7 +286,7 @@ class WorkspaceServiceImplTest {
 
             workspaceService.delete(WORKSPACE_ID, USER_ID);
 
-            verify(workspaceMapper).softDeleteById(WORKSPACE_ID);
+            verify(workspaceMapper).softDeleteById(eq(WORKSPACE_ID), any(Instant.class));
             verify(membershipMapper).softDeleteByWorkspaceId(WORKSPACE_ID, MemberStatus.SUSPENDED.getCode());
         }
     }
@@ -515,7 +515,7 @@ class WorkspaceServiceImplTest {
 
             assertNotNull(result);
             assertEquals("My Space", result.getWorkspaceName());
-            verify(workspaceMapper, never()).updateSelective(anyLong(), any(), any());
+            verify(workspaceMapper, never()).updateSelective(anyLong(), any(), any(), any(), any());
         }
 
         @Test
@@ -526,7 +526,7 @@ class WorkspaceServiceImplTest {
             WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "New Name", WorkspaceType.PERSONAL, USER_ID);
             when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing, updated);
             when(workspaceMapper.selectByOwnerAndName(USER_ID, "New Name")).thenReturn(null);
-            when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull())).thenReturn(1);
+            when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull(), any(), any())).thenReturn(1);
             when(membershipMapper.countByWorkspaceId(WORKSPACE_ID)).thenReturn(1L);
 
             WorkspaceVO result = workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null);
@@ -543,11 +543,11 @@ class WorkspaceServiceImplTest {
             WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "Old Name", WorkspaceType.PERSONAL, USER_ID);
             when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing);
             when(workspaceMapper.selectByOwnerAndName(USER_ID, "New Name")).thenReturn(null);
-            when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull())).thenReturn(0);
+            when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull(), any(), any())).thenReturn(0);
 
             BizException ex = assertThrows(BizException.class,
                     () -> workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null));
-            assertEquals(ErrorCode.WORKSPACE_NOT_FOUND.getCode(), ex.getCode());
+            assertEquals(ErrorCode.CONCURRENT_MODIFICATION.getCode(), ex.getCode());
         }
     }
 
@@ -559,7 +559,8 @@ class WorkspaceServiceImplTest {
         e.setWorkspaceName(name);
         e.setWorkspaceType(type);
         e.setOwnerId(ownerId);
-        e.setIsDeleted(0);
+        e.setDeleted(false);
+        e.setVersion(1L);
         e.setGmtCreate(Instant.now());
         return e;
     }

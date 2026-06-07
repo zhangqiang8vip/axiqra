@@ -34,5 +34,5 @@ public class InvocationEntity extends BaseEntity {
     private String resultType;
     @Nullable
     private Long tenantId;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

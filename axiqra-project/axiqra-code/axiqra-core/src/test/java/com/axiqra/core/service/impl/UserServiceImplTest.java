@@ -15,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.Instant;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -69,7 +71,7 @@ class UserServiceImplTest {
 
             assertNotNull(result);
             assertEquals("alice", result.getUsername());
-            verify(userMapper, never()).updateSelective(anyLong(), any(), any(), any());
+            verify(userMapper, never()).updateSelective(anyLong(), any(), any(), any(), any(), any());
         }
 
         @Test
@@ -77,7 +79,7 @@ class UserServiceImplTest {
         void shouldThrowWhenEmailAlreadyTaken() {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, existing);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any()))
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any()))
                     .thenThrow(new DataIntegrityViolationException(
                             "Duplicate entry 'used@test.com' for key 'idx_email'"));
 
@@ -93,7 +95,7 @@ class UserServiceImplTest {
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setEmail("new@test.com");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, null, "new@test.com", null);
 
@@ -102,15 +104,15 @@ class UserServiceImplTest {
         }
 
         @Test
-        @DisplayName("数据库更新返回 0 行应抛用户不存在异常")
+        @DisplayName("数据库更新返回 0 行应抛并发修改异常")
         void shouldThrowWhenUpdateReturnsZero() {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, existing);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(0);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any())).thenReturn(0);
 
             BizException ex = assertThrows(BizException.class,
                     () -> userService.updateProfile(USER_ID, "newNick", null, null));
-            assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), ex.getCode());
+            assertEquals(ErrorCode.CONCURRENT_MODIFICATION.getCode(), ex.getCode());
         }
 
         @Test
@@ -120,7 +122,7 @@ class UserServiceImplTest {
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setNickname("newNick");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, "newNick", null, null);
 
@@ -135,13 +137,13 @@ class UserServiceImplTest {
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setEmail("valid@test.com");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, "   ", "valid@test.com", null);
 
             assertNotNull(result);
             assertEquals("valid@test.com", result.getEmail());
-            verify(userMapper).updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"), isNull());
+            verify(userMapper).updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"), isNull(), any(), any());
         }
 
         @Test
@@ -151,13 +153,13 @@ class UserServiceImplTest {
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setNickname("validNick");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, "validNick", "   ", null);
 
             assertNotNull(result);
             assertEquals("validNick", result.getNickname());
-            verify(userMapper).updateSelective(eq(USER_ID), eq("validNick"), isNull(), isNull());
+            verify(userMapper).updateSelective(eq(USER_ID), eq("validNick"), isNull(), isNull(), any(), any());
         }
 
         @Test
@@ -165,7 +167,7 @@ class UserServiceImplTest {
         void shouldTranslateDataIntegrityViolationToDuplicateEntry() {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, existing);
-            when(userMapper.updateSelective(anyLong(), any(), any(), any()))
+            when(userMapper.updateSelective(anyLong(), any(), any(), any(), any(), any()))
                     .thenThrow(new DataIntegrityViolationException(
                             "Duplicate entry 'new@test.com' for key 'idx_email'"));
 
@@ -182,13 +184,13 @@ class UserServiceImplTest {
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setAvatar("https://example.com/avatar.jpg");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), isNull(), eq("https://example.com/avatar.jpg"))).thenReturn(1);
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), isNull(), eq("https://example.com/avatar.jpg"), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, null, null, "https://example.com/avatar.jpg");
 
             assertNotNull(result);
             assertEquals("https://example.com/avatar.jpg", result.getAvatar());
-            verify(userMapper).updateSelective(eq(USER_ID), isNull(), isNull(), eq("https://example.com/avatar.jpg"));
+            verify(userMapper).updateSelective(eq(USER_ID), isNull(), isNull(), eq("https://example.com/avatar.jpg"), any(), any());
         }
     }
 
@@ -198,6 +200,7 @@ class UserServiceImplTest {
         u.setUsername(username);
         u.setNickname(username);
         u.setEmail(username + "@test.com");
+        u.setVersion(1L);
         return u;
     }
 }

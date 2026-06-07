@@ -110,19 +110,26 @@ public class AuthController {
     @GetMapping("/me")
     @Operation(summary = "当前用户信息", description = "获取登录用户信息")
     public ApiResponse<LoginResponse> me() {
-        long userId = StpUtil.getLoginIdAsLong();
-        UserEntity user = userService.getById(userId);
-        if (user == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        try {
+            long userId = StpUtil.getLoginIdAsLong();
+            UserEntity user = userService.getById(userId);
+            if (user == null) {
+                throw new BizException(ErrorCode.USER_NOT_FOUND);
+            }
+            return ApiResponse.ok(LoginResponse.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .nickname(user.getNickname())
+                    .email(user.getEmail())
+                    .avatar(user.getAvatar())
+                    .token(StpUtil.getTokenValue())
+                    .build());
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取当前用户信息异常", e);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "获取用户信息失败，请稍后重试");
         }
-        return ApiResponse.ok(LoginResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .nickname(user.getNickname())
-                .email(user.getEmail())
-                .avatar(user.getAvatar())
-                .token(StpUtil.getTokenValue())
-                .build());
     }
 
     @PutMapping("/profile")

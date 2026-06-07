@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import com.mybatisflex.annotation.Column;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,7 +20,7 @@ import java.time.Instant;
 @Getter
 @Setter
 @NoArgsConstructor
-@EqualsAndHashCode(exclude = {"gmtCreate", "gmtModified"})
+@EqualsAndHashCode(exclude = {"gmtCreate", "gmtModified", "version"})
 @Accessors(chain = true)
 public abstract class BaseEntity implements Serializable {
 
@@ -33,5 +34,10 @@ public abstract class BaseEntity implements Serializable {
     protected Instant gmtCreate;
 
     /** 修改时间（数据库 ON UPDATE now()） */
+    @Column("gmt_modified")
     protected Instant gmtModified;
+
+    /** 乐观锁版本号 */
+    @Column("version")
+    protected Long version;
 }

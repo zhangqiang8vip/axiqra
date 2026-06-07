@@ -23,5 +23,5 @@ public class UserEntity extends BaseEntity {
     private String nickname;
     private String avatar;
     private Long tenantId;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

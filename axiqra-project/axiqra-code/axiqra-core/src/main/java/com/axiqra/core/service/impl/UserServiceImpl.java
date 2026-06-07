@@ -13,6 +13,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 /**
  * 用户服务实现
  *
@@ -50,7 +52,7 @@ public class UserServiceImpl implements UserService {
                 .setPasswordHash(passwordHashUtil.hash(password))
                 .setEmail(email)
                 .setNickname(nickname)
-                .setIsDeleted(0);
+                .setDeleted(false);
         try {
             userMapper.insertSelective(user);
         } catch (DataIntegrityViolationException e) {
@@ -92,7 +94,8 @@ public class UserServiceImpl implements UserService {
 
         int rows;
         try {
-            rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail, cleanedAvatar);
+            rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail, cleanedAvatar,
+                    existing.getVersion(), Instant.now());
         } catch (DataIntegrityViolationException e) {
             if (isEmailDuplicate(e)) {
                 throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被其他用户使用");
@@ -105,7 +108,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (rows == 0) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND);
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "数据已被其他人修改，请刷新后重试");
         }
 
         log.info("更新用户资料: userId={}", userId);

@@ -27,5 +27,5 @@ public class WorkspaceEntity extends BaseEntity {
     @NotNull
     private WorkspaceType workspaceType;
     private Long tenantId;
-    private Integer isDeleted;
+    private boolean isDeleted = false;
 }

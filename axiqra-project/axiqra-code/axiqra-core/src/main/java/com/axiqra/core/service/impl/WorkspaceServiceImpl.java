@@ -22,6 +22,9 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -122,7 +125,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .setOwnerId(userId)
                 .setWorkspaceName(workspaceName)
                 .setWorkspaceType(workspaceType)
-                .setIsDeleted(0);
+                .setDeleted(false);
         workspaceMapper.insertSelective(workspace);
 
         // 自动将自己加入成员表，角色为 owner
@@ -215,14 +218,15 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         int rows;
         try {
-            rows = workspaceMapper.updateSelective(workspaceId, cleanedName, cleanedType);
+            rows = workspaceMapper.updateSelective(workspaceId, cleanedName, cleanedType,
+                    existing.getVersion(), Instant.now());
         } catch (DataAccessException e) {
             log.error("更新工作空间数据库异常: workspaceId={}, userId={}", workspaceId, userId, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
         }
 
         if (rows == 0) {
-            throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "数据已被其他人修改，请刷新后重试");
         }
 
         WorkspaceEntity updated = workspaceMapper.selectById(workspaceId);
@@ -251,7 +255,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         // 软删除工作空间
-        workspaceMapper.softDeleteById(workspaceId);
+        workspaceMapper.softDeleteById(workspaceId, Instant.now());
 
         // 软删除所有成员关系
         membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode());

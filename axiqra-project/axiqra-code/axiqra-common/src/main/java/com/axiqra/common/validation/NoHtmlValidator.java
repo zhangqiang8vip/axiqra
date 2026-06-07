@@ -30,6 +30,9 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
         if (value == null || value.isBlank()) {
             return true;
         }
+        if (value.length() > 100) {
+            return false;
+        }
         String lower = value.toLowerCase(java.util.Locale.ROOT);
         if (SCRIPT_PATTERN.matcher(lower).find()) {
             return false;

@@ -67,7 +67,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserEntity updateProfile(Long userId, String nickname, String email) {
+    public UserEntity updateProfile(Long userId, String nickname, String email, String avatar) {
         if (userId == null) {
             throw new BizException(ErrorCode.PARAM_INVALID, "userId 不能为空");
         }
@@ -79,8 +79,9 @@ public class UserServiceImpl implements UserService {
 
         boolean hasNicknameUpdate = nickname != null && !nickname.isBlank();
         boolean hasEmailUpdate = email != null && !email.isBlank();
+        boolean hasAvatarUpdate = avatar != null && !avatar.isBlank();
 
-        if (!hasNicknameUpdate && !hasEmailUpdate) {
+        if (!hasNicknameUpdate && !hasEmailUpdate && !hasAvatarUpdate) {
             return existing;
         }
 
@@ -93,10 +94,11 @@ public class UserServiceImpl implements UserService {
 
         String cleanedNickname = hasNicknameUpdate ? nickname.trim() : null;
         String cleanedEmail = hasEmailUpdate ? email.trim() : null;
+        String cleanedAvatar = hasAvatarUpdate ? avatar.trim() : null;
 
         int rows;
         try {
-            rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail);
+            rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail, cleanedAvatar);
         } catch (DataIntegrityViolationException e) {
             String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
             if (msg.contains("email") || msg.contains("idx_email")) {

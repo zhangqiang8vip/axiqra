@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS axiqra_user (
     password_hash VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     nickname VARCHAR(100) NULL,
+    avatar VARCHAR(500) NULL,
     tenant_id BIGINT NULL,
     is_deleted SMALLINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),

@@ -19,9 +19,9 @@ public interface UserService {
     UserEntity register(String username, String password, String email, String nickname);
 
     /**
-     * 更新用户资料（nickname / email）
+     * 更新用户资料（nickname / email / avatar）
      */
-    UserEntity updateProfile(Long userId, String nickname, String email);
+    UserEntity updateProfile(Long userId, String nickname, String email, String avatar);
 
     boolean checkPassword(String rawPassword, String encodedPassword);
 }

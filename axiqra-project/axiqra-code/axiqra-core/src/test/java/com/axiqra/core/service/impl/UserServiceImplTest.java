@@ -45,7 +45,7 @@ class UserServiceImplTest {
         @DisplayName("userId 为 null 应抛参数异常")
         void shouldThrowWhenUserIdIsNull() {
             BizException ex = assertThrows(BizException.class,
-                    () -> userService.updateProfile(null, "nick", "email@test.com"));
+                    () -> userService.updateProfile(null, "nick", "email@test.com", null));
             assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
         }
 
@@ -55,7 +55,7 @@ class UserServiceImplTest {
             when(userMapper.selectActiveById(USER_ID)).thenReturn(null);
 
             BizException ex = assertThrows(BizException.class,
-                    () -> userService.updateProfile(USER_ID, "nick", "email@test.com"));
+                    () -> userService.updateProfile(USER_ID, "nick", "email@test.com", null));
             assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), ex.getCode());
         }
 
@@ -65,11 +65,11 @@ class UserServiceImplTest {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
 
-            UserEntity result = userService.updateProfile(USER_ID, null, null);
+            UserEntity result = userService.updateProfile(USER_ID, null, null, null);
 
             assertNotNull(result);
             assertEquals("alice", result.getUsername());
-            verify(userMapper, never()).updateSelective(anyLong(), any(), any());
+            verify(userMapper, never()).updateSelective(anyLong(), any(), any(), any());
         }
 
         @Test
@@ -81,7 +81,7 @@ class UserServiceImplTest {
             when(userMapper.selectByEmail("used@test.com")).thenReturn(anotherUser);
 
             BizException ex = assertThrows(BizException.class,
-                    () -> userService.updateProfile(USER_ID, null, "used@test.com"));
+                    () -> userService.updateProfile(USER_ID, null, "used@test.com", null));
             assertEquals(ErrorCode.DUPLICATE_ENTRY.getCode(), ex.getCode());
         }
 
@@ -91,12 +91,12 @@ class UserServiceImplTest {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
             when(userMapper.selectByEmail("new@test.com")).thenReturn(null);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com"))).thenReturn(1);
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com"), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setEmail("new@test.com");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
 
-            UserEntity result = userService.updateProfile(USER_ID, null, "new@test.com");
+            UserEntity result = userService.updateProfile(USER_ID, null, "new@test.com", null);
 
             assertNotNull(result);
             assertEquals("new@test.com", result.getEmail());
@@ -107,10 +107,10 @@ class UserServiceImplTest {
         void shouldThrowWhenUpdateReturnsZero() {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.updateSelective(eq(USER_ID), eq("newNick"), isNull())).thenReturn(0);
+            when(userMapper.updateSelective(eq(USER_ID), eq("newNick"), isNull(), isNull())).thenReturn(0);
 
             BizException ex = assertThrows(BizException.class,
-                    () -> userService.updateProfile(USER_ID, "newNick", null));
+                    () -> userService.updateProfile(USER_ID, "newNick", null, null));
             assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), ex.getCode());
         }
 
@@ -119,12 +119,12 @@ class UserServiceImplTest {
         void shouldUpdateNicknameSuccessfully() {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.updateSelective(eq(USER_ID), eq("newNick"), isNull())).thenReturn(1);
+            when(userMapper.updateSelective(eq(USER_ID), eq("newNick"), isNull(), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setNickname("newNick");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
 
-            UserEntity result = userService.updateProfile(USER_ID, "newNick", null);
+            UserEntity result = userService.updateProfile(USER_ID, "newNick", null, null);
 
             assertNotNull(result);
             assertEquals("newNick", result.getNickname());
@@ -136,16 +136,16 @@ class UserServiceImplTest {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
             when(userMapper.selectByEmail("valid@test.com")).thenReturn(null);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"))).thenReturn(1);
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setEmail("valid@test.com");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
 
-            UserEntity result = userService.updateProfile(USER_ID, "   ", "valid@test.com");
+            UserEntity result = userService.updateProfile(USER_ID, "   ", "valid@test.com", null);
 
             assertNotNull(result);
             assertEquals("valid@test.com", result.getEmail());
-            verify(userMapper).updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"));
+            verify(userMapper).updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"), isNull());
         }
 
         @Test
@@ -153,16 +153,16 @@ class UserServiceImplTest {
         void shouldIgnoreWhitespaceOnlyEmail() {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.updateSelective(eq(USER_ID), eq("validNick"), isNull())).thenReturn(1);
+            when(userMapper.updateSelective(eq(USER_ID), eq("validNick"), isNull(), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setNickname("validNick");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
 
-            UserEntity result = userService.updateProfile(USER_ID, "validNick", "   ");
+            UserEntity result = userService.updateProfile(USER_ID, "validNick", "   ", null);
 
             assertNotNull(result);
             assertEquals("validNick", result.getNickname());
-            verify(userMapper).updateSelective(eq(USER_ID), eq("validNick"), isNull());
+            verify(userMapper).updateSelective(eq(USER_ID), eq("validNick"), isNull(), isNull());
         }
 
         @Test
@@ -171,12 +171,12 @@ class UserServiceImplTest {
             UserEntity existing = createUser(USER_ID, "alice");
             when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
             when(userMapper.selectByEmail("new@test.com")).thenReturn(null);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com")))
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com"), isNull()))
                     .thenThrow(new DataIntegrityViolationException(
                             "Duplicate entry 'new@test.com' for key 'idx_email'"));
 
             BizException ex = assertThrows(BizException.class,
-                    () -> userService.updateProfile(USER_ID, null, "new@test.com"));
+                    () -> userService.updateProfile(USER_ID, null, "new@test.com", null));
             assertEquals(ErrorCode.DUPLICATE_ENTRY.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("邮箱已被其他用户使用"));
         }

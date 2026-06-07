@@ -33,6 +33,7 @@ public class UserInfoVO {
                 .username(user.getUsername())
                 .nickname(user.getNickname())
                 .email(user.getEmail())
+                .avatarUrl(user.getAvatar())
                 .build();
     }
 }

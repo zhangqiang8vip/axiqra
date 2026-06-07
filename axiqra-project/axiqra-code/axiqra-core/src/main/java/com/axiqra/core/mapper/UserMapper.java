@@ -27,15 +27,19 @@ public interface UserMapper extends BaseMapper<UserEntity> {
 
     @Update("<script>" +
             "UPDATE axiqra_user SET gmt_modified = now() " +
-            "<if test='nickname != null and nickname.length() > 0'>" +
+            "<if test='nickname != null and nickname.trim().length() &gt; 0'>" +
             ", nickname = #{nickname}" +
             "</if>" +
-            "<if test='email != null and email.length() > 0'>" +
+            "<if test='email != null and email.trim().length() &gt; 0'>" +
             ", email = #{email}" +
+            "</if>" +
+            "<if test='avatar != null and avatar.trim().length() &gt; 0'>" +
+            ", avatar = #{avatar}" +
             "</if>" +
             " WHERE id = #{id} AND is_deleted = 0" +
             "</script>")
     int updateSelective(@Param("id") Long id,
                        @Param("nickname") String nickname,
-                       @Param("email") String email);
+                       @Param("email") String email,
+                       @Param("avatar") String avatar);
 }

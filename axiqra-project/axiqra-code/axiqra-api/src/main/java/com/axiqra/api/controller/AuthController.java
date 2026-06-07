@@ -129,7 +129,7 @@ public class AuthController {
     @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname 和 email")
     public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
-        UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail());
+        UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail(), request.getAvatar());
         log.info("更新个人资料: userId={}", userId);
         return ApiResponse.ok(LoginResponse.builder()
                 .userId(user.getId())

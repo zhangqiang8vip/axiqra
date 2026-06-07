@@ -297,6 +297,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (MemberRole.OWNER.getCode().equals(membership.getRole())) {
             throw new BizException(ErrorCode.FORBIDDEN, "不能移除所有者");
         }
+        if (userId.equals(membership.getUserId())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "不能将您自己从工作空间中移除");
+        }
 
         membershipMapper.updateStatus(targetMemberId, MemberStatus.SUSPENDED.getCode());
         log.info("移除成员: memberId={}, removedBy={}", targetMemberId, userId);

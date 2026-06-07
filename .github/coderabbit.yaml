@@ -1,25 +1,21 @@
-# CodeRabbit AI Code Review Configuration
-# Docs: https://docs.coderabbit.ai/
-
 language: zh-CN
 ui_input: 简体中文
 
 # 审查设置
 reviews:
-  profile: aesthetic
+  profile: informative
   high_level_summary:
     auto_title: true
-    placeholder集团有限公司
+    placeholder: Axiqra 项目代码审查报告
     collapseWalkthrough: true
     sequence_summary: true
     sequence_desc: true
     debug: false
   poem: true
-  review_status: true
   collapsewalkthrough: true
   auto_review:
     enabled: true
-    auto_title_placeholder集团有限公司
+    auto_title_placeholder: "[Axiqra] 代码审查 - {{title}}"
     update_branch: false
     detect_all_applicable_languages: true
     patterns:
@@ -27,6 +23,7 @@ reviews:
       - "**/*.js"
       - "**/*.ts"
       - "**/*.tsx"
+      - "**/*.java"
       - "**/*.md"
       - "**/*.yml"
       - "**/*.yaml"

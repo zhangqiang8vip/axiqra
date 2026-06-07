@@ -66,9 +66,9 @@ mvn test
 **注：以下动作项已在后续 PR 中完成，详见 `r3-auth-test-execution-record.md`。**
 
 ### 高优先级
-- [ ] 为 `WorkspaceServiceImpl`、`RbacServiceImpl`、`PolicyEngineServiceImpl` 补充单元测试
-- [ ] 为 `WorkspaceController`、`PolicyController` 补充接口测试
-- [ ] 更新 `module-test-inventory.md` 记录新增测试
+- [x] 为 `WorkspaceServiceImpl`、`RbacServiceImpl`、`PolicyEngineServiceImpl` 补充单元测试
+- [x] 为 `WorkspaceController`、`PolicyController` 补充接口测试
+- [x] 更新 `module-test-inventory.md` 记录新增测试
 
 ### 中优先级
 - [ ] 处理 Checklist 中的 T-001（密钥硬编码）、T-002（BizException 固定 409）、T-004（workspaceId 无范围校验）技术债

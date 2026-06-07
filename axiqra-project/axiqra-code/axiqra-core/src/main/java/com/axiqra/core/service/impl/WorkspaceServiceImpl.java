@@ -23,8 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -255,8 +253,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
         }
 
-        // 软删除工作空间
-        workspaceMapper.softDeleteById(workspaceId, Instant.now());
+        // 软删除工作空间（幂等：version 检查 + is_deleted 保护）
+        int rows = workspaceMapper.softDeleteById(workspaceId, workspace.getVersion(), Instant.now());
+        if (rows == 0) {
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "工作空间已被修改或删除，请刷新后重试");
+        }
 
         // 软删除所有成员关系
         membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode());

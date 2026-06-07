@@ -37,14 +37,11 @@ public interface WorkspaceMapper extends BaseMapper<WorkspaceEntity> {
     @Select("SELECT * FROM axiqra_workspace WHERE id = #{id} AND is_deleted = FALSE LIMIT 1")
     WorkspaceEntity selectById(@Param("id") Long id);
 
-    @org.apache.ibatis.annotations.Update("<script>" +
-            "UPDATE axiqra_workspace SET is_deleted = TRUE, gmt_modified = #{gmtModified}, version = version + 1 " +
-            "<where>id = #{id} AND is_deleted = FALSE AND version = #{version}</where>" +
-            "</script>")
-    int updateSoftDelete(@Param("id") Long id, @Param("version") Long version, @Param("gmtModified") Instant gmtModified);
-
-    @org.apache.ibatis.annotations.Update("UPDATE axiqra_workspace SET is_deleted = TRUE, gmt_modified = #{gmtModified}, version = version + 1 WHERE id = #{id}")
-    int softDeleteById(@Param("id") Long id, @Param("gmtModified") Instant gmtModified);
+    @org.apache.ibatis.annotations.Update(
+        "UPDATE axiqra_workspace SET is_deleted = TRUE, gmt_modified = #{gmtModified}, version = version + 1 " +
+        "WHERE id = #{id} AND is_deleted = FALSE AND version = #{version}"
+    )
+    int softDeleteById(@Param("id") Long id, @Param("version") Long version, @Param("gmtModified") Instant gmtModified);
 
     @org.apache.ibatis.annotations.Update("<script>" +
             "UPDATE axiqra_workspace SET gmt_modified = #{gmtModified}, version = version + 1 " +

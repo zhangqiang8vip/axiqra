@@ -74,9 +74,25 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
         Long objectId = request.getObjectId();
         Map<String, Object> context = request.getContext();
 
-        // 1. Admin 全局权限 bypass
-        if (rbacPort.isAdmin(subjectId, objectId != null ? objectId : 0L)) {
-            log.debug("Policy: admin bypass for user={}, action={}", subjectId, action);
+        // 参数合法性检查
+        if (action == null || action.isBlank()) {
+            return PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .reasonCode("INVALID_ACTION")
+                    .message("action 参数不能为空")
+                    .build();
+        }
+        if (subjectId == null) {
+            return PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .reasonCode("INVALID_SUBJECT")
+                    .message("subjectId 不能为空")
+                    .build();
+        }
+
+        // 1. Admin 全局权限 bypass（仅当指定了具体 workspace 时生效）
+        if (objectId != null && rbacPort.isAdmin(subjectId, objectId)) {
+            log.debug("Policy: admin bypass for user={}, workspaceId={}, action={}", subjectId, objectId, action);
             return PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.ALLOW)
                     .policyCode("ABAC-ADMIN-BYPASS")
@@ -145,8 +161,16 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
     }
 
     private PolicyEvaluationVO evaluateWriteAction(Long userId, String objectType, Long objectId, Map<String, Object> context) {
-        // 检查风险等级（R3 阶段默认放行，S4+ 由 Review 模块处理）
+        // 缺失 riskLevel 视为高风险操作，默认拒绝
         String riskLevel = parseContextField(context, "riskLevel");
+        if (riskLevel == null) {
+            return PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .policyCode("ABAC-RISK-DENY")
+                    .reasonCode("RISK_LEVEL_MISSING")
+                    .message("write 操作必须显式指定 riskLevel")
+                    .build();
+        }
         if ("R4".equals(riskLevel) || "R5".equals(riskLevel)) {
             return PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH)

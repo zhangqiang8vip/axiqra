@@ -523,11 +523,10 @@ class WorkspaceServiceImplTest {
         void shouldUpdateNameSuccessfully() {
             when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
             WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "Old Name", WorkspaceType.PERSONAL, USER_ID);
-            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing);
+            WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "New Name", WorkspaceType.PERSONAL, USER_ID);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing, updated);
             when(workspaceMapper.selectByOwnerAndName(USER_ID, "New Name")).thenReturn(null);
             when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull())).thenReturn(1);
-            WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "New Name", WorkspaceType.PERSONAL, USER_ID);
-            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(updated);
             when(membershipMapper.countByWorkspaceId(WORKSPACE_ID)).thenReturn(1L);
 
             WorkspaceVO result = workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null);

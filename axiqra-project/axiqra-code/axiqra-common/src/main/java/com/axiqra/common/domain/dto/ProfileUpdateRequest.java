@@ -1,10 +1,10 @@
 package com.axiqra.common.domain.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.validator.constraints.Email;
 
 /**
  * 更新用户资料请求 DTO

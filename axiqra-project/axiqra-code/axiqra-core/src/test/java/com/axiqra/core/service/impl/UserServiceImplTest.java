@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -127,6 +128,57 @@ class UserServiceImplTest {
 
             assertNotNull(result);
             assertEquals("newNick", result.getNickname());
+        }
+
+        @Test
+        @DisplayName("whitespace-only nickname 应被忽略，email 正常更新")
+        void shouldIgnoreWhitespaceOnlyNickname() {
+            UserEntity existing = createUser(USER_ID, "alice");
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
+            when(userMapper.selectByEmail("valid@test.com")).thenReturn(null);
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"))).thenReturn(1);
+            UserEntity updated = createUser(USER_ID, "alice");
+            updated.setEmail("valid@test.com");
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
+
+            UserEntity result = userService.updateProfile(USER_ID, "   ", "valid@test.com");
+
+            assertNotNull(result);
+            assertEquals("valid@test.com", result.getEmail());
+            verify(userMapper).updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"));
+        }
+
+        @Test
+        @DisplayName("whitespace-only email 应被忽略，nickname 正常更新")
+        void shouldIgnoreWhitespaceOnlyEmail() {
+            UserEntity existing = createUser(USER_ID, "alice");
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
+            when(userMapper.updateSelective(eq(USER_ID), eq("validNick"), isNull())).thenReturn(1);
+            UserEntity updated = createUser(USER_ID, "alice");
+            updated.setNickname("validNick");
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
+
+            UserEntity result = userService.updateProfile(USER_ID, "validNick", "   ");
+
+            assertNotNull(result);
+            assertEquals("validNick", result.getNickname());
+            verify(userMapper).updateSelective(eq(USER_ID), eq("validNick"), isNull());
+        }
+
+        @Test
+        @DisplayName("数据库 email 唯一约束异常应转为 DUPLICATE_ENTRY")
+        void shouldTranslateDataIntegrityViolationToDuplicateEntry() {
+            UserEntity existing = createUser(USER_ID, "alice");
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
+            when(userMapper.selectByEmail("new@test.com")).thenReturn(null);
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com")))
+                    .thenThrow(new DataIntegrityViolationException(
+                            "Duplicate entry 'new@test.com' for key 'idx_email'"));
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> userService.updateProfile(USER_ID, null, "new@test.com"));
+            assertEquals(ErrorCode.DUPLICATE_ENTRY.getCode(), ex.getCode());
+            assertTrue(ex.getMessage().contains("邮箱已被其他用户使用"));
         }
     }
 

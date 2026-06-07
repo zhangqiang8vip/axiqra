@@ -91,9 +91,19 @@ public class UserServiceImpl implements UserService {
             }
         }
 
+        String cleanedNickname = hasNicknameUpdate ? nickname.trim() : null;
+        String cleanedEmail = hasEmailUpdate ? email.trim() : null;
+
         int rows;
         try {
-            rows = userMapper.updateSelective(userId, nickname, email);
+            rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail);
+        } catch (DataIntegrityViolationException e) {
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("email") || msg.contains("idx_email")) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被其他用户使用");
+            }
+            log.error("更新用户资料数据库约束异常: userId={}", userId, e);
+            throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
         } catch (Exception e) {
             log.error("更新用户资料失败: userId={}", userId, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");

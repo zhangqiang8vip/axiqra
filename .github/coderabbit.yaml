@@ -12,7 +12,6 @@ reviews:
     sequence_desc: true
     debug: false
   poem: true
-  review_status: true
   collapsewalkthrough: true
   auto_review:
     enabled: true
@@ -42,7 +41,14 @@ reviews:
       - "**/*.min.js"
       - "**/宣传/**"
       - "**/fixtures/v2.0/**"
-  review_status: true
+
+# Chat 设置
+chat:
+  auto_reply: true
+
+# 审查节点覆盖
+codecov:
+  slug: "axiqra/axiqra"
 
 # 去重：相同文件相同问题的评论不重复生成
 fingerprint:

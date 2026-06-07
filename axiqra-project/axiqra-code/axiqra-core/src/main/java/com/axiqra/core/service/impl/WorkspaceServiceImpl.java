@@ -18,6 +18,7 @@ import com.axiqra.core.service.WorkspaceService;
 import com.axiqra.core.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -215,8 +216,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         int rows;
         try {
             rows = workspaceMapper.updateSelective(workspaceId, cleanedName, cleanedType);
-        } catch (Exception e) {
-            log.error("更新工作空间失败: workspaceId={}, userId={}", workspaceId, userId, e);
+        } catch (DataAccessException e) {
+            log.error("更新工作空间数据库异常: workspaceId={}, userId={}", workspaceId, userId, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
         }
 

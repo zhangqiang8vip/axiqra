@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS axiqra_workspace (
     INDEX idx_owner_id (owner_id),
     INDEX idx_tenant_id (tenant_id),
     INDEX idx_workspace_type (workspace_type),
-    INDEX idx_gmt_create (gmt_create)
+    INDEX idx_gmt_create (gmt_create),
+    UNIQUE INDEX idx_owner_workspace_name (owner_id, workspace_name) WHERE is_deleted = FALSE
 );
 
 -- ===================== 空间成员关系 =====================

@@ -28,8 +28,9 @@ public enum WorkspaceType {
 
     public static WorkspaceType of(String code) {
         if (code == null) return null;
+        String lower = code.trim().toLowerCase(java.util.Locale.ROOT);
         for (WorkspaceType t : values()) {
-            if (t.code.equals(code)) return t;
+            if (t.code.equals(lower)) return t;
         }
         return null;
     }

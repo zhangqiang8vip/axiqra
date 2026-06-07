@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.dto;
 
+import com.axiqra.common.validation.NoHtml;
 import com.axiqra.common.validation.ValidUrl;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ProfileUpdateRequest {
 
+    @NoHtml
     @Size(max = 100, message = "nickname 最多 100 字符")
     private String nickname;
 

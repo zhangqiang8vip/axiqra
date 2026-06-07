@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class WorkspaceUpdateRequest {
 
+    @NotBlank(message = "workspaceName 不能为空")
     @Size(max = 255, message = "workspaceName 最多 255 字符")
     private String workspaceName;
 

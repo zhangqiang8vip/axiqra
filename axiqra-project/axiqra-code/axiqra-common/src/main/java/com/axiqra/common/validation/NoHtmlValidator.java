@@ -13,16 +13,16 @@ import java.util.regex.Pattern;
  */
 public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
 
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile(
-            "<[^>]*>"
-    );
-
     private static final Pattern SCRIPT_PATTERN = Pattern.compile(
-            "(?i)\\bscript\\b|javascript:|data:text/html"
+            "(?i)javascript:|data:text/html"
     );
 
     private static final Pattern EVENT_HANDLER_PATTERN = Pattern.compile(
             "(?i)\\bon\\w+\\s*="
+    );
+
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile(
+            "<\\/?[a-zA-Z][a-zA-Z0-9]*(?:\\s[^>]*)?>"
     );
 
     @Override

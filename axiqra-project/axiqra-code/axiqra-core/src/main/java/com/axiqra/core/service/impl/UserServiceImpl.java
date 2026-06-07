@@ -54,11 +54,10 @@ public class UserServiceImpl implements UserService {
         try {
             userMapper.insertSelective(user);
         } catch (DataIntegrityViolationException e) {
-            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("username") || msg.contains("idx_username")) {
+            if (isUsernameDuplicate(e)) {
                 throw new BizException(ErrorCode.DUPLICATE_ENTRY, "用户名已存在");
             }
-            if (msg.contains("email") || msg.contains("idx_email")) {
+            if (isEmailDuplicate(e)) {
                 throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被注册");
             }
             throw new BizException(ErrorCode.DUPLICATE_ENTRY, "记录已存在");
@@ -95,8 +94,7 @@ public class UserServiceImpl implements UserService {
         try {
             rows = userMapper.updateSelective(userId, cleanedNickname, cleanedEmail, cleanedAvatar);
         } catch (DataIntegrityViolationException e) {
-            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("email") || msg.contains("idx_email")) {
+            if (isEmailDuplicate(e)) {
                 throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被其他用户使用");
             }
             log.error("更新用户资料数据库约束异常: userId={}", userId, e);
@@ -121,5 +119,15 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean checkPassword(String rawPassword, String encodedPassword) {
         return passwordHashUtil.matches(rawPassword, encodedPassword);
+    }
+
+    private boolean isEmailDuplicate(DataIntegrityViolationException e) {
+        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        return msg.contains("email") || msg.contains("idx_email");
+    }
+
+    private boolean isUsernameDuplicate(DataIntegrityViolationException e) {
+        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        return msg.contains("username") || msg.contains("idx_username");
     }
 }

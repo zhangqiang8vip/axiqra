@@ -170,6 +170,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (workspaceId == null) {
             throw new BizException(ErrorCode.PARAM_INVALID, "workspaceId 不能为空");
         }
+        if (userId == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "userId 不能为空");
+        }
 
         if (!rbacService.isOwner(userId, workspaceId)) {
             throw new BizException(ErrorCode.FORBIDDEN, "只有所有者可以更新工作空间");

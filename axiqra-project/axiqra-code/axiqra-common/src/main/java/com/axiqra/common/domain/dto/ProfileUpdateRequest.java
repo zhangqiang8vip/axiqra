@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.dto;
 
+import com.axiqra.common.validation.ValidUrl;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -24,6 +25,6 @@ public class ProfileUpdateRequest {
     @Size(max = 255, message = "email 最多 255 字符")
     private String email;
 
-    @Size(max = 500, message = "avatar 最多 500 字符")
+    @ValidUrl
     private String avatar;
 }

@@ -26,7 +26,7 @@ public class ContributionLedgerEntity extends BaseEntity {
     @Nullable
     private String evidenceRefs;
     private String status;
-    private Integer isDeleted;
+    private Boolean isDeleted;
     @Nullable
     private Long tenantId;
 }

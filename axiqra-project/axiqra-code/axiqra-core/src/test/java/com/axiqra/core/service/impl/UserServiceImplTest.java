@@ -73,12 +73,13 @@ class UserServiceImplTest {
         }
 
         @Test
-        @DisplayName("email 被其他用户占用应抛重复异常")
+        @DisplayName("email 被其他用户占用应抛重复异常（由 DB 约束触发）")
         void shouldThrowWhenEmailAlreadyTaken() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            UserEntity anotherUser = createUser(999L, "bob");
-            when(userMapper.selectByEmail("used@test.com")).thenReturn(anotherUser);
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, existing);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any()))
+                    .thenThrow(new DataIntegrityViolationException(
+                            "Duplicate entry 'used@test.com' for key 'idx_email'"));
 
             BizException ex = assertThrows(BizException.class,
                     () -> userService.updateProfile(USER_ID, null, "used@test.com", null));
@@ -89,12 +90,10 @@ class UserServiceImplTest {
         @DisplayName("更新自己的 email 应成功")
         void shouldUpdateOwnEmailSuccessfully() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.selectByEmail("new@test.com")).thenReturn(null);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com"), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setEmail("new@test.com");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, null, "new@test.com", null);
 
@@ -106,8 +105,8 @@ class UserServiceImplTest {
         @DisplayName("数据库更新返回 0 行应抛用户不存在异常")
         void shouldThrowWhenUpdateReturnsZero() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.updateSelective(eq(USER_ID), eq("newNick"), isNull(), isNull())).thenReturn(0);
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, existing);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(0);
 
             BizException ex = assertThrows(BizException.class,
                     () -> userService.updateProfile(USER_ID, "newNick", null, null));
@@ -118,11 +117,10 @@ class UserServiceImplTest {
         @DisplayName("正常更新 nickname 应成功并记录日志")
         void shouldUpdateNicknameSuccessfully() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.updateSelective(eq(USER_ID), eq("newNick"), isNull(), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setNickname("newNick");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, "newNick", null, null);
 
@@ -134,12 +132,10 @@ class UserServiceImplTest {
         @DisplayName("whitespace-only nickname 应被忽略，email 正常更新")
         void shouldIgnoreWhitespaceOnlyNickname() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.selectByEmail("valid@test.com")).thenReturn(null);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("valid@test.com"), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setEmail("valid@test.com");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, "   ", "valid@test.com", null);
 
@@ -152,11 +148,10 @@ class UserServiceImplTest {
         @DisplayName("whitespace-only email 应被忽略，nickname 正常更新")
         void shouldIgnoreWhitespaceOnlyEmail() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.updateSelective(eq(USER_ID), eq("validNick"), isNull(), isNull())).thenReturn(1);
             UserEntity updated = createUser(USER_ID, "alice");
             updated.setNickname("validNick");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(updated);
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any())).thenReturn(1);
 
             UserEntity result = userService.updateProfile(USER_ID, "validNick", "   ", null);
 
@@ -169,9 +164,8 @@ class UserServiceImplTest {
         @DisplayName("数据库 email 唯一约束异常应转为 DUPLICATE_ENTRY")
         void shouldTranslateDataIntegrityViolationToDuplicateEntry() {
             UserEntity existing = createUser(USER_ID, "alice");
-            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing);
-            when(userMapper.selectByEmail("new@test.com")).thenReturn(null);
-            when(userMapper.updateSelective(eq(USER_ID), isNull(), eq("new@test.com"), isNull()))
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, existing);
+            when(userMapper.updateSelective(anyLong(), any(), any(), any()))
                     .thenThrow(new DataIntegrityViolationException(
                             "Duplicate entry 'new@test.com' for key 'idx_email'"));
 

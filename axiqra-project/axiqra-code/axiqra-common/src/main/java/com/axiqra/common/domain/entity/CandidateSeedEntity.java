@@ -27,7 +27,7 @@ public class CandidateSeedEntity extends BaseEntity {
     @Nullable
     private String coverageGap;
     private String status;
-    private Integer isDeleted;
+    private Boolean isDeleted;
     @Nullable
     private Long assigneeId;
     @Nullable

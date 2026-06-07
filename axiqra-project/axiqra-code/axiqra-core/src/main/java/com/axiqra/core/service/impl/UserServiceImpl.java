@@ -67,6 +67,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public UserEntity updateProfile(Long userId, String nickname, String email, String avatar) {
         if (userId == null) {
             throw new BizException(ErrorCode.PARAM_INVALID, "userId 不能为空");
@@ -83,13 +84,6 @@ public class UserServiceImpl implements UserService {
 
         if (!hasNicknameUpdate && !hasEmailUpdate && !hasAvatarUpdate) {
             return existing;
-        }
-
-        if (hasEmailUpdate) {
-            UserEntity byEmail = userMapper.selectByEmail(email);
-            if (byEmail != null && !byEmail.getId().equals(userId)) {
-                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被其他用户使用");
-            }
         }
 
         String cleanedNickname = hasNicknameUpdate ? nickname.trim() : null;
@@ -116,7 +110,11 @@ public class UserServiceImpl implements UserService {
         }
 
         log.info("更新用户资料: userId={}", userId);
-        return userMapper.selectActiveById(userId);
+        UserEntity updated = userMapper.selectActiveById(userId);
+        if (updated == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
+        return updated;
     }
 
     @Override

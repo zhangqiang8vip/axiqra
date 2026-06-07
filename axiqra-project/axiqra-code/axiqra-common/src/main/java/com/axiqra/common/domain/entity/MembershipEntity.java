@@ -24,7 +24,7 @@ public class MembershipEntity extends BaseEntity {
     private Long workspaceId;
     private String role;
     private String status;
-    private Integer isDeleted;
+    private Boolean isDeleted;
     @Nullable
     private Long tenantId;
 }

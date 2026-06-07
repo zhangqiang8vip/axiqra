@@ -6,7 +6,7 @@
 ## 2. 维护规则
 - 每新增测试类或测试场景，应同步更新本清单；
 - 按模块维度维护，保持路径可追溯；
-- “当前状态”用于标记是否已执行、是否已归档、是否需要补充。
+- "当前状态"用于标记是否已执行、是否已归档、是否需要补充。
 
 ## 3. 当前资产清单
 
@@ -17,11 +17,18 @@
 | axiqra-common | AesEncryptUtilTest | `axiqra-code/axiqra-common/src/test/java/com/axiqra/common/util/AesEncryptUtilTest.java` | AES-256-GCM 加密解密往返、随机 IV、错误密钥拒绝、密钥格式校验 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
 | axiqra-common | PasswordHashUtilTest | `axiqra-code/axiqra-common/src/test/java/com/axiqra/common/util/PasswordHashUtilTest.java` | BCrypt 哈希验证、随机盐、错误密码拒绝、哈希格式校验 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
 | axiqra-common | DataMaskingUtilTest | `axiqra-code/axiqra-common/src/test/java/com/axiqra/common/util/DataMaskingUtilTest.java` | API Key/Token/Password/内网 IP/私钥/AWS 凭证脱敏，非敏感字段不变 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
-| axiqra-api | GlobalExceptionHandlerTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/handler/GlobalExceptionHandlerTest.java` | BizException/SysException/ParamException 等 8 种异常统一响应格式 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-api | GlobalExceptionHandlerTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/handler/GlobalExceptionHandlerTest.java` | BizException/SysException/ParamException 等 8 种异常（9 个 @Test 方法：含 SysException 带/不带错误码、BizException 边界值等额外用例）统一响应格式 + 动态状态码 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
 | axiqra-api | TraceIdFilterTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/filter/TraceIdFilterTest.java` | traceId 生成/复用/MDC 注入/响应头/清理 | 已执行，已归档 | `R1-日志安全审计框架/03-测试用例/R1-测试执行记录.md` |
+| axiqra-core | WorkspaceServiceImplTest | `axiqra-code/axiqra-core/src/test/java/com/axiqra/core/service/impl/WorkspaceServiceImplTest.java` | listMyWorkspaces/create/getById/delete/addMember/removeMember/updateMemberRole 边界校验与业务逻辑 | 已执行，已归档 | `reports/r3-auth-test-execution-record.md` |
+| axiqra-core | RbacServiceImplTest | `axiqra-code/axiqra-core/src/test/java/com/axiqra/core/service/impl/RbacServiceImplTest.java` | hasRole/isOwner/isAdmin/getRole/getMemberships/isMember/hasScope 委托链路 | 已执行，已归档 | `reports/r3-auth-test-execution-record.md` |
+| axiqra-core | PolicyEngineServiceImplTest | `axiqra-code/axiqra-core/src/test/java/com/axiqra/core/service/impl/PolicyEngineServiceImplTest.java` | evaluate/hasScope/enforce（ALLOW/DENY/DENY_SCOPE_MISSING/DENY_RISK_LEVEL_TOO_HIGH） | 已执行，已归档 | `reports/r3-auth-test-execution-record.md` |
+| axiqra-api | WorkspaceControllerTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/controller/WorkspaceControllerTest.java` | create/delete/addMember/removeMember/updateMemberRole 接口逻辑与参数校验 | 已执行，已归档 | `reports/r3-auth-test-execution-record.md` |
+| axiqra-api | PolicyControllerTest | `axiqra-code/axiqra-api/src/test/java/com/axiqra/api/controller/PolicyControllerTest.java` | evaluate/enforce/check 接口逻辑与 Sa-Token 上下文注入 | 已执行，已归档 | `reports/r3-auth-test-execution-record.md` |
 
 ## 4. 待补充建议
 - [x] `InfraConnectionIT` 已补充正式执行记录并归档
 - [x] `ApplicationContextTest` 已更新为 `InfraConnectionIT`（替换为有意义的集成测试）
+- [x] R3 Auth 模块 Service 层测试已补充（WorkspaceServiceImplTest / RbacServiceImplTest / PolicyEngineServiceImplTest）
+- [x] R3 Auth 模块 Controller 层测试已补充（WorkspaceControllerTest / PolicyControllerTest）
 - 后续若新增 `*IT.java` 或 `*E2ETest.java`，应按测试类型补充分组说明；
 - 若某模块已有多组测试，可拆分为更细粒度的模块清单文件。

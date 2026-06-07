@@ -46,16 +46,14 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== 业务异常 ====================
-    // TODO (S2): BizException currently returns 409 CONFLICT. Evaluate whether 400 or 422
-    // is more semantically correct — 409 suits "resource already exists" but not all business
-    // errors. Consider adding a status-code field to BizException for per-case control.
 
     @ExceptionHandler(BizException.class)
     public ResponseEntity<ApiResponse<Void>> handleBizException(BizException ex) {
         log.warn("【业务异常】code={}, message={}, traceId={}",
                 ex.getCode(), ex.getMessage(), getTraceId());
         ApiResponse<Void> resp = ApiResponse.fail(ex.getCode(), ex.getMessage(), getTraceId());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(resp);
+        Integer status = ex.getHttpStatus();
+        return ResponseEntity.status(status != null ? status : HttpStatus.CONFLICT.value()).body(resp);
     }
 
     // ==================== 参数异常 ====================

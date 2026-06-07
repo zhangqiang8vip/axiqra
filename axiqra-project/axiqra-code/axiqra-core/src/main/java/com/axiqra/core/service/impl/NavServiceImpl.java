@@ -2,6 +2,7 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.entity.MembershipEntity;
 import com.axiqra.common.domain.enums.MemberRole;
+import com.axiqra.common.domain.enums.MemberStatus;
 import com.axiqra.common.domain.vo.NavItemVO;
 import com.axiqra.common.domain.vo.NavResponseVO;
 import com.axiqra.core.service.NavService;
@@ -84,6 +85,9 @@ public class NavServiceImpl implements NavService {
 
         for (MembershipEntity m : memberships) {
             if (m == null) {
+                continue;
+            }
+            if (!MemberStatus.ACTIVE.getCode().equals(m.getStatus())) {
                 continue;
             }
             Long workspaceId = m.getWorkspaceId();

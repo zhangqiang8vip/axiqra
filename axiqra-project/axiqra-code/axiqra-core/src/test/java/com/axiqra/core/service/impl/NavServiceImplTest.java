@@ -195,6 +195,27 @@ class NavServiceImplTest {
             assertNotNull(result);
             assertTrue(result.getSpaceMembershipNav().isEmpty());
         }
+
+        @Test
+        @DisplayName("SUSPENDED 成员不应出现在 spaceMembershipNav")
+        void shouldExcludeSuspendedMemberships() {
+            MembershipEntity activeMembership = createMembership(1L, USER_ID, 100L,
+                    MemberRole.ADMIN.getCode());
+            MembershipEntity suspendedMembership = createMembership(2L, USER_ID, 200L,
+                    MemberRole.OWNER.getCode());
+            suspendedMembership.setStatus(MemberStatus.SUSPENDED.getCode());
+
+            when(rbacService.getMemberships(USER_ID))
+                    .thenReturn(List.of(activeMembership, suspendedMembership));
+
+            NavResponseVO result = navService.getNav(USER_ID);
+
+            List<String> ids = result.getSpaceMembershipNav().stream()
+                    .map(NavItemVO::getId)
+                    .toList();
+            assertTrue(ids.contains("workspace-100"));
+            assertFalse(ids.contains("workspace-200"));
+        }
     }
 
     private MembershipEntity createMembership(Long id, Long userId, Long workspaceId, String role) {

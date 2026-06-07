@@ -225,6 +225,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         WorkspaceEntity updated = workspaceMapper.selectById(workspaceId);
+        if (updated == null) {
+            throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
+        }
         long memberCount = membershipMapper.countByWorkspaceId(workspaceId);
         log.info("更新工作空间: workspaceId={}, userId={}", workspaceId, userId);
         return WorkspaceVO.from(updated)

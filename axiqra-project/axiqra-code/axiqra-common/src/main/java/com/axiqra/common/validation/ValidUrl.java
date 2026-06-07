@@ -10,7 +10,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Validates that a string is a valid HTTP or HTTPS URL.
+ * Validates that a string is a valid HTTPS URL.
  * null and empty strings are considered valid (use @NotBlank to disallow).
  *
  * @author Axiqra Team
@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidUrl {
 
-    String message() default "avatar must be a valid http/https URL";
+    String message() default "avatar must be a valid HTTPS URL";
 
     Class<?>[] groups() default {};
 

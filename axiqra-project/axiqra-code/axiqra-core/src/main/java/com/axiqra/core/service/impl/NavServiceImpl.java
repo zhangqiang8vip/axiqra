@@ -33,13 +33,14 @@ public class NavServiceImpl implements NavService {
             return emptyNav();
         }
 
+        log.info("获取导航菜单: userId={}", userId);
+
         List<NavItemVO> baseUserNav = buildBaseUserNav();
         List<NavItemVO> spaceMembershipNav = buildSpaceMembershipNav(userId);
         List<NavItemVO> grantedScopeNav = buildGrantedScopeNav(userId);
         List<NavItemVO> governanceNav = buildGovernanceNav();
         List<NavItemVO> adminNav = buildAdminNav();
 
-        log.info("获取导航菜单: userId={}", userId);
         return NavResponseVO.builder()
                 .baseUserNav(baseUserNav)
                 .spaceMembershipNav(spaceMembershipNav)

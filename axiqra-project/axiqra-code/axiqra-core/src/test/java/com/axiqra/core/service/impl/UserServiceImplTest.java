@@ -174,6 +174,22 @@ class UserServiceImplTest {
             assertEquals(ErrorCode.DUPLICATE_ENTRY.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("邮箱已被其他用户使用"));
         }
+
+        @Test
+        @DisplayName("正常更新 avatar 应成功")
+        void shouldUpdateAvatarSuccessfully() {
+            UserEntity existing = createUser(USER_ID, "alice");
+            UserEntity updated = createUser(USER_ID, "alice");
+            updated.setAvatar("https://example.com/avatar.jpg");
+            when(userMapper.selectActiveById(USER_ID)).thenReturn(existing, updated);
+            when(userMapper.updateSelective(eq(USER_ID), isNull(), isNull(), eq("https://example.com/avatar.jpg"))).thenReturn(1);
+
+            UserEntity result = userService.updateProfile(USER_ID, null, null, "https://example.com/avatar.jpg");
+
+            assertNotNull(result);
+            assertEquals("https://example.com/avatar.jpg", result.getAvatar());
+            verify(userMapper).updateSelective(eq(USER_ID), isNull(), isNull(), eq("https://example.com/avatar.jpg"));
+        }
     }
 
     private UserEntity createUser(Long id, String username) {

@@ -100,7 +100,7 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
             case "&nbsp;" -> " ";
             default -> {
                 // Numeric: &#xHHHH; (hex) or &#DDDD; (decimal)
-                String inner = entity.substring(2, entity.length() - 1);
+                String inner = entity.substring(1, entity.length() - 1);
                 if (inner.startsWith("#x") || inner.startsWith("#X")) {
                     try {
                         int codePoint = Integer.parseInt(inner.substring(2), 16);

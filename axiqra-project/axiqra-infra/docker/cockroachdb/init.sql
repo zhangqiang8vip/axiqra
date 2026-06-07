@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS axiqra_membership (
     version BIGINT NOT NULL DEFAULT 0,
     tenant_id BIGINT NULL,
     PRIMARY KEY (id),
-    UNIQUE INDEX idx_user_workspace (user_id, workspace_id),
+    UNIQUE INDEX idx_user_workspace_active (user_id, workspace_id) WHERE is_deleted = FALSE,
     INDEX idx_workspace_id (workspace_id),
     INDEX idx_user_id (user_id),
     INDEX idx_tenant_id (tenant_id)

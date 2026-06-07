@@ -3,9 +3,6 @@ package com.axiqra.core.adapter;
 import com.axiqra.common.port.KeyVaultPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.regex.Pattern;
-
 /**
  * 环境变量 KeyVault 适配器（DEV / 本地开发阶段）
  *
@@ -20,7 +17,6 @@ import java.util.regex.Pattern;
 public class KeyVaultAdapter implements KeyVaultPort {
 
     private static final String ENV_PREFIX = "AXIQRA_APP_SECRET_";
-    private static final Pattern POSIX_ENV_VAR = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
     @Override
     public String getSecret(String appId) {
@@ -51,11 +47,13 @@ public class KeyVaultAdapter implements KeyVaultPort {
         StringBuilder sb = new StringBuilder(trimmed.length());
         for (int i = 0; i < trimmed.length(); i++) {
             char c = Character.toUpperCase(trimmed.charAt(i));
-            if (POSIX_ENV_VAR.matcher(String.valueOf(c)).matches()) {
-                sb.append(c);
+            boolean valid;
+            if (i == 0) {
+                valid = Character.isLetter(c) || c == '_';
             } else {
-                sb.append('_');
+                valid = Character.isLetterOrDigit(c) || c == '_';
             }
+            sb.append(valid ? c : '_');
         }
         String result = sb.toString();
         if (result.isEmpty() || Character.isDigit(result.charAt(0))) {

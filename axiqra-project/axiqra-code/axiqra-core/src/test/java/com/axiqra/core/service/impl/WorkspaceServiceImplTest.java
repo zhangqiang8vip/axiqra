@@ -286,8 +286,21 @@ class WorkspaceServiceImplTest {
 
             workspaceService.delete(WORKSPACE_ID, USER_ID);
 
-            verify(workspaceMapper).softDeleteById(eq(WORKSPACE_ID), any(Instant.class));
+            verify(workspaceMapper).softDeleteById(eq(WORKSPACE_ID), eq(1L), any(Instant.class));
             verify(membershipMapper).softDeleteByWorkspaceId(WORKSPACE_ID, MemberStatus.SUSPENDED.getCode());
+        }
+
+        @Test
+        @DisplayName("软删除返回 0 行应抛并发修改异常")
+        void shouldThrowWhenSoftDeleteReturnsZero() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            when(workspaceMapper.selectById(WORKSPACE_ID))
+                    .thenReturn(createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID));
+            when(workspaceMapper.softDeleteById(eq(WORKSPACE_ID), eq(1L), any(Instant.class))).thenReturn(0);
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.delete(WORKSPACE_ID, USER_ID));
+            assertEquals(ErrorCode.CONCURRENT_MODIFICATION.getCode(), ex.getCode());
         }
     }
 

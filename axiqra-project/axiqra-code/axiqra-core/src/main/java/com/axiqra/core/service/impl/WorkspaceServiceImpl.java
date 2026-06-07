@@ -198,8 +198,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                     .withMemberCount(memberCount);
         }
 
+        WorkspaceType newType = null;
         if (hasTypeUpdate) {
-            WorkspaceType newType = WorkspaceType.of(workspaceType);
+            newType = WorkspaceType.of(workspaceType);
             if (newType == null) {
                 throw new BizException(ErrorCode.PARAM_INVALID, "不支持的工作空间类型: " + workspaceType);
             }
@@ -214,7 +215,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         String cleanedName = hasNameUpdate ? workspaceName.trim() : null;
-        String cleanedType = hasTypeUpdate ? workspaceType.trim() : null;
+        String cleanedType = hasTypeUpdate ? newType.getCode() : null;
 
         int rows;
         try {

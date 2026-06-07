@@ -519,6 +519,22 @@ class WorkspaceServiceImplTest {
         }
 
         @Test
+        @DisplayName("混排/带空格的工作空间类型应持久化规范 code 而非原始字符串")
+        void shouldPersistCanonicalTypeCodeForMixedCaseInput() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID);
+            WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.ORGANIZATION, USER_ID);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing, updated);
+            lenient().when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), isNull(), eq("personal"), any(), any())).thenReturn(1);
+            when(membershipMapper.countByWorkspaceId(WORKSPACE_ID)).thenReturn(0L);
+
+            WorkspaceVO result = workspaceService.update(WORKSPACE_ID, USER_ID, null, " Personal ");
+
+            assertNotNull(result);
+            verify(workspaceMapper).updateSelective(eq(WORKSPACE_ID), isNull(), eq("personal"), any(), any());
+        }
+
+        @Test
         @DisplayName("正常更新 workspaceName 应成功")
         void shouldUpdateNameSuccessfully() {
             when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);

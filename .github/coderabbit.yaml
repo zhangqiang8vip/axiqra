@@ -18,10 +18,6 @@ reviews:
     auto_title_placeholder: "[Axiqra] 代码审查 - {{title}}"
     update_branch: false
     detect_all_applicable_languages: true
-    commit_keywords:
-      - "fix!"
-      - "fix("
-      - "refactor!"
     patterns:
       - "**/*.mjs"
       - "**/*.js"
@@ -49,15 +45,6 @@ chat:
 # 审查节点覆盖
 codecov:
   slug: "axiqra/axiqra"
-
-# 去重：相同文件相同问题的评论不重复生成
-fingerprint:
-  overrides:
-    - files: ["**/*.java"]
-      # 基于变更内容（diff hash）去重，不基于行号
-      strategy: "content"
-    - files: ["**/*.yaml", "**/*.yml"]
-      strategy: "content"
 
 # 拖拽提示
 hints:

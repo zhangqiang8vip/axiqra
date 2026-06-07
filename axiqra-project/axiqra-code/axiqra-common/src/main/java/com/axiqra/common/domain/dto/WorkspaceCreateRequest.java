@@ -18,7 +18,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class WorkspaceCreateRequest {
 
-    @NotNull(message = "workspaceType 不能为空")
+    @NotBlank(message = "workspaceType 不能为空")
     private String workspaceType;
 
     @NotBlank(message = "workspaceName 不能为空")

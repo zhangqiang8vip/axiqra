@@ -2,6 +2,7 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.entity.MembershipEntity;
 import com.axiqra.common.domain.enums.MemberRole;
+import com.axiqra.common.port.PolicyEnginePort;
 import com.axiqra.common.port.RbacPort;
 import com.axiqra.core.service.RbacService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.util.List;
 public class RbacServiceImpl implements RbacService {
 
     private final RbacPort rbacPort;
+    private final PolicyEnginePort policyEnginePort;
 
     @Override
     public boolean hasRole(Long userId, Long workspaceId, MemberRole requiredRole) {
@@ -55,7 +57,6 @@ public class RbacServiceImpl implements RbacService {
 
     @Override
     public boolean hasScope(Long userId, String scope) {
-        // S1: 登录用户默认拥有基础 scope（由 PolicyEngineAdapter.hasScope 实际校验 scope 有效性）
-        return userId != null && scope != null;
+        return policyEnginePort.hasScope(userId, scope);
     }
 }

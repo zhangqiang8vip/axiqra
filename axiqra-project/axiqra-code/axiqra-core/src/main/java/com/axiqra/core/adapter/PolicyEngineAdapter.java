@@ -90,14 +90,19 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                     .build();
         }
 
-        // 1. Admin 全局权限 bypass（下沉到各分支末尾，避免跳过 action-specific 校验）
-        // 2. 按 action 类型分发策略
+        // 统一从 context 提取 workspaceId，避免 objectId 与 workspaceId 混淆导致 ID 碰撞授权漏洞
+        Long workspaceId = parseContextLong(context, "workspaceId");
+        if (workspaceId == null) {
+            workspaceId = objectId;
+        }
+
+        // 按 action 类型分发策略
         return switch (action.toLowerCase()) {
-            case "read" -> evaluateReadAction(subjectId, objectType, objectId, context);
-            case "write", "create", "update" -> evaluateWriteAction(subjectId, objectType, objectId, context);
-            case "delete" -> evaluateDeleteAction(subjectId, objectType, objectId, context);
-            case "publish" -> evaluatePublishAction(subjectId, objectType, objectId, context);
-            default -> evaluateGenericAction(subjectId, objectType, objectId, action, context);
+            case "read" -> evaluateReadAction(subjectId, objectType, objectId, workspaceId, context);
+            case "write", "create", "update" -> evaluateWriteAction(subjectId, objectType, objectId, workspaceId, context);
+            case "delete" -> evaluateDeleteAction(subjectId, objectType, objectId, workspaceId, context);
+            case "publish" -> evaluatePublishAction(subjectId, objectType, objectId, workspaceId, context);
+            default -> evaluateGenericAction(subjectId, objectType, objectId, workspaceId, action, context);
         };
     }
 
@@ -119,7 +124,7 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
 
     // ==================== 分支策略评估 ====================
 
-    private PolicyEvaluationVO evaluateReadAction(Long userId, String objectType, Long objectId, Map<String, Object> context) {
+    private PolicyEvaluationVO evaluateReadAction(Long userId, String objectType, Long objectId, Long workspaceId, Map<String, Object> context) {
         // 公开资源：任何登录用户可读
         if ("search_public".equals(objectType) || "public_case".equals(objectType)) {
             return PolicyEvaluationVO.builder()
@@ -130,9 +135,9 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                     .build();
         }
 
-        // 私有资源：必须是成员
-        if (objectId != null) {
-            if (rbacPort.isMember(userId, objectId)) {
+        // 私有资源：必须是成员（使用 workspaceId 做 RBAC 校验）
+        if (workspaceId != null) {
+            if (rbacPort.isMember(userId, workspaceId)) {
                 return PolicyEvaluationVO.builder()
                         .decision(PolicyDecision.ALLOW)
                         .policyCode("ABAC-READ-MEMBER")
@@ -140,17 +145,6 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                         .message("成员可读取私有资源")
                         .build();
             }
-        }
-
-        // Admin bypass
-        if (objectId != null && rbacPort.isAdmin(userId, objectId)) {
-            log.debug("Policy: admin bypass read for user={}, workspaceId={}", userId, objectId);
-            return PolicyEvaluationVO.builder()
-                    .decision(PolicyDecision.ALLOW)
-                    .policyCode("ABAC-ADMIN-BYPASS")
-                    .reasonCode("ADMIN_PRIVILEGE")
-                    .message("管理员权限")
-                    .build();
         }
 
         return PolicyEvaluationVO.builder()
@@ -161,7 +155,7 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                 .build();
     }
 
-    private PolicyEvaluationVO evaluateWriteAction(Long userId, String objectType, Long objectId, Map<String, Object> context) {
+    private PolicyEvaluationVO evaluateWriteAction(Long userId, String objectType, Long objectId, Long workspaceId, Map<String, Object> context) {
         // 缺失 riskLevel 视为高风险操作，默认拒绝
         String riskLevel = parseContextField(context, "riskLevel");
         if (riskLevel == null) {
@@ -184,24 +178,13 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
             }
         }
 
-        // 写入需要至少 member 角色
-        if (objectId != null && rbacPort.hasRole(userId, objectId, com.axiqra.common.domain.enums.MemberRole.MEMBER)) {
+        // 写入需要至少 member 角色（使用 workspaceId）
+        if (workspaceId != null && rbacPort.hasRole(userId, workspaceId, com.axiqra.common.domain.enums.MemberRole.MEMBER)) {
             return PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.ALLOW)
                     .policyCode("ABAC-WRITE-MEMBER")
                     .reasonCode("MEMBER_WRITE")
                     .message("成员可写入资源")
-                    .build();
-        }
-
-        // Admin bypass
-        if (objectId != null && rbacPort.isAdmin(userId, objectId)) {
-            log.debug("Policy: admin bypass write for user={}, workspaceId={}", userId, objectId);
-            return PolicyEvaluationVO.builder()
-                    .decision(PolicyDecision.ALLOW)
-                    .policyCode("ABAC-ADMIN-BYPASS")
-                    .reasonCode("ADMIN_PRIVILEGE")
-                    .message("管理员权限")
                     .build();
         }
 
@@ -213,9 +196,9 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                 .build();
     }
 
-    private PolicyEvaluationVO evaluateDeleteAction(Long userId, String objectType, Long objectId, Map<String, Object> context) {
-        // 删除需要 admin 或 owner
-        if (objectId != null && rbacPort.isAdmin(userId, objectId)) {
+    private PolicyEvaluationVO evaluateDeleteAction(Long userId, String objectType, Long objectId, Long workspaceId, Map<String, Object> context) {
+        // 删除需要 admin 或 owner（使用 workspaceId）
+        if (workspaceId != null && rbacPort.isAdmin(userId, workspaceId)) {
             return PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.ALLOW)
                     .policyCode("ABAC-DELETE-ADMIN")
@@ -232,10 +215,10 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                 .build();
     }
 
-    private PolicyEvaluationVO evaluatePublishAction(Long userId, String objectType, Long objectId, Map<String, Object> context) {
-        // 发布需要 admin + 授权范围
+    private PolicyEvaluationVO evaluatePublishAction(Long userId, String objectType, Long objectId, Long workspaceId, Map<String, Object> context) {
+        // 发布需要 admin + 授权范围（使用 workspaceId）
         String licenseScope = parseContextField(context, "licenseScope");
-        if (objectId != null && rbacPort.isAdmin(userId, objectId)) {
+        if (workspaceId != null && rbacPort.isAdmin(userId, workspaceId)) {
             if (licenseScope == null || licenseScope.isBlank()) {
                 return PolicyEvaluationVO.builder()
                         .decision(PolicyDecision.DENY)
@@ -260,9 +243,9 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                 .build();
     }
 
-    private PolicyEvaluationVO evaluateGenericAction(Long userId, String objectType, Long objectId,
+    private PolicyEvaluationVO evaluateGenericAction(Long userId, String objectType, Long objectId, Long workspaceId,
                                                     String action, Map<String, Object> context) {
-        if (objectId != null && rbacPort.isMember(userId, objectId)) {
+        if (workspaceId != null && rbacPort.isMember(userId, workspaceId)) {
             return PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.ALLOW)
                     .policyCode("ABAC-GENERIC-MEMBER")
@@ -312,5 +295,20 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
             return null;
         }
         return value.toString();
+    }
+
+    /**
+     * 从 context Map 中安全提取 Long 字段值
+     */
+    private Long parseContextLong(Map<String, Object> context, String fieldName) {
+        String val = parseContextField(context, fieldName);
+        if (val == null || val.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(val);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

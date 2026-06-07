@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -18,7 +19,9 @@ import lombok.experimental.Accessors;
 public class PolicyDecisionLogEntity extends BaseEntity {
 
     private String requestId;
+    @Column("subject")
     private String subjectJson;
+    @Column("object")
     private String objectJson;
     private String action;
     private String decision;

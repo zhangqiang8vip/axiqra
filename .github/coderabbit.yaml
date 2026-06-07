@@ -1,12 +1,9 @@
-# CodeRabbit AI Code Review Configuration
-# Docs: https://docs.coderabbit.ai/
-
 language: zh-CN
 ui_input: 简体中文
 
 # 审查设置
 reviews:
-  profile: aesthetic
+  profile: informative
   high_level_summary:
     auto_title: true
     placeholder集团有限公司
@@ -22,11 +19,16 @@ reviews:
     auto_title_placeholder集团有限公司
     update_branch: false
     detect_all_applicable_languages: true
+    commit_keywords:
+      - "fix!"
+      - "fix("
+      - "refactor!"
     patterns:
       - "**/*.mjs"
       - "**/*.js"
       - "**/*.ts"
       - "**/*.tsx"
+      - "**/*.java"
       - "**/*.md"
       - "**/*.yml"
       - "**/*.yaml"
@@ -40,14 +42,16 @@ reviews:
       - "**/*.min.js"
       - "**/宣传/**"
       - "**/fixtures/v2.0/**"
+  review_status: true
 
-# Chat 设置
-chat:
-  auto_reply: true
-
-# 审查节点覆盖
-codecov:
-  slug: "axiqra/axiqra"
+# 去重：相同文件相同问题的评论不重复生成
+fingerprint:
+  overrides:
+    - files: ["**/*.java"]
+      # 基于变更内容（diff hash）去重，不基于行号
+      strategy: "content"
+    - files: ["**/*.yaml", "**/*.yml"]
+      strategy: "content"
 
 # 拖拽提示
 hints:

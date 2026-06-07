@@ -3,6 +3,7 @@ package com.axiqra.api.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.dto.LoginRequest;
+import com.axiqra.common.domain.dto.ProfileUpdateRequest;
 import com.axiqra.common.domain.dto.RegisterRequest;
 import com.axiqra.common.domain.vo.LoginResponse;
 import com.axiqra.common.exception.BizException;
@@ -110,6 +111,20 @@ public class AuthController {
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
+        return ApiResponse.ok(LoginResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .nickname(user.getNickname())
+                .token(StpUtil.getTokenValue())
+                .build());
+    }
+
+    @PutMapping("/profile")
+    @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname 和 email")
+    public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail());
+        log.info("更新个人资料: userId={}", userId);
         return ApiResponse.ok(LoginResponse.builder()
                 .userId(user.getId())
                 .username(user.getUsername())

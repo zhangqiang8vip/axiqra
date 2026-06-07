@@ -150,7 +150,6 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
         }
 
-        // 检查访问权限
         boolean canAccess = rbacService.isMember(userId, workspaceId)
                 || rbacService.isOwner(userId, workspaceId);
         if (!canAccess) {
@@ -162,6 +161,67 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         return WorkspaceVO.from(workspace)
                 .withMyRole(role != null ? role.getCode() : null)
+                .withMemberCount(memberCount);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WorkspaceVO update(Long workspaceId, Long userId, String workspaceName, String workspaceType) {
+        if (workspaceId == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "workspaceId 不能为空");
+        }
+
+        if (!rbacService.isOwner(userId, workspaceId)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "只有所有者可以更新工作空间");
+        }
+
+        WorkspaceEntity existing = workspaceMapper.selectById(workspaceId);
+        if (existing == null) {
+            throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
+        }
+
+        boolean hasNameUpdate = workspaceName != null && !workspaceName.isBlank();
+        boolean hasTypeUpdate = workspaceType != null && !workspaceType.isBlank();
+
+        if (!hasNameUpdate && !hasTypeUpdate) {
+            MemberRole role = rbacService.getRole(userId, workspaceId);
+            long memberCount = membershipMapper.countByWorkspaceId(workspaceId);
+            return WorkspaceVO.from(existing)
+                    .withMyRole(role != null ? role.getCode() : null)
+                    .withMemberCount(memberCount);
+        }
+
+        if (hasTypeUpdate) {
+            WorkspaceType newType = WorkspaceType.of(workspaceType);
+            if (newType == null) {
+                throw new BizException(ErrorCode.PARAM_INVALID, "不支持的工作空间类型: " + workspaceType);
+            }
+        }
+
+        if (hasNameUpdate) {
+            WorkspaceEntity conflict = workspaceMapper.selectByOwnerAndName(existing.getOwnerId(), workspaceName);
+            if (conflict != null && !conflict.getId().equals(workspaceId)) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "工作空间名称已存在");
+            }
+        }
+
+        int rows;
+        try {
+            rows = workspaceMapper.updateSelective(workspaceId, workspaceName, workspaceType);
+        } catch (Exception e) {
+            log.error("更新工作空间失败: workspaceId={}, userId={}", workspaceId, userId, e);
+            throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
+        }
+
+        if (rows == 0) {
+            throw new BizException(ErrorCode.WORKSPACE_NOT_FOUND);
+        }
+
+        WorkspaceEntity updated = workspaceMapper.selectById(workspaceId);
+        long memberCount = membershipMapper.countByWorkspaceId(workspaceId);
+        log.info("更新工作空间: workspaceId={}, userId={}", workspaceId, userId);
+        return WorkspaceVO.from(updated)
+                .withMyRole(MemberRole.OWNER.getCode())
                 .withMemberCount(memberCount);
     }
 

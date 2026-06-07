@@ -44,4 +44,18 @@ public interface WorkspaceMapper extends BaseMapper<WorkspaceEntity> {
 
     @org.apache.ibatis.annotations.Update("UPDATE axiqra_workspace SET is_deleted = 1, gmt_modified = now() WHERE id = #{id}")
     int softDeleteById(@Param("id") Long id);
+
+    @org.apache.ibatis.annotations.Update("<script>" +
+            "UPDATE axiqra_workspace SET gmt_modified = now() " +
+            "<if test='workspaceName != null and workspaceName.length() > 0'>" +
+            ", workspace_name = #{workspaceName}" +
+            "</if>" +
+            "<if test='workspaceType != null and workspaceType.length() > 0'>" +
+            ", workspace_type = #{workspaceType}" +
+            "</if>" +
+            " WHERE id = #{id} AND is_deleted = 0" +
+            "</script>")
+    int updateSelective(@Param("id") Long id,
+                        @Param("workspaceName") String workspaceName,
+                        @Param("workspaceType") String workspaceType);
 }

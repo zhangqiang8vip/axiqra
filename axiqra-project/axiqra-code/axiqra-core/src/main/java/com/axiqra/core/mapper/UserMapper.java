@@ -5,6 +5,7 @@ import com.mybatisflex.core.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 /**
  * 用户 Mapper
@@ -23,4 +24,18 @@ public interface UserMapper extends BaseMapper<UserEntity> {
 
     @Select("SELECT * FROM axiqra_user WHERE email = #{email} AND is_deleted = 0 LIMIT 1")
     UserEntity selectByEmail(@Param("email") String email);
+
+    @Update("<script>" +
+            "UPDATE axiqra_user SET gmt_modified = now() " +
+            "<if test='nickname != null and nickname.length() > 0'>" +
+            ", nickname = #{nickname}" +
+            "</if>" +
+            "<if test='email != null and email.length() > 0'>" +
+            ", email = #{email}" +
+            "</if>" +
+            " WHERE id = #{id} AND is_deleted = 0" +
+            "</script>")
+    int updateSelective(@Param("id") Long id,
+                       @Param("nickname") String nickname,
+                       @Param("email") String email);
 }

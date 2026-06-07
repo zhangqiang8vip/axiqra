@@ -67,6 +67,47 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserEntity updateProfile(Long userId, String nickname, String email) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "userId 不能为空");
+        }
+
+        UserEntity existing = userMapper.selectActiveById(userId);
+        if (existing == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        boolean hasNicknameUpdate = nickname != null && !nickname.isBlank();
+        boolean hasEmailUpdate = email != null && !email.isBlank();
+
+        if (!hasNicknameUpdate && !hasEmailUpdate) {
+            return existing;
+        }
+
+        if (hasEmailUpdate) {
+            UserEntity byEmail = userMapper.selectByEmail(email);
+            if (byEmail != null && !byEmail.getId().equals(userId)) {
+                throw new BizException(ErrorCode.DUPLICATE_ENTRY, "邮箱已被其他用户使用");
+            }
+        }
+
+        int rows;
+        try {
+            rows = userMapper.updateSelective(userId, nickname, email);
+        } catch (Exception e) {
+            log.error("更新用户资料失败: userId={}", userId, e);
+            throw new BizException(ErrorCode.DATABASE_ERROR, "更新失败，请稍后重试");
+        }
+
+        if (rows == 0) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        log.info("更新用户资料: userId={}", userId);
+        return userMapper.selectActiveById(userId);
+    }
+
+    @Override
     public boolean checkPassword(String rawPassword, String encodedPassword) {
         return passwordHashUtil.matches(rawPassword, encodedPassword);
     }

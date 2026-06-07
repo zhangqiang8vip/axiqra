@@ -443,6 +443,115 @@ class WorkspaceServiceImplTest {
         }
     }
 
+    @Nested
+    @DisplayName("update")
+    class UpdateTests {
+
+        @Test
+        @DisplayName("workspaceId 为 null 应抛参数异常")
+        void shouldThrowWhenWorkspaceIdIsNull() {
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.update(null, USER_ID, "New Name", "personal"));
+            assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("非 owner 无权更新应抛禁止异常")
+        void shouldThrowWhenNotOwner() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(false);
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null));
+            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("workspace 不存在应抛资源不存在异常")
+        void shouldThrowWhenWorkspaceNotFound() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(null);
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null));
+            assertEquals(ErrorCode.WORKSPACE_NOT_FOUND.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("无效 workspaceType 应抛参数异常")
+        void shouldThrowWhenWorkspaceTypeIsInvalid() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            when(workspaceMapper.selectById(WORKSPACE_ID))
+                    .thenReturn(createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID));
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.update(WORKSPACE_ID, USER_ID, null, "invalid_type"));
+            assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("同名空间应抛重复异常")
+        void shouldThrowWhenNameDuplicate() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            when(workspaceMapper.selectById(WORKSPACE_ID))
+                    .thenReturn(createWorkspace(WORKSPACE_ID, "Old Name", WorkspaceType.PERSONAL, USER_ID));
+            when(workspaceMapper.selectByOwnerAndName(USER_ID, "New Name"))
+                    .thenReturn(createWorkspace(999L, "New Name", WorkspaceType.PERSONAL, USER_ID));
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null));
+            assertEquals(ErrorCode.DUPLICATE_ENTRY.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("name 和 type 均为空应直接返回当前 workspace")
+        void shouldReturnCurrentWhenBothFieldsBlank() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing);
+            when(rbacService.getRole(USER_ID, WORKSPACE_ID)).thenReturn(MemberRole.OWNER);
+            when(membershipMapper.countByWorkspaceId(WORKSPACE_ID)).thenReturn(1L);
+
+            WorkspaceVO result = workspaceService.update(WORKSPACE_ID, USER_ID, null, null);
+
+            assertNotNull(result);
+            assertEquals("My Space", result.getWorkspaceName());
+            verify(workspaceMapper, never()).updateSelective(anyLong(), any(), any());
+        }
+
+        @Test
+        @DisplayName("正常更新 workspaceName 应成功")
+        void shouldUpdateNameSuccessfully() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "Old Name", WorkspaceType.PERSONAL, USER_ID);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing);
+            when(workspaceMapper.selectByOwnerAndName(USER_ID, "New Name")).thenReturn(null);
+            when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull())).thenReturn(1);
+            WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "New Name", WorkspaceType.PERSONAL, USER_ID);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(updated);
+            when(membershipMapper.countByWorkspaceId(WORKSPACE_ID)).thenReturn(1L);
+
+            WorkspaceVO result = workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null);
+
+            assertNotNull(result);
+            assertEquals("New Name", result.getWorkspaceName());
+            assertEquals("owner", result.getMyRole());
+        }
+
+        @Test
+        @DisplayName("数据库更新返回 0 行应抛资源不存在异常")
+        void shouldThrowWhenUpdateReturnsZero() {
+            when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "Old Name", WorkspaceType.PERSONAL, USER_ID);
+            when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing);
+            when(workspaceMapper.selectByOwnerAndName(USER_ID, "New Name")).thenReturn(null);
+            when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), eq("New Name"), isNull())).thenReturn(0);
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> workspaceService.update(WORKSPACE_ID, USER_ID, "New Name", null));
+            assertEquals(ErrorCode.WORKSPACE_NOT_FOUND.getCode(), ex.getCode());
+        }
+    }
+
     // ==================== 辅助方法 ====================
 
     private WorkspaceEntity createWorkspace(Long id, String name, WorkspaceType type, Long ownerId) {

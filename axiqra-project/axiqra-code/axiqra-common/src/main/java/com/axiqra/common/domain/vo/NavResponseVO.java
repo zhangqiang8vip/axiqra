@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,13 +29,18 @@ import java.util.List;
 @Builder
 public class NavResponseVO {
 
-    private List<NavItemVO> baseUserNav;
+    @Builder.Default
+    private List<NavItemVO> baseUserNav = Collections.emptyList();
 
-    private List<NavItemVO> spaceMembershipNav;
+    @Builder.Default
+    private List<NavItemVO> spaceMembershipNav = Collections.emptyList();
 
-    private List<NavItemVO> grantedScopeNav;
+    @Builder.Default
+    private List<NavItemVO> grantedScopeNav = Collections.emptyList();
 
-    private List<NavItemVO> governanceNav;
+    @Builder.Default
+    private List<NavItemVO> governanceNav = Collections.emptyList();
 
-    private List<NavItemVO> adminNav;
+    @Builder.Default
+    private List<NavItemVO> adminNav = Collections.emptyList();
 }

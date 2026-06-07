@@ -60,6 +60,8 @@ public class AuthController {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
                 .token(token)
                 .build());
     }
@@ -80,6 +82,8 @@ public class AuthController {
                     .userId(user.getId())
                     .username(user.getUsername())
                     .nickname(user.getNickname())
+                    .email(user.getEmail())
+                    .avatar(user.getAvatar())
                     .token(token)
                     .build());
         } catch (BizException e) {
@@ -115,6 +119,8 @@ public class AuthController {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
                 .token(StpUtil.getTokenValue())
                 .build());
     }
@@ -129,6 +135,8 @@ public class AuthController {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
                 .token(StpUtil.getTokenValue())
                 .build());
     }

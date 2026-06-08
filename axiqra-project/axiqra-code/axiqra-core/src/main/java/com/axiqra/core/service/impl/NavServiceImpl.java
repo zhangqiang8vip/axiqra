@@ -97,28 +97,32 @@ public class NavServiceImpl implements NavService {
                 .distinct()
                 .toList();
 
+        Map<Long, MembershipEntity> firstMembershipByWorkspace = memberships.stream()
+                .filter(m -> m != null
+                        && MemberStatus.ACTIVE.getCode().equals(m.getStatus())
+                        && m.getWorkspaceId() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        MembershipEntity::getWorkspaceId,
+                        m -> m,
+                        (a, b) -> a
+                ));
+
         Map<Long, String> workspaceNameMap = Map.of();
         if (!workspaceIds.isEmpty()) {
             List<WorkspaceEntity> workspaces = workspaceMapper.selectByWorkspaceIds(workspaceIds);
             workspaceNameMap = workspaces.stream()
+                    .filter(w -> w != null && w.getId() != null && w.getWorkspaceName() != null)
                     .collect(Collectors.toMap(WorkspaceEntity::getId, WorkspaceEntity::getWorkspaceName));
         }
 
-        for (MembershipEntity m : memberships) {
+        for (Long workspaceId : workspaceIds) {
+            MembershipEntity m = firstMembershipByWorkspace.get(workspaceId);
             if (m == null) {
                 continue;
             }
-            if (!MemberStatus.ACTIVE.getCode().equals(m.getStatus())) {
-                continue;
-            }
-            Long workspaceId = m.getWorkspaceId();
             String role = m.getRole();
 
-            if (workspaceId == null) {
-                continue;
-            }
-
-            String workspaceName = workspaceNameMap.getOrDefault(workspaceId, null);
+            String workspaceName = workspaceNameMap.get(workspaceId);
             String label = (workspaceName != null && !workspaceName.isBlank())
                     ? workspaceName
                     : "空间 " + workspaceId;

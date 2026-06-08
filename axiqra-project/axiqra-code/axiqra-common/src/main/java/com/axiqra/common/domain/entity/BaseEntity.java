@@ -38,6 +38,6 @@ public abstract class BaseEntity implements Serializable {
     protected Instant gmtModified;
 
     /** 乐观锁版本号 */
-    @Column("version")
+    @Column(value = "version", version = true)
     protected Long version;
 }

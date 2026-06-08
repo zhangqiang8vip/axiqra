@@ -3,6 +3,7 @@ package com.axiqra.common.domain.entity;
 import com.axiqra.common.domain.enums.ReviewQueue;
 import com.axiqra.common.domain.enums.RiskLevel;
 import com.axiqra.common.domain.enums.ReviewResult;
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -28,7 +29,9 @@ public class ReviewEntity extends BaseEntity {
     private Long reviewerId;
     private RiskLevel riskLevel;
     private ReviewResult status;
+    @Column("is_deleted")
     private boolean isDeleted = false;
     @Nullable
+    @Column("tenant_id")
     private Long tenantId;
 }

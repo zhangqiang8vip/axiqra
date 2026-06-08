@@ -35,10 +35,19 @@ class PolicyEngineServiceImplTest {
     private static final Long USER_ID = 1L;
 
     private void verifyPolicyDeniedWarningAlert() {
+        verifyPolicyDeniedAlert(AlertPort.Severity.WARNING, null);
+    }
+
+    private void verifyPolicyDeniedCriticalAlert(Long workspaceId) {
+        verifyPolicyDeniedAlert(AlertPort.Severity.CRITICAL, workspaceId);
+    }
+
+    private void verifyPolicyDeniedAlert(AlertPort.Severity severity, Long workspaceId) {
         verify(alertPort).sendAlert(argThat(event -> event != null
                 && event.type() == AlertPort.AlertType.POLICY_DENIED
-                && event.severity() == AlertPort.Severity.WARNING
-                && USER_ID.equals(event.actorId())));
+                && event.severity() == severity
+                && USER_ID.equals(event.actorId())
+                && (workspaceId == null ? event.workspaceId() == null : workspaceId.equals(event.workspaceId()))));
     }
 
     @Nested
@@ -164,6 +173,7 @@ class PolicyEngineServiceImplTest {
             request.setContext(new java.util.HashMap<>() {{
                 put("riskLevel", "R4");
                 put("executionMode", "AUTO");
+                put("workspaceId", "100");
             }});
             PolicyEvaluationVO denied = PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH)
@@ -176,7 +186,7 @@ class PolicyEngineServiceImplTest {
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
-            verifyPolicyDeniedWarningAlert();
+            verifyPolicyDeniedCriticalAlert(100L);
         }
     }
 }

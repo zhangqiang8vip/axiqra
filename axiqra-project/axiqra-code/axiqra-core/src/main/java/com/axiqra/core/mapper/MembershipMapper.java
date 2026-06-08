@@ -48,6 +48,7 @@ public interface MembershipMapper extends BaseMapper<MembershipEntity> {
      * 批量软删除工作空间下的活跃成员关系。
      *
      * <p>这是无版本条件的批量更新；仍递增 version，让并发单条软删能感知记录已变更。
+     * 返回值为批量影响行数，仅用于日志或监控，不代表逐行乐观锁结果。
      */
     @org.apache.ibatis.annotations.Update("UPDATE axiqra_membership SET status = #{newStatus}, is_deleted = TRUE, gmt_modified = now(), version = version + 1 WHERE workspace_id = #{workspaceId} AND status = 'active' AND is_deleted = FALSE")
     int softDeleteByWorkspaceId(@Param("workspaceId") Long workspaceId, @Param("newStatus") String newStatus);

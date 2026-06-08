@@ -36,6 +36,7 @@ class ScopeAndWorkspaceEnumTest {
     @Test
     @DisplayName("ScopeEnum 只解析标准 resource:action")
     void shouldParseOnlyScopeCanonicalCodes() {
+        assertNull(ScopeEnum.of(null));
         assertEquals(ScopeEnum.SEARCH_READ, ScopeEnum.of(" search:read "));
         assertEquals(ScopeEnum.SOLUTION_PUBLISH, ScopeEnum.of("solution:publish"));
         assertEquals(ScopeEnum.SOLUTION_MAINTAIN, ScopeEnum.of("solution:maintain"));

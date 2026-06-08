@@ -49,29 +49,56 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
                     request.getSubjectId(), request.getAction(),
                     result.getPolicyCode(), result.getReasonCode());
 
-            Severity severity = PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH.getCode().equals(result.getReasonCode())
-                    ? Severity.CRITICAL : Severity.WARNING;
-
-            alertPort.sendAlert(AlertEvent.builder()
-                    .type(AlertType.POLICY_DENIED)
-                    .severity(severity)
-                    .actorId(request.getSubjectId())
-                    .actorType("user")
-                    .objectType(request.getObjectType())
-                    .objectId(request.getObjectId())
-                    .workspaceId(request.getContext() != null ? (Long) request.getContext().get("workspaceId") : null)
-                    .message("策略拒绝: " + result.getMessage())
-                    .reasonCode(result.getReasonCode())
-                    .metadata(Map.of(
-                            "action", request.getAction() != null ? request.getAction() : "",
-                            "policyCode", result.getPolicyCode() != null ? result.getPolicyCode() : ""
-                    ))
-                    .build());
+            sendPolicyDeniedAlert(request, result);
 
             throw new BizException(ErrorCode.FORBIDDEN,
                     "策略拒绝: " + result.getMessage());
         }
         log.debug("策略评估通过: userId={}, action={}, policyCode={}",
                 request.getSubjectId(), request.getAction(), result.getPolicyCode());
+    }
+
+    private void sendPolicyDeniedAlert(PolicyEvaluationRequest request, PolicyEvaluationVO result) {
+        alertPort.sendAlert(AlertEvent.builder()
+                .type(AlertType.POLICY_DENIED)
+                .severity(alertSeverity(result))
+                .actorId(request.getSubjectId())
+                .actorType("user")
+                .objectType(request.getObjectType())
+                .objectId(request.getObjectId())
+                .workspaceId(resolveWorkspaceId(request.getContext()))
+                .message("策略拒绝: " + result.getMessage())
+                .reasonCode(result.getReasonCode())
+                .metadata(Map.of(
+                        "action", request.getAction() != null ? request.getAction() : "",
+                        "policyCode", result.getPolicyCode() != null ? result.getPolicyCode() : ""
+                ))
+                .build());
+    }
+
+    private Severity alertSeverity(PolicyEvaluationVO result) {
+        return result.getDecision() == PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH
+                ? Severity.CRITICAL : Severity.WARNING;
+    }
+
+    private Long resolveWorkspaceId(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("workspaceId");
+        if (value instanceof Long workspaceId) {
+            return workspaceId;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException e) {
+                log.debug("忽略非法 workspaceId 上下文值: {}", text);
+            }
+        }
+        return null;
     }
 }

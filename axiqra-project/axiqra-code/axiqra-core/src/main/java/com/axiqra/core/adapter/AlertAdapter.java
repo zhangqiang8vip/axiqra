@@ -5,14 +5,19 @@ import com.axiqra.common.port.AlertPort.AlertEvent;
 import com.axiqra.common.port.AlertPort.Severity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
+
+import java.net.URI;
 
 /**
  * HTTP Webhook 告警适配器
@@ -32,7 +37,6 @@ import org.springframework.web.client.RestTemplate;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AlertAdapter implements AlertPort {
 
     @Value("${alert.webhook.url:}")
@@ -41,11 +45,14 @@ public class AlertAdapter implements AlertPort {
     @Value("${alert.webhook.enabled:true}")
     private boolean enabled;
 
-    @Value("${alert.webhook.timeout-ms:5000}")
-    private int timeoutMs;
-
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+
+    public AlertAdapter(@Qualifier("alertRestTemplate") RestTemplate restTemplate,
+                        ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void sendAlert(AlertEvent event) {
@@ -59,6 +66,11 @@ public class AlertAdapter implements AlertPort {
             return;
         }
 
+        URI webhookUri = resolveWebhookUri();
+        if (webhookUri == null) {
+            return;
+        }
+
         try {
             String payload = objectMapper.writeValueAsString(event);
             HttpHeaders headers = new HttpHeaders();
@@ -67,16 +79,43 @@ public class AlertAdapter implements AlertPort {
             headers.set("X-Alert-Severity", event.severity().name());
 
             HttpEntity<String> request = new HttpEntity<>(payload, headers);
-            restTemplate.postForEntity(webhookUrl, request, String.class);
+            restTemplate.postForEntity(webhookUri, request, String.class);
 
             log.info("[Alert] Sent alert type={}, severity={}, actorId={}",
                     event.type(), event.severity(), event.actorId());
         } catch (JsonProcessingException e) {
             log.warn("[Alert] Failed to serialize alert event, type={}: {}",
-                    event.type(), e.getMessage());
-        } catch (Exception e) {
+                    event.type(), messageOrUnknown(e));
+        } catch (ResourceAccessException e) {
+            log.warn("[Alert] Failed to access alert webhook, type={}, url={}: {}",
+                    event.type(), webhookUri, messageOrUnknown(e));
+        } catch (RestClientResponseException e) {
+            log.warn("[Alert] Alert webhook returned error, type={}, url={}, status={}: {}",
+                    event.type(), webhookUri, e.getStatusCode().value(), messageOrUnknown(e));
+        } catch (RestClientException e) {
             log.warn("[Alert] Failed to send alert webhook, type={}, url={}: {}",
-                    event.type(), webhookUrl, e.getMessage());
+                    event.type(), webhookUri, messageOrUnknown(e));
         }
+    }
+
+    private URI resolveWebhookUri() {
+        try {
+            URI uri = URI.create(webhookUrl.trim());
+            String scheme = uri.getScheme();
+            boolean supportedScheme = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+            if (!supportedScheme || uri.getHost() == null) {
+                log.warn("[Alert] Invalid webhook URL configured, skipping alert: {}", webhookUrl);
+                return null;
+            }
+            return uri;
+        } catch (IllegalArgumentException e) {
+            log.warn("[Alert] Malformed webhook URL configured, skipping alert: {}",
+                    messageOrUnknown(e));
+            return null;
+        }
+    }
+
+    private String messageOrUnknown(Exception e) {
+        return e.getMessage() != null ? e.getMessage() : "unknown";
     }
 }

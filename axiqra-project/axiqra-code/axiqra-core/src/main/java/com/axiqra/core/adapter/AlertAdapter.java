@@ -5,6 +5,7 @@ import com.axiqra.common.port.AlertPort.AlertEvent;
 import com.axiqra.common.port.AlertPort.Severity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,10 +18,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * HTTP Webhook 告警适配器
@@ -29,6 +31,7 @@ import java.util.Locale;
  * 配置项：
  * <ul>
  *   <li>{@code alert.webhook.url} - Webhook HTTPS 端点 URL（启用时必填）</li>
+ *   <li>{@code alert.webhook.allowed-hosts} - Webhook 域名白名单，逗号分隔，启用时必填；仅支持域名精确匹配，IP 字面量不允许</li>
  *   <li>{@code alert.webhook.enabled} - 是否启用（默认 true）</li>
  *   <li>{@code alert.webhook.timeout-ms} - 超时毫秒数（默认 5000）</li>
  * </ul>
@@ -51,6 +54,11 @@ public class AlertAdapter implements AlertPort {
     @Value("${alert.webhook.enabled:true}")
     private boolean enabled;
 
+    @Value("${alert.webhook.allowed-hosts:}")
+    private String allowedHosts;
+
+    private Set<String> allowedHostSet = Collections.emptySet();
+
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
@@ -58,6 +66,25 @@ public class AlertAdapter implements AlertPort {
                         ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    void initializeAllowedHosts() {
+        if (allowedHosts == null || allowedHosts.isBlank()) {
+            allowedHostSet = Collections.emptySet();
+            return;
+        }
+
+        Set<String> normalizedHosts = new HashSet<>();
+        for (String configuredHost : allowedHosts.split(",")) {
+            String normalizedHost = normalizeHost(configuredHost);
+            if (normalizedHost.isBlank() || isUnsafeHostLiteral(normalizedHost)) {
+                log.warn("[Alert] Ignoring unsafe webhook allowlist host: {}", configuredHost);
+                continue;
+            }
+            normalizedHosts.add(normalizedHost);
+        }
+        allowedHostSet = Collections.unmodifiableSet(normalizedHosts);
     }
 
     @Override
@@ -125,8 +152,19 @@ public class AlertAdapter implements AlertPort {
                 log.warn("[Alert] Invalid HTTPS webhook URL configured, skipping alert: {}", webhookUrl);
                 return null;
             }
-            if (isUnsafeHost(host)) {
+            String normalizedHost = normalizeHost(host);
+            if (isUnsafeHostLiteral(normalizedHost)) {
                 log.warn("[Alert] Unsafe webhook host rejected, skipping alert: {}", host);
+                return null;
+            }
+            if (allowedHostSet.isEmpty()) {
+                log.warn("[Alert] Webhook enabled but host allowlist is blank or has no valid domain entries, skipping alert: {}",
+                        host);
+                return null;
+            }
+            if (!isAllowedHost(normalizedHost)) {
+                log.warn("[Alert] Webhook host not in allowlist, skipping alert: {} (normalized: {})",
+                        host, normalizedHost);
                 return null;
             }
             return uri;
@@ -137,39 +175,38 @@ public class AlertAdapter implements AlertPort {
         }
     }
 
-    private boolean isUnsafeHost(String host) {
-        String lookupHost = host;
+    private String normalizeHost(String host) {
+        String lookupHost = host == null ? "" : host.trim();
         if (lookupHost.startsWith("[") && lookupHost.endsWith("]")) {
             lookupHost = lookupHost.substring(1, lookupHost.length() - 1);
         }
-        String normalizedHost = lookupHost.toLowerCase(Locale.ROOT);
-        if ("localhost".equals(normalizedHost) || normalizedHost.endsWith(".localhost")) {
-            return true;
+        lookupHost = lookupHost.toLowerCase(Locale.ROOT);
+        while (lookupHost.endsWith(".")) {
+            lookupHost = lookupHost.substring(0, lookupHost.length() - 1);
         }
-        if (isIpLiteral(normalizedHost)) {
-            return true;
-        }
-        try {
-            InetAddress address = InetAddress.getByName(lookupHost);
-            return address.isAnyLocalAddress()
-                    || address.isLoopbackAddress()
-                    || address.isLinkLocalAddress()
-                    || address.isSiteLocalAddress()
-                    || address.isMulticastAddress()
-                    || isUniqueLocalIpv6Address(address);
-        } catch (UnknownHostException e) {
-            log.warn("[Alert] Unable to resolve webhook host, skipping alert: {}", host);
-            return true;
-        }
+        return lookupHost;
+    }
+
+    private boolean isUnsafeHostLiteral(String host) {
+        return "localhost".equals(host)
+                || host.endsWith(".localhost")
+                || isIpLiteral(host);
+    }
+
+    private boolean isAllowedHost(String host) {
+        return allowedHostSet.contains(host);
     }
 
     private boolean isIpLiteral(String host) {
-        return host.contains(":") || host.matches("\\d{1,3}(\\.\\d{1,3}){3}");
+        return isIpv4Literal(host) || isIpv6Literal(host);
     }
 
-    private boolean isUniqueLocalIpv6Address(InetAddress address) {
-        byte[] bytes = address.getAddress();
-        return bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc;
+    private boolean isIpv4Literal(String host) {
+        return host.matches("\\d{1,3}(\\.\\d{1,3}){3}");
+    }
+
+    private boolean isIpv6Literal(String host) {
+        return host.contains(":");
     }
 
     private String messageOrUnknown(Exception e) {

@@ -34,6 +34,13 @@ class PolicyEngineServiceImplTest {
 
     private static final Long USER_ID = 1L;
 
+    private void verifyPolicyDeniedWarningAlert() {
+        verify(alertPort).sendAlert(argThat(event -> event != null
+                && event.type() == AlertPort.AlertType.POLICY_DENIED
+                && event.severity() == AlertPort.Severity.WARNING
+                && USER_ID.equals(event.actorId())));
+    }
+
     @Nested
     @DisplayName("evaluate")
     class EvaluateTests {
@@ -125,6 +132,7 @@ class PolicyEngineServiceImplTest {
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("策略拒绝"));
+            verifyPolicyDeniedWarningAlert();
         }
 
         @Test
@@ -144,6 +152,7 @@ class PolicyEngineServiceImplTest {
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verifyPolicyDeniedWarningAlert();
         }
 
         @Test
@@ -167,6 +176,7 @@ class PolicyEngineServiceImplTest {
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verifyPolicyDeniedWarningAlert();
         }
     }
 }

@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidUrl {
 
-    String message() default "avatar 必须为有效的 HTTPS URL，仅支持 https:// 协议";
+    String message() default "must be a valid HTTPS URL";
 
     Class<?>[] groups() default {};
 

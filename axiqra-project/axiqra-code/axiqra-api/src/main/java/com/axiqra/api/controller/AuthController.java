@@ -6,7 +6,6 @@ import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.dto.LoginRequest;
 import com.axiqra.common.domain.dto.ProfileUpdateRequest;
 import com.axiqra.common.domain.dto.RegisterRequest;
-import cn.dev33.satoken.exception.NotLoginException;
 import com.axiqra.common.domain.vo.LoginResponse;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;

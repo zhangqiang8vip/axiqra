@@ -52,7 +52,9 @@ public class ApiResponse<T> implements Serializable {
     }
 
     /**
-     * 构造成功后设置 requestId（由 TraceIdFilter 从请求头注入）。
+     * 设置 requestId。
+     * TraceIdFilter 在请求入口生成 traceId 并放入 MDC，
+     * TraceIdResponseAdvice 在响应前从 MDC 取出并调用本方法注入到响应体。
      * 成功响应需要包含 requestId 以满足审计要求。
      */
     public void setRequestId(String requestId) {

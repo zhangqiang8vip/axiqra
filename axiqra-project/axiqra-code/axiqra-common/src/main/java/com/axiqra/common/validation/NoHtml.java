@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface NoHtml {
 
-    String message() default "nickname 不能包含 HTML 标签或脚本内容";
+    String message() default "不得包含 HTML 标签或脚本内容";
 
     Class<?>[] groups() default {};
 

@@ -90,9 +90,9 @@ class NoHtmlValidatorTest {
     }
 
     @Test
-    @DisplayName("十六进制数字实体应被拦截 / Hex numeric entity decoded and blocked")
+    @DisplayName("十六进制数字实体小写应被拦截 / Hex numeric entity lowercase decoded and blocked")
     void hexNumericEntityScript_returnsFalse() {
-        assertFalse(validator.isValid("&#60;script&#62;alert(1)&#60;/script&#62;", context));
+        assertFalse(validator.isValid("&#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e;", context));
     }
 
     @Test

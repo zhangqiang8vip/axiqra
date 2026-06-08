@@ -51,10 +51,9 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
 
     /**
      * Decodes HTML5 numeric (&#xHH; &#DDDD;) and named (&lt; &gt; &amp; &quot;) entities.
+     * Decodes HTML5 numeric (&#xHH; &#DDDD;) and named (&lt; &gt; &amp; &quot;) entities.
+     * Returns the input unchanged for null or blank strings.
      * Only decodes dangerous patterns; leaves harmless content intact.
-     *
-     * <p>Returns {@code true} for {@code null} or blank input, consistent with
-     * JSR-380 bean-validation convention: null values are considered valid.</p>
      */
     private String decodeHtmlEntities(String raw) {
         return decodeHtmlEntitiesMinimal(raw);

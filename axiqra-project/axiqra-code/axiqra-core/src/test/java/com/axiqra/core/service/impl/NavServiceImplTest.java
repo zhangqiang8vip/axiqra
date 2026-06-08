@@ -5,6 +5,7 @@ import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
 import com.axiqra.common.domain.vo.NavItemVO;
 import com.axiqra.common.domain.vo.NavResponseVO;
+import com.axiqra.core.mapper.WorkspaceMapper;
 import com.axiqra.core.service.NavService;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,13 +33,16 @@ class NavServiceImplTest {
     @Mock
     private RbacService rbacService;
 
+    @Mock
+    private WorkspaceMapper workspaceMapper;
+
     private NavService navService;
 
     private static final Long USER_ID = 1L;
 
     @BeforeEach
     void setUp() {
-        navService = new NavServiceImpl(rbacService);
+        navService = new NavServiceImpl(rbacService, workspaceMapper);
     }
 
     @Nested

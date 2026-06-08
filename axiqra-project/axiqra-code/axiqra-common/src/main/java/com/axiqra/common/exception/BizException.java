@@ -20,24 +20,6 @@ public class BizException extends RuntimeException {
     private final int code;
     private final Integer httpStatus;
 
-    public BizException(int code) {
-        super();
-        this.code = code;
-        this.httpStatus = null;
-    }
-
-    public BizException(int code, String message) {
-        super(message);
-        this.code = code;
-        this.httpStatus = null;
-    }
-
-    public BizException(int code, String message, Throwable cause) {
-        super(message, cause);
-        this.code = code;
-        this.httpStatus = null;
-    }
-
     public BizException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.code = errorCode.getCode();

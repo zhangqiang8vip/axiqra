@@ -97,7 +97,7 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
         // S1: 登录用户默认拥有基础 scope
         // S2: 从授权表（axiqra_authorization）读取用户持有的 scope
         Set<String> userScopes = getUserScopes(userId);
-        return userScopes.contains(scope);
+        return userScopes.contains(scopeEnum.getCode());
     }
 
     // ==================== 分支策略评估 ====================
@@ -249,11 +249,11 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
         // S1: 默认基础权限
         Set<String> defaultScopes = Set.of(
                 ScopeEnum.SEARCH_READ.getCode(),
-                ScopeEnum.SEARCH_PUBLIC.getCode(),
                 ScopeEnum.SOLUTION_READ.getCode(),
                 ScopeEnum.TRACE_READ.getCode(),
                 ScopeEnum.TRACE_WRITE.getCode(),
                 ScopeEnum.CASE_READ.getCode(),
+                ScopeEnum.FEEDBACK_WRITE.getCode(),
                 ScopeEnum.PUBLIC_READ.getCode()
         );
         // S2 TODO: 从 axiqra_authorization 表查询用户持有的实际 scope

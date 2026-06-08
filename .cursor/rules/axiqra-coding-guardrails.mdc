@@ -1,0 +1,81 @@
+---
+description: Axiqra coding guardrails from R1/R2/R3 bug retrospectives
+alwaysApply: true
+---
+
+# Axiqra Coding Guardrails
+
+This project uses Java 17, Spring Boot 3.5.x, MyBatis-Flex, Lombok, JUnit 5, and Mockito. Before changing code, verify each reported issue against the current code. Fix only still-valid issues, skip stale issues with a brief reason, keep changes minimal, and validate with focused tests or a build command.
+
+## Java / Build
+
+- Use JDK 17. Do not compile or submit changes from a JDK 8 environment.
+- Keep Maven target/source aligned with Java 17.
+
+## Mapper / SQL Updates
+
+- For single-row state changes with a loaded entity version, use optimistic locking: `WHERE id = #{id} AND version = #{version}`, and increment `version = version + 1`.
+- For batch soft-delete/state changes where row versions are not loaded, do not add a `version = #{version}` predicate, but still increment `version = version + 1` so stale single-row optimistic-lock updates fail.
+- Do not mix batch semantics with partial optimistic locking. A batch method must either:
+  - have no version predicate, still bump version, and be clearly named/commented, or
+  - accept and apply a valid version condition for every intended row.
+- If a mapper parameter sets a new value, name it like `newStatus` instead of reusing ambiguous names.
+- Use SQL parameters consistently. Do not accept `#{status}` while hardcoding a different status in the same statement unless the hardcoded value is intentionally the source-state filter.
+- Keep status filters explicit for soft delete, for example `status = 'active' AND is_deleted = FALSE`.
+- Entity fields whose database column names may be ambiguous must declare `@Column`, especially `is_deleted`, `tenant_id`, `gmt_create`, and `gmt_modified`.
+
+## Null Safety
+
+- Never call `.stream()` on mapper query results until null has been handled. Prefer `List.of()` or an explicit `if` block.
+- Check nullable exception messages before using them: `e.getMessage() != null ? ... : "unknown"`.
+- Enum `of()` methods should compare with the enum code on the left, for example `s.code.equals(normalizedCode)`, to avoid NPE.
+
+## JSON / Regex / Masking
+
+- After JSON or regex masking, test boundary characters with realistic input.
+- Do not let regex patterns consume quotes or delimiters unless that is explicitly intended.
+
+## Filters / MDC / Async Tests
+
+- Clean MDC in `finally`.
+- In tests, assert MDC cleanup only after the filter chain has actually completed. Use `verify`, latch-style synchronization, or an equivalent completion signal.
+
+## JUnit / Mockito
+
+- On JDK 17+, mock interfaces with `Mockito.mock(...)` instead of anonymous interface implementations.
+- Test boundary cases, not only happy paths.
+- Integration tests should use `@SpringBootTest` with `@ActiveProfiles("test")`.
+- When a constructor-injected dependency is added to a service, update existing `@InjectMocks` tests with a matching `@Mock`.
+
+## Lombok / DTO / VO
+
+- Verify Lombok imports whenever adding annotations such as `@Data`, `@Builder`, `@Getter`, `@ToString`, `@NoArgsConstructor`, or `@AllArgsConstructor`.
+- Classes deserialized by Jackson need `@NoArgsConstructor`.
+- `@Builder` DTO/VO classes that need Jackson deserialization should include both `@AllArgsConstructor` and `@NoArgsConstructor`.
+- If `@ToString(exclude = {...})` is used, import `lombok.ToString`.
+
+## Service / Port Pattern
+
+- External dependencies such as Cache, Quota, Audit, Alert, and KeyVault must go through Port interfaces.
+- Do not `new` external dependencies inside services. Use constructor injection with `@RequiredArgsConstructor`.
+- Implementation classes should be Spring beans, usually `@Component` or `@Service`.
+
+## API / Exceptions
+
+- HTTP responses should use `ApiResponse<T>`.
+- Controllers should validate parameters with `@Valid` where applicable and rely on `GlobalExceptionHandler` for response shaping.
+- Business exceptions should preserve semantic error codes and HTTP status behavior. Tests should compare the actual return type/value used by current code.
+
+## Security / Infrastructure
+
+- Do not hardcode long-term secrets. Design secret lookup behind an injectable `KeyVaultPort` or equivalent port.
+- Do not assume audit failure is harmless. If audit or alert failure is intentionally non-blocking for S1/S2, document that explicitly.
+- Keep dev/test infrastructure ports aligned with project config, for example audit PostgreSQL on `5433` when `5432` conflicts locally.
+- Application database users should not rely on superuser privileges that bypass RLS.
+
+## Module Boundaries
+
+- `axiqra-common`: entities, DTOs, VOs, enums, exceptions, response wrappers.
+- `axiqra-core`: business services, transactions, mapper usage, port implementations.
+- `axiqra-api`: controllers, request validation, exception handling integration.
+- `axiqra-start`: bootstrapping and runtime configuration.

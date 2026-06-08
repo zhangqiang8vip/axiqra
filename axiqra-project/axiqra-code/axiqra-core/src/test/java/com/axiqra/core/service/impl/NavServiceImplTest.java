@@ -3,6 +3,7 @@ package com.axiqra.core.service.impl;
 import com.axiqra.common.domain.entity.MembershipEntity;
 import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
+import com.axiqra.common.domain.enums.ScopeEnum;
 import com.axiqra.common.domain.vo.NavItemVO;
 import com.axiqra.common.domain.vo.NavResponseVO;
 import com.axiqra.core.mapper.WorkspaceMapper;
@@ -140,9 +141,9 @@ class NavServiceImplTest {
         @DisplayName("有 search scope 的用户应返回搜索菜单")
         void shouldReturnSearchMenuWhenScopeGranted() {
             when(rbacService.getMemberships(USER_ID)).thenReturn(List.of());
-            when(rbacService.hasScope(USER_ID, "search")).thenReturn(true);
-            when(rbacService.hasScope(USER_ID, "solution")).thenReturn(false);
-            when(rbacService.hasScope(USER_ID, "trace")).thenReturn(false);
+            when(rbacService.hasScope(USER_ID, ScopeEnum.SEARCH_READ.getCode())).thenReturn(true);
+            when(rbacService.hasScope(USER_ID, ScopeEnum.SOLUTION_READ.getCode())).thenReturn(false);
+            when(rbacService.hasScope(USER_ID, ScopeEnum.TRACE_WRITE.getCode())).thenReturn(false);
 
             NavResponseVO result = navService.getNav(USER_ID);
 
@@ -157,9 +158,9 @@ class NavServiceImplTest {
         @DisplayName("无任何 scope 的用户应返回空 grantedScopeNav")
         void shouldReturnEmptyScopeNavWhenNoScopes() {
             when(rbacService.getMemberships(USER_ID)).thenReturn(List.of());
-            when(rbacService.hasScope(USER_ID, "search")).thenReturn(false);
-            when(rbacService.hasScope(USER_ID, "solution")).thenReturn(false);
-            when(rbacService.hasScope(USER_ID, "trace")).thenReturn(false);
+            when(rbacService.hasScope(USER_ID, ScopeEnum.SEARCH_READ.getCode())).thenReturn(false);
+            when(rbacService.hasScope(USER_ID, ScopeEnum.SOLUTION_READ.getCode())).thenReturn(false);
+            when(rbacService.hasScope(USER_ID, ScopeEnum.TRACE_WRITE.getCode())).thenReturn(false);
 
             NavResponseVO result = navService.getNav(USER_ID);
 

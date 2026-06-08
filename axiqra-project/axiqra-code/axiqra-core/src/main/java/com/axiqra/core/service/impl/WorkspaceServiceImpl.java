@@ -260,8 +260,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "工作空间已被修改或删除，请刷新后重试");
         }
 
-        // 软删除所有成员关系
-        membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode(), workspace.getVersion());
+        // 软删除所有成员关系；membership 独立版本，不能复用 workspace version 做批量条件。
+        int memberRows = membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode());
+        log.debug("软删除工作空间成员关系: workspaceId={}, rows={}", workspaceId, memberRows);
 
         log.info("删除工作空间: workspaceId={}, deletedBy={}", workspaceId, userId);
     }

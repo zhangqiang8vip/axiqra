@@ -88,7 +88,7 @@ class WorkspaceServiceImplTest {
             MembershipEntity membership = createMembership(1L, USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
             when(rbacService.getMemberships(USER_ID)).thenReturn(List.of(membership));
             when(workspaceMapper.selectByWorkspaceIds(List.of(WORKSPACE_ID))).thenReturn(
-                    List.of(createWorkspace(WORKSPACE_ID, "Team Space", WorkspaceType.ORGANIZATION, 999L))
+                    List.of(createWorkspace(WORKSPACE_ID, "Team Space", WorkspaceType.TEAM, 999L))
             );
 
             PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
@@ -106,7 +106,7 @@ class WorkspaceServiceImplTest {
             MembershipEntity membership = createMembership(1L, USER_ID, 1L, MemberRole.MEMBER);
             when(rbacService.getMemberships(USER_ID)).thenReturn(List.of(membership));
             when(workspaceMapper.selectByWorkspaceIds(List.of(1L))).thenReturn(
-                    List.of(createWorkspace(1L, "Team Space", WorkspaceType.ORGANIZATION, 999L))
+                    List.of(createWorkspace(1L, "Team Space", WorkspaceType.TEAM, 999L))
             );
 
             PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
@@ -152,7 +152,7 @@ class WorkspaceServiceImplTest {
         @DisplayName("非个人空间且 name 为空应抛参数异常")
         void shouldThrowWhenOrgWithNullName() {
             BizException ex = assertThrows(BizException.class,
-                    () -> workspaceService.create(USER_ID, "organization", null));
+                    () -> workspaceService.create(USER_ID, "team", null));
             assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
         }
 
@@ -288,7 +288,7 @@ class WorkspaceServiceImplTest {
             workspaceService.delete(WORKSPACE_ID, USER_ID);
 
             verify(workspaceMapper).softDeleteById(eq(WORKSPACE_ID), eq(1L), any(Instant.class));
-            verify(membershipMapper).softDeleteByWorkspaceId(WORKSPACE_ID, MemberStatus.SUSPENDED.getCode(), 1L);
+            verify(membershipMapper).softDeleteByWorkspaceId(WORKSPACE_ID, MemberStatus.SUSPENDED.getCode());
         }
 
         @Test
@@ -538,7 +538,7 @@ class WorkspaceServiceImplTest {
         void shouldPersistCanonicalTypeCodeForMixedCaseInput() {
             when(rbacService.isOwner(USER_ID, WORKSPACE_ID)).thenReturn(true);
             WorkspaceEntity existing = createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID);
-            WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.ORGANIZATION, USER_ID);
+            WorkspaceEntity updated = createWorkspace(WORKSPACE_ID, "My Space", WorkspaceType.PERSONAL, USER_ID);
             when(workspaceMapper.selectById(WORKSPACE_ID)).thenReturn(existing, updated);
             lenient().when(workspaceMapper.updateSelective(eq(WORKSPACE_ID), isNull(), eq("personal"), any(), any())).thenReturn(1);
             when(membershipMapper.countByWorkspaceId(WORKSPACE_ID)).thenReturn(0L);

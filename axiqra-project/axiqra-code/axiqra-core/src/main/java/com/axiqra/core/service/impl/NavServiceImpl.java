@@ -4,6 +4,7 @@ import com.axiqra.common.domain.entity.MembershipEntity;
 import com.axiqra.common.domain.entity.WorkspaceEntity;
 import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
+import com.axiqra.common.domain.enums.ScopeEnum;
 import com.axiqra.common.domain.vo.NavItemVO;
 import com.axiqra.common.domain.vo.NavResponseVO;
 import com.axiqra.core.mapper.WorkspaceMapper;
@@ -156,7 +157,7 @@ public class NavServiceImpl implements NavService {
             return List.of();
         }
         List<NavItemVO> items = new ArrayList<>();
-        if (rbacService.hasScope(userId, "search")) {
+        if (rbacService.hasScope(userId, ScopeEnum.SEARCH_READ.getCode())) {
             items.add(NavItemVO.builder()
                     .id("search")
                     .label("搜索")
@@ -165,7 +166,7 @@ public class NavServiceImpl implements NavService {
                     .category("scope")
                     .build());
         }
-        if (rbacService.hasScope(userId, "solution")) {
+        if (rbacService.hasScope(userId, ScopeEnum.SOLUTION_READ.getCode())) {
             items.add(NavItemVO.builder()
                     .id("solutions")
                     .label("解决方案")
@@ -174,7 +175,7 @@ public class NavServiceImpl implements NavService {
                     .category("scope")
                     .build());
         }
-        if (rbacService.hasScope(userId, "trace")) {
+        if (rbacService.hasScope(userId, ScopeEnum.TRACE_WRITE.getCode())) {
             items.add(NavItemVO.builder()
                     .id("traces")
                     .label("工程轨迹")

@@ -39,13 +39,13 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
-    @DisplayName("BizException should return 409 Conflict + error code")
+    @DisplayName("BizException should return httpStatus from ErrorCode, default 409 if null")
     void handleBizException() {
-        BizException ex = new BizException(40003, "状态转换无效");
+        BizException ex = new BizException(ErrorCode.STATUS_TRANSITION_INVALID);
         ResponseEntity<ApiResponse<Void>> resp = handler.handleBizException(ex);
         assertEquals(HttpStatus.CONFLICT, resp.getStatusCode());
-        assertEquals(40003, resp.getBody().getCode());
-        assertEquals("状态转换无效", resp.getBody().getMessage());
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), resp.getBody().getCode());
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getMessage(), resp.getBody().getMessage());
     }
 
     @Test
@@ -128,18 +128,9 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("BizException error code should be in valid range 10001~99999")
-    void bizException_codeRange() {
-        // Lower bound
-        BizException minEx = new BizException(10001, "最小错误码");
-        ResponseEntity<ApiResponse<Void>> minResp = handler.handleBizException(minEx);
-        assertEquals(10001, minResp.getBody().getCode());
-        assertEquals(HttpStatus.CONFLICT, minResp.getStatusCode());
-
-        // Upper bound
-        BizException maxEx = new BizException(99999, "最大错误码");
-        ResponseEntity<ApiResponse<Void>> maxResp = handler.handleBizException(maxEx);
-        assertEquals(99999, maxResp.getBody().getCode());
-        assertEquals(HttpStatus.CONFLICT, maxResp.getStatusCode());
+    @DisplayName("BizException httpStatus comes from ErrorCode; null httpStatus falls back to 409")
+    void bizException_httpStatus() {
+        assertEquals(HttpStatus.NOT_FOUND.value(), ErrorCode.RESOURCE_NOT_FOUND.getHttpStatus());
+        assertEquals(HttpStatus.CONFLICT.value(), ErrorCode.CONCURRENT_MODIFICATION.getHttpStatus());
     }
 }

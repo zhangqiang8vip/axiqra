@@ -5,6 +5,7 @@ import com.axiqra.common.domain.enums.PolicyDecision;
 import com.axiqra.common.domain.vo.PolicyEvaluationVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
+import com.axiqra.common.port.AlertPort;
 import com.axiqra.common.port.PolicyEnginePort;
 import com.axiqra.core.service.PolicyEngineService;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,9 @@ class PolicyEngineServiceImplTest {
 
     @Mock
     private PolicyEnginePort policyEnginePort;
+
+    @Mock
+    private AlertPort alertPort;
 
     @InjectMocks
     private PolicyEngineServiceImpl policyEngineService;

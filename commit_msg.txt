@@ -1,0 +1,19 @@
+fix: resolve ApiSignatureFilter boundary and UserMapper trim semantics
+
+ApiSignatureFilter:
+- Add /auth/me, /auth/logout, /api/auth/me, /api/auth/logout to public
+  whitelist so these Sa-Token-controlled endpoints are not blocked by
+  the signature layer; unauthenticated requests now get 401 from the
+  Sa-Token interceptor instead of 403 from the signature filter.
+- Rewrite writeError() to use ApiResponse.fail() for consistent
+  response structure, and populate requestId (from MDC or fresh UUID),
+  X-Request-Id header, and X-Trace-Id header so all signature-filter
+  error responses carry a traceable ID.
+
+UserMapper:
+- Replace inline nickname.trim() / email.trim() / avatar.trim() calls
+  with <bind> variables (trimmedNickname/trimmedEmail/trimmedAvatar)
+  that are trimmed once and used both in the length condition and in
+  the column assignment. This eliminates the inconsistency where
+  Service-layer pre-trimming was applied to the condition test but not
+  to the value bound to the UPDATE statement.

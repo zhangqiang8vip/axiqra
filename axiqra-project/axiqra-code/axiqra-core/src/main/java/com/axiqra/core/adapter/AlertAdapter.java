@@ -17,7 +17,10 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
+import java.util.Locale;
 
 /**
  * HTTP Webhook 告警适配器
@@ -59,6 +62,10 @@ public class AlertAdapter implements AlertPort {
 
     @Override
     public void sendAlert(AlertEvent event) {
+        if (event == null) {
+            log.warn("[Alert] Null alert event, skipping");
+            return;
+        }
         if (!enabled) {
             log.debug("[Alert] Webhook disabled, skipping alert type={}", event.type());
             return;
@@ -109,9 +116,14 @@ public class AlertAdapter implements AlertPort {
         try {
             URI uri = URI.create(webhookUrl.trim());
             String scheme = uri.getScheme();
+            String host = uri.getHost();
             boolean supportedScheme = "https".equalsIgnoreCase(scheme);
-            if (!supportedScheme || uri.getHost() == null) {
+            if (!supportedScheme || host == null) {
                 log.warn("[Alert] Invalid HTTPS webhook URL configured, skipping alert: {}", webhookUrl);
+                return null;
+            }
+            if (isInternalHost(host)) {
+                log.warn("[Alert] Internal webhook host rejected, skipping alert: {}", host);
                 return null;
             }
             return uri;
@@ -120,6 +132,34 @@ public class AlertAdapter implements AlertPort {
                     messageOrUnknown(e));
             return null;
         }
+    }
+
+    private boolean isInternalHost(String host) {
+        String lookupHost = host;
+        if (lookupHost.startsWith("[") && lookupHost.endsWith("]")) {
+            lookupHost = lookupHost.substring(1, lookupHost.length() - 1);
+        }
+        String normalizedHost = lookupHost.toLowerCase(Locale.ROOT);
+        if ("localhost".equals(normalizedHost) || normalizedHost.endsWith(".localhost")) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(lookupHost);
+            return address.isAnyLocalAddress()
+                    || address.isLoopbackAddress()
+                    || address.isLinkLocalAddress()
+                    || address.isSiteLocalAddress()
+                    || address.isMulticastAddress()
+                    || isUniqueLocalIpv6Address(address);
+        } catch (UnknownHostException e) {
+            log.warn("[Alert] Unable to resolve webhook host, skipping alert: {}", host);
+            return true;
+        }
+    }
+
+    private boolean isUniqueLocalIpv6Address(InetAddress address) {
+        byte[] bytes = address.getAddress();
+        return bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc;
     }
 
     private String messageOrUnknown(Exception e) {

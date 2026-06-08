@@ -12,6 +12,8 @@ import java.time.Duration;
 /**
  * Alert Webhook RestTemplate 配置
  *
+ * <p>未配置自定义 SSLContext，HTTPS 证书校验使用 JDK 默认信任链；不得改为 trust-all。
+ *
  * @author Axiqra Team
  * @date 2026-06-09
  */

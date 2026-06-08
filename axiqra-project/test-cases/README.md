@@ -86,7 +86,7 @@
 - `auth-login-test-report.md`
 - `release-regression-checklist.md`
 
-## 8. 维护原则
+## 7. 维护原则
 新增或更新本目录中的测试资料时，应遵循以下原则：
 - 用语尽量正式、简洁、可审计；
 - 明确记录执行范围、结果摘要与归档路径；
@@ -95,7 +95,7 @@
 - 测试规范类文档优先放入 `standards/`，正式测试结果优先放入 `reports/`；
 - 通用复用文档优先放入 `templates/`，资产与检查类文档优先放入 `inventories/`。
 
-## 9. 相关入口文档
+## 8. 相关入口文档
 为便于开发阶段就近查看，`axiqra-code` 目录下保留一份本地入口文档：
 - `axiqra-code/test-case-guide.md`
 

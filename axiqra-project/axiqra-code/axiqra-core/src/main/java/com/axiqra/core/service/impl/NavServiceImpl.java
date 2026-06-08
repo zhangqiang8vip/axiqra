@@ -110,9 +110,11 @@ public class NavServiceImpl implements NavService {
         Map<Long, String> workspaceNameMap = Map.of();
         if (!workspaceIds.isEmpty()) {
             List<WorkspaceEntity> workspaces = workspaceMapper.selectByWorkspaceIds(workspaceIds);
-            workspaceNameMap = workspaces.stream()
-                    .filter(w -> w != null && w.getId() != null && w.getWorkspaceName() != null)
-                    .collect(Collectors.toMap(WorkspaceEntity::getId, WorkspaceEntity::getWorkspaceName));
+            if (workspaces != null && !workspaces.isEmpty()) {
+                workspaceNameMap = workspaces.stream()
+                        .filter(w -> w != null && w.getId() != null && w.getWorkspaceName() != null)
+                        .collect(Collectors.toMap(WorkspaceEntity::getId, WorkspaceEntity::getWorkspaceName));
+            }
         }
 
         for (Long workspaceId : workspaceIds) {

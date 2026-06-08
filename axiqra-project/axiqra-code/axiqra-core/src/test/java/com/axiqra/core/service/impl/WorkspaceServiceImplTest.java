@@ -288,7 +288,7 @@ class WorkspaceServiceImplTest {
             workspaceService.delete(WORKSPACE_ID, USER_ID);
 
             verify(workspaceMapper).softDeleteById(eq(WORKSPACE_ID), eq(1L), any(Instant.class));
-            verify(membershipMapper).softDeleteByWorkspaceId(WORKSPACE_ID, MemberStatus.SUSPENDED.getCode());
+            verify(membershipMapper).softDeleteByWorkspaceId(WORKSPACE_ID, MemberStatus.SUSPENDED.getCode(), 1L);
         }
 
         @Test

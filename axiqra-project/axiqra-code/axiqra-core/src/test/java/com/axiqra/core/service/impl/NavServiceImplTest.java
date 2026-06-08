@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +44,7 @@ class NavServiceImplTest {
     @BeforeEach
     void setUp() {
         navService = new NavServiceImpl(rbacService, workspaceMapper);
+        when(workspaceMapper.selectByWorkspaceIds(anyList())).thenReturn(Collections.emptyList());
     }
 
     @Nested

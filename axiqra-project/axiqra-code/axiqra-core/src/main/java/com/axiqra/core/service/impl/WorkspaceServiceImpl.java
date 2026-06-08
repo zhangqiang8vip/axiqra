@@ -261,7 +261,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         // 软删除所有成员关系
-        membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode());
+        membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode(), workspace.getVersion());
 
         log.info("删除工作空间: workspaceId={}, deletedBy={}", workspaceId, userId);
     }

@@ -504,7 +504,7 @@ jobs:
       contents: read
     if: always()
     steps:
-      - name: Delete previous bot review comments
+      - name: Dismiss stale CodeRabbit reviews
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -514,61 +514,16 @@ jobs:
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (!prNumber) { return; }
             const { owner, repo } = context.repo;
-
-            // Delete old issue comments from all bots
-            const issueComments = await github.rest.issues.listComments({
-              owner,
-              repo,
-              issue_number: prNumber,
-            });
-            for (const c of issueComments.data) {
-              if (c.user.type === 'Bot') {
-                await github.rest.issues.deleteComment({
-                  owner,
-                  repo,
-                  comment_id: c.id,
-                });
-                console.log(`Deleted issue comment: ${c.id} by ${c.user.login}`);
-              }
-            }
-
-            // Delete CodeRabbit's pull request inline diff comments
-            // Use raw request since pull review comments use a different endpoint
-            const { data: diffComments } = await github.request(
-              'GET /repos/{owner}/{repo}/pulls/{pull_number}/comments',
-              { owner, repo, pull_number: prNumber }
-            );
-            for (const c of diffComments) {
-              if (c.user.login === 'coderabbitai[bot]') {
-                await github.request(
-                  'DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}',
-                  { owner, repo, comment_id: c.id }
-                );
-                console.log(`Deleted coderabbitai inline diff comment: ${c.id}`);
-              }
-            }
-
-            // Dismiss old CodeRabbit reviews (APPROVED / CHANGES_REQUESTED only; COMMENTED cannot be dismissed)
-            const reviews = await github.rest.pulls.listReviews({
-              owner,
-              repo,
-              pull_number: prNumber,
-            });
+            const reviews = await github.rest.pulls.listReviews({ owner, repo, pull_number: prNumber });
             for (const r of reviews.data) {
               if (r.user.login === 'coderabbitai[bot]' && (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED')) {
                 await github.rest.pulls.dismissReview({
-                  owner,
-                  repo,
-                  pull_number: prNumber,
+                  owner, repo, pull_number: prNumber,
                   review_id: r.id,
                   message: 'Dismissed by workflow: posting fresh review',
                 });
-                console.log(`Dismissed CodeRabbit review: ${r.id} (${r.state})`);
               }
             }
-            // NOTE: COMMENTED reviews from CodeRabbit cannot be programmatically dismissed.
-            // If present, please manually dismiss them in the PR Reviews panel or
-            // change CodeRabbit's post-mode to "APPROVED" / "CHANGES_REQUESTED" in the CodeRabbit settings.
 
       - name: Post Codex Review
         if: needs.codex.outputs.review_body != ''
@@ -581,11 +536,17 @@ jobs:
           script: |
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
+              const marker = 'Reviewed by Codex AI';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
               await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
+                owner, repo, issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by Codex AI (gpt-4o-mini)*`,
               });
             }
@@ -603,11 +564,17 @@ jobs:
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const model = process.env.REVIEW_MODEL || 'default';
+            const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
+              const marker = 'Reviewed by Agnes AI';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
               await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
+                owner, repo, issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by Agnes AI (${model})*`,
               });
             }
@@ -623,11 +590,17 @@ jobs:
           script: |
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
+              const marker = 'Reviewed by Gemini AI';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
               await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
+                owner, repo, issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by Gemini AI*`,
               });
             }
@@ -643,11 +616,17 @@ jobs:
           script: |
             const reviewBody = process.env.REVIEW_BODY;
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
+              const marker = 'Reviewed by OpenRouter';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
               await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
+                owner, repo, issue_number: prNumber,
                 body: `${reviewBody}\n\n---\n*Reviewed by OpenRouter (openrouter/free model)*`,
               });
             }

@@ -3,8 +3,6 @@ package com.axiqra.common.validation;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 /**

@@ -514,9 +514,9 @@ jobs:
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             if (!prNumber) { return; }
             const { owner, repo } = context.repo;
-            const reviews = await github.rest.pulls.listReviews({ owner, repo, pull_number: prNumber });
-            for (const r of reviews.data) {
-              if (r.user.login === 'coderabbitai[bot]' && (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED')) {
+            const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: prNumber });
+            for (const r of reviews) {
+              if (r.user && r.user.login === 'coderabbitai[bot]' && (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED')) {
                 await github.rest.pulls.dismissReview({
                   owner, repo, pull_number: prNumber,
                   review_id: r.id,
@@ -539,9 +539,9 @@ jobs:
             const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
               const marker = 'Reviewed by Codex AI';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber });
+              for (const c of comments) {
+                if (c.user && c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
                   await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
                 }
               }
@@ -567,9 +567,9 @@ jobs:
             const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
               const marker = 'Reviewed by Agnes AI';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber });
+              for (const c of comments) {
+                if (c.user && c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
                   await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
                 }
               }
@@ -593,9 +593,9 @@ jobs:
             const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
               const marker = 'Reviewed by Gemini AI';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber });
+              for (const c of comments) {
+                if (c.user && c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
                   await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
                 }
               }
@@ -619,9 +619,9 @@ jobs:
             const { owner, repo } = context.repo;
             if (prNumber && reviewBody) {
               const marker = 'Reviewed by OpenRouter';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber });
+              for (const c of comments) {
+                if (c.user && c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
                   await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
                 }
               }

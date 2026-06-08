@@ -1,10 +1,12 @@
 package com.axiqra.api.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.exception.NotLoginException;
 import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.dto.LoginRequest;
 import com.axiqra.common.domain.dto.ProfileUpdateRequest;
 import com.axiqra.common.domain.dto.RegisterRequest;
+import cn.dev33.satoken.exception.NotLoginException;
 import com.axiqra.common.domain.vo.LoginResponse;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
@@ -130,6 +132,8 @@ public class AuthController {
                     .build());
         } catch (BizException e) {
             throw e;
+        } catch (NotLoginException e) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "未登录或会话已失效");
         } catch (Exception e) {
             log.error("获取当前用户信息异常", e);
             throw new BizException(ErrorCode.SYSTEM_ERROR, "获取用户信息失败，请稍后重试");

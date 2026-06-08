@@ -4,6 +4,7 @@ import com.axiqra.common.domain.enums.IndexStatus;
 import com.axiqra.common.domain.enums.RiskLevel;
 import com.axiqra.common.domain.enums.TraceStatus;
 import com.axiqra.common.domain.enums.VisibilityScope;
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -53,5 +54,6 @@ public class EngineeringTraceEntity extends BaseEntity {
     private Long solutionId;
     @Nullable
     private String evolutionSuggestion;
+    @Column("is_deleted")
     private boolean isDeleted = false;
 }

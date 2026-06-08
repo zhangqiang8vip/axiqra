@@ -3,6 +3,7 @@ package com.axiqra.api.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.vo.UserInfoVO;
+import com.axiqra.common.domain.vo.UserPublicVO;
 import com.axiqra.common.response.ApiResponse;
 import com.axiqra.core.service.RbacService;
 import com.axiqra.core.service.UserService;
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 @Tag(name = "用户", description = "用户信息、权限查询")
 public class UserController {
@@ -42,12 +43,12 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
-    @Operation(summary = "获取指定用户信息", description = "根据 ID 获取用户公开信息")
-    public ApiResponse<UserInfoVO> getUserById(@PathVariable Long userId) {
+    @Operation(summary = "获取指定用户信息", description = "根据 ID 获取用户公开信息（不含 email 等隐私字段）")
+    public ApiResponse<UserPublicVO> getUserById(@PathVariable Long userId) {
         UserEntity user = userService.getById(userId);
         if (user == null) {
             return ApiResponse.fail(404, "用户不存在");
         }
-        return ApiResponse.ok(UserInfoVO.from(user));
+        return ApiResponse.ok(UserPublicVO.from(user));
     }
 }

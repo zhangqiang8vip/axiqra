@@ -6,7 +6,6 @@ import com.axiqra.common.domain.enums.ScopeEnum;
 import com.axiqra.common.domain.vo.PolicyEvaluationVO;
 import com.axiqra.common.port.PolicyEnginePort;
 import com.axiqra.common.port.RbacPort;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -36,27 +35,6 @@ import java.util.Set;
 public class PolicyEngineAdapter implements PolicyEnginePort {
 
     private final RbacPort rbacPort;
-    private final ObjectMapper objectMapper;
-
-    /** 按 scope 自动放行的对象类型 */
-    private static final Map<String, String> SCOPE_OBJECT_TYPE_MAP = Map.ofEntries(
-            Map.entry("connect:write", "connect_session"),
-            Map.entry("connect:read", "connect_session"),
-            Map.entry("search:read", "search"),
-            Map.entry("search:public", "search"),
-            Map.entry("solution:read", "solution"),
-            Map.entry("solution:write", "solution"),
-            Map.entry("solution:delete", "solution"),
-            Map.entry("solution:publish", "solution"),
-            Map.entry("trace:read", "trace"),
-            Map.entry("trace:write", "trace"),
-            Map.entry("trace:confirm", "trace"),
-            Map.entry("case:read", "case"),
-            Map.entry("case:write", "case"),
-            Map.entry("case:publish", "case"),
-            Map.entry("review:write", "review"),
-            Map.entry("audit:read", "audit")
-    );
 
     @Override
     public PolicyEvaluationVO evaluate(PolicyEvaluationRequest request) {

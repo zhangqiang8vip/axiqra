@@ -55,10 +55,24 @@ class NoHtmlValidatorTest {
             "<img src=x onerror=alert(1)>",
             "javascript:alert(1)",
             "data:text/html,<h1>test</h1>",
+            "data:text/javascript,alert(1)",
+            "data:application/javascript,alert(1)",
             "<svg onload=alert(1)>"
     })
     @DisplayName("危险标签和协议应返回 false / Dangerous tags and protocols return false")
     void dangerousInput_returnsFalse(String input) {
+        assertFalse(validator.isValid(input, context));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "<img/>",
+            "<br/>",
+            "<script/>",
+            "<svg/>"
+    })
+    @DisplayName("自闭合标签应返回 false / Self-closing tags return false")
+    void selfClosingTags_returnsFalse(String input) {
         assertFalse(validator.isValid(input, context));
     }
 
@@ -90,9 +104,9 @@ class NoHtmlValidatorTest {
     }
 
     @Test
-    @DisplayName("十六进制数字实体应被拦截 / Hex numeric entity decoded and blocked")
+    @DisplayName("十六进制数字实体小写应被拦截 / Hex numeric entity lowercase decoded and blocked")
     void hexNumericEntityScript_returnsFalse() {
-        assertFalse(validator.isValid("&#60;script&#62;alert(1)&#60;/script&#62;", context));
+        assertFalse(validator.isValid("&#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e;", context));
     }
 
     @Test

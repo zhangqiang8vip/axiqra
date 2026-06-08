@@ -21,6 +21,9 @@ public class UrlValidator implements ConstraintValidator<ValidUrl, String> {
         }
         try {
             URI uri = new URI(value);
+            if (uri.getUserInfo() != null ) {
+                return false;
+            }
             String scheme = uri.getScheme();
             if (!"https".equalsIgnoreCase(scheme)) {
                 return false;

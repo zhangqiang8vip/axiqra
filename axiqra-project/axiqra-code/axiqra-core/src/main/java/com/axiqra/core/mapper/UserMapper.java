@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * 用户 Mapper
@@ -24,19 +25,25 @@ public interface UserMapper extends BaseMapper<UserEntity> {
     @Select("SELECT * FROM axiqra_user WHERE id = #{id} AND is_deleted = FALSE LIMIT 1")
     UserEntity selectActiveById(@Param("id") Long id);
 
+    @Select("<script>SELECT * FROM axiqra_user WHERE is_deleted = FALSE AND <choose><when test='ids != null and ids.size() &gt; 0'>id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></when><otherwise>1=0</otherwise></choose></script>")
+    List<UserEntity> selectActiveByIds(@Param("ids") List<Long> ids);
+
     @Select("SELECT * FROM axiqra_user WHERE email = #{email} AND is_deleted = FALSE LIMIT 1")
     UserEntity selectByEmail(@Param("email") String email);
 
     @Update("<script>" +
+            "<bind name=\"trimmedNickname\" value=\"nickname == null ? null : nickname.trim()\"/>" +
+            "<bind name=\"trimmedEmail\" value=\"email == null ? null : email.trim()\"/>" +
+            "<bind name=\"trimmedAvatar\" value=\"avatar == null ? null : avatar.trim()\"/>" +
             "UPDATE axiqra_user SET gmt_modified = #{gmtModified}, version = version + 1 " +
-            "<if test='nickname != null and nickname.trim().length() &gt; 0'>" +
-            ", nickname = #{nickname}" +
+            "<if test='trimmedNickname != null and trimmedNickname.length() &gt; 0'>" +
+            ", nickname = #{trimmedNickname}" +
             "</if>" +
-            "<if test='email != null and email.trim().length() &gt; 0'>" +
-            ", email = #{email}" +
+            "<if test='trimmedEmail != null and trimmedEmail.length() &gt; 0'>" +
+            ", email = #{trimmedEmail}" +
             "</if>" +
-            "<if test='avatar != null and avatar.trim().length() &gt; 0'>" +
-            ", avatar = #{avatar}" +
+            "<if test='trimmedAvatar != null and trimmedAvatar.length() &gt; 0'>" +
+            ", avatar = #{trimmedAvatar}" +
             "</if>" +
             " WHERE id = #{id} AND is_deleted = FALSE AND version = #{version}" +
             "</script>")

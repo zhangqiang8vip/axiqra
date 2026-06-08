@@ -10,9 +10,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Validates that a string does not contain HTML or script tags.
- * Strips HTML tags before validation so that a string like
- * "Hello &lt;script&gt;..." passes as long as it has no tags.
+ * Validates that a string does not contain HTML or script content.
+ * <p>
+ * Before applying pattern checks, the input string is decoded:
+ * HTML5 numeric entities ({@code &#xHH;}, {@code &#DDDD;}) and named
+ * entities ({@code &lt;}, {@code &gt;}, {@code &amp;}, etc.) are decoded by
+ * {@link NoHtmlValidator#decodeHtmlEntities(String)}.
+ * After decoding, any string containing tags (e.g. {@code <script>})
+ * decoded from entities (e.g. {@code &lt;script&gt;}) will be rejected.
  *
  * @author Axiqra Team
  * @date 2026-06-07
@@ -23,7 +28,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface NoHtml {
 
-    String message() default "nickname 不能包含 HTML 标签或脚本内容";
+    String message() default "不得包含 HTML 标签或脚本内容";
 
     Class<?>[] groups() default {};
 

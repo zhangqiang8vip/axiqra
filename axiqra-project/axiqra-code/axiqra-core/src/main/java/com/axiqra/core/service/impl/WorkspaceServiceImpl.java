@@ -2,6 +2,7 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.dto.WorkspaceCreateRequest;
 import com.axiqra.common.domain.entity.MembershipEntity;
+import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.entity.WorkspaceEntity;
 import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
@@ -260,7 +261,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         // 软删除所有成员关系
-        membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode());
+        membershipMapper.softDeleteByWorkspaceId(workspaceId, MemberStatus.SUSPENDED.getCode(), workspace.getVersion());
 
         log.info("删除工作空间: workspaceId={}, deletedBy={}", workspaceId, userId);
     }
@@ -276,11 +277,17 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         List<MembershipEntity> memberships = membershipMapper.selectActiveByWorkspaceId(workspaceId);
+        if (memberships.isEmpty()) {
+            return PageResponse.of(List.of(), 0L);
+        }
+        // 批量查询用户，消除 N+1 问题（1 次查询获取所有用户）
+        List<Long> userIds = memberships.stream().map(MembershipEntity::getUserId).collect(Collectors.toList());
+        Map<Long, UserEntity> userMap = userMapper.selectActiveByIds(userIds)
+                .stream().collect(Collectors.toMap(UserEntity::getId, u -> u));
         List<MemberVO> members = memberships.stream()
                 .map(m -> {
                     MemberVO vo = MemberVO.from(m);
-                    // 补充用户信息
-                    var user = userMapper.selectActiveById(m.getUserId());
+                    UserEntity user = userMap.get(m.getUserId());
                     if (user != null) {
                         vo.setUsername(user.getUsername());
                         vo.setNickname(user.getNickname());
@@ -381,7 +388,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.FORBIDDEN, "不能将您自己从工作空间中移除");
         }
 
-        membershipMapper.updateStatus(targetMemberId, MemberStatus.SUSPENDED.getCode());
+        int rows = membershipMapper.softDelete(targetMemberId, MemberStatus.SUSPENDED.getCode(), membership.getVersion());
+        if (rows == 0) {
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "成员记录已被修改或删除，请刷新后重试");
+        }
         log.info("移除成员: memberId={}, removedBy={}", targetMemberId, userId);
     }
 }

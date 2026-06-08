@@ -1,7 +1,9 @@
 package com.axiqra.common.domain.entity;
 
 import com.axiqra.common.domain.enums.WorkspaceType;
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -26,6 +28,9 @@ public class WorkspaceEntity extends BaseEntity {
     private String workspaceName;
     @NotNull
     private WorkspaceType workspaceType;
+    @Nullable
+    @Column("tenant_id")
     private Long tenantId;
+    @Column("is_deleted")
     private boolean isDeleted = false;
 }

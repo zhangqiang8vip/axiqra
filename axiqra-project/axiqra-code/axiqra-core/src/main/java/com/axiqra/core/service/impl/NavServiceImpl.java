@@ -1,10 +1,12 @@
 package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.entity.MembershipEntity;
+import com.axiqra.common.domain.entity.WorkspaceEntity;
 import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
 import com.axiqra.common.domain.vo.NavItemVO;
 import com.axiqra.common.domain.vo.NavResponseVO;
+import com.axiqra.core.mapper.WorkspaceMapper;
 import com.axiqra.core.service.NavService;
 import com.axiqra.core.service.RbacService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 累加式导航服务实现
@@ -26,6 +30,7 @@ import java.util.List;
 public class NavServiceImpl implements NavService {
 
     private final RbacService rbacService;
+    private final WorkspaceMapper workspaceMapper;
 
     @Override
     public NavResponseVO getNav(Long userId) {
@@ -84,23 +89,49 @@ public class NavServiceImpl implements NavService {
             return items;
         }
 
-        for (MembershipEntity m : memberships) {
+        List<Long> workspaceIds = memberships.stream()
+                .filter(m -> m != null
+                        && MemberStatus.ACTIVE.getCode().equals(m.getStatus())
+                        && m.getWorkspaceId() != null)
+                .map(MembershipEntity::getWorkspaceId)
+                .distinct()
+                .toList();
+
+        Map<Long, MembershipEntity> firstMembershipByWorkspace = memberships.stream()
+                .filter(m -> m != null
+                        && MemberStatus.ACTIVE.getCode().equals(m.getStatus())
+                        && m.getWorkspaceId() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        MembershipEntity::getWorkspaceId,
+                        m -> m,
+                        (a, b) -> a
+                ));
+
+        Map<Long, String> workspaceNameMap = Map.of();
+        if (!workspaceIds.isEmpty()) {
+            List<WorkspaceEntity> workspaces = workspaceMapper.selectByWorkspaceIds(workspaceIds);
+            if (workspaces != null && !workspaces.isEmpty()) {
+                workspaceNameMap = workspaces.stream()
+                        .filter(w -> w != null && w.getId() != null && w.getWorkspaceName() != null)
+                        .collect(Collectors.toMap(WorkspaceEntity::getId, WorkspaceEntity::getWorkspaceName));
+            }
+        }
+
+        for (Long workspaceId : workspaceIds) {
+            MembershipEntity m = firstMembershipByWorkspace.get(workspaceId);
             if (m == null) {
                 continue;
             }
-            if (!MemberStatus.ACTIVE.getCode().equals(m.getStatus())) {
-                continue;
-            }
-            Long workspaceId = m.getWorkspaceId();
             String role = m.getRole();
 
-            if (workspaceId == null) {
-                continue;
-            }
+            String workspaceName = workspaceNameMap.get(workspaceId);
+            String label = (workspaceName != null && !workspaceName.isBlank())
+                    ? workspaceName
+                    : "空间 " + workspaceId;
 
             items.add(NavItemVO.builder()
                     .id("workspace-" + workspaceId)
-                    .label("空间 " + workspaceId)
+                    .label(label)
                     .icon("folder-open")
                     .path("/workspaces/" + workspaceId)
                     .category("space")

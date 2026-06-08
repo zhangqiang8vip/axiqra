@@ -1,6 +1,7 @@
 package com.axiqra.api.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.exception.NotLoginException;
 import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.dto.LoginRequest;
 import com.axiqra.common.domain.dto.ProfileUpdateRequest;
@@ -95,14 +96,18 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "登出", description = "注销当前会话")
+    @Operation(summary = "登出", description = "注销当前会话（幂等：未登录时返回成功）")
     public ApiResponse<Void> logout() {
+        long userId = 0;
         try {
-            long userId = StpUtil.getLoginIdAsLong();
-            StpUtil.logout();
-            log.info("用户登出: userId={}", userId);
+            userId = StpUtil.getLoginIdAsLong();
         } catch (Exception e) {
-            log.warn("登出时发生异常", e);
+            log.debug("登出时未检测到登录会话，视为已登出");
+        }
+        try {
+            StpUtil.logout();
+        } catch (Exception e) {
+            log.warn("登出操作异常（可能已超时失效），userId={}", userId, e);
         }
         return ApiResponse.ok();
     }
@@ -126,6 +131,8 @@ public class AuthController {
                     .build());
         } catch (BizException e) {
             throw e;
+        } catch (NotLoginException e) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "未登录或会话已失效");
         } catch (Exception e) {
             log.error("获取当前用户信息异常", e);
             throw new BizException(ErrorCode.SYSTEM_ERROR, "获取用户信息失败，请稍后重试");
@@ -135,7 +142,12 @@ public class AuthController {
     @PutMapping("/profile")
     @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname、email 和 avatar")
     public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
-        long userId = StpUtil.getLoginIdAsLong();
+        long userId;
+        try {
+            userId = StpUtil.getLoginIdAsLong();
+        } catch (NotLoginException e) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "未登录或会话已失效");
+        }
         UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail(), request.getAvatar());
         log.info("更新个人资料: userId={}", userId);
         return ApiResponse.ok(LoginResponse.builder()

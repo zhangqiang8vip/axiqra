@@ -1,5 +1,6 @@
 package com.axiqra.api.filter;
 
+import com.axiqra.common.response.ApiResponse;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.port.KeyVaultPort;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,6 +8,7 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -17,8 +19,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * API 签名认证过滤器
@@ -76,7 +78,20 @@ public class ApiSignatureFilter implements Filter {
             "/v3/api-docs",
             "/swagger-ui",
             "/doc.html",
-            "/favicon.ico"
+            "/favicon.ico",
+            // Web 认证入口：登录/注册不要求 API 签名
+            "/auth/login",
+            "/auth/register",
+            "/auth/captcha",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/captcha",
+            // 认证态接口由 Sa-Token 拦截器负责 401/403，跳过签名层
+            // /auth/me 未登录返回 401，/auth/logout 幂等返回成功
+            "/auth/me",
+            "/auth/logout",
+            "/api/auth/me",
+            "/api/auth/logout"
     );
 
     public ApiSignatureFilter(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, KeyVaultPort keyVaultPort) {
@@ -245,13 +260,24 @@ public class ApiSignatureFilter implements Filter {
     }
 
     private void writeError(HttpServletResponse response, int status, ErrorCode errorCode) throws IOException {
+        boolean weSetTraceId = false;
+        String traceId = MDC.get(TraceIdFilter.TRACE_ID_MDC_KEY);
+        if (traceId == null || traceId.isBlank()) {
+            traceId = UUID.randomUUID().toString().replace("-", "");
+            MDC.put(TraceIdFilter.TRACE_ID_MDC_KEY, traceId);
+            weSetTraceId = true;
+        }
+        response.setHeader("X-Request-Id", traceId);
+        response.setHeader(TraceIdFilter.TRACE_ID_HEADER, traceId);
+
         response.setStatus(status);
         response.setContentType("application/json;charset=UTF-8");
-        Map<String, Object> body = Map.of(
-                "code", errorCode.getCode(),
-                "message", errorCode.getMessage(),
-                "timestamp", java.time.OffsetDateTime.now().toString()
-        );
+        ApiResponse<Void> body = ApiResponse.fail(errorCode.getCode(), errorCode.getMessage(), traceId);
         objectMapper.writeValue(response.getWriter(), body);
+
+        // Clean up MDC if we injected a traceId, to avoid leaking into pooled threads
+        if (weSetTraceId) {
+            MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
+        }
     }
 }

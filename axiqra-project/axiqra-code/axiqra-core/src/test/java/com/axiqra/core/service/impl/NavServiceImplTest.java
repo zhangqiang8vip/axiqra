@@ -5,6 +5,7 @@ import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
 import com.axiqra.common.domain.vo.NavItemVO;
 import com.axiqra.common.domain.vo.NavResponseVO;
+import com.axiqra.core.mapper.WorkspaceMapper;
 import com.axiqra.core.service.NavService;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,13 +34,17 @@ class NavServiceImplTest {
     @Mock
     private RbacService rbacService;
 
+    @Mock
+    private WorkspaceMapper workspaceMapper;
+
     private NavService navService;
 
     private static final Long USER_ID = 1L;
 
     @BeforeEach
     void setUp() {
-        navService = new NavServiceImpl(rbacService);
+        navService = new NavServiceImpl(rbacService, workspaceMapper);
+        when(workspaceMapper.selectByWorkspaceIds(anyList())).thenReturn(Collections.emptyList());
     }
 
     @Nested

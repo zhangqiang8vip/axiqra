@@ -26,7 +26,14 @@ public class ApiResponse<T> implements Serializable {
     /** 响应数据 */
     private T data;
 
-    /** traceId（用于问题追踪） */
+    /**
+     * 请求追踪 ID（用于日志关联、审计记录、问题排查）。
+     * 与 traceId 字段值相同，本字段为文档要求的规范命名。
+     */
+    private String requestId;
+
+    /** @deprecated 请使用 requestId，本字段保留用于兼容 */
+    @Deprecated
     private String traceId;
 
     /** 时间戳（ISO 8601） */
@@ -35,12 +42,24 @@ public class ApiResponse<T> implements Serializable {
     private ApiResponse() {
     }
 
-    private ApiResponse(int code, String message, T data, String traceId) {
+    private ApiResponse(int code, String message, T data, String requestId) {
         this.code = code;
         this.message = message;
         this.data = data;
-        this.traceId = traceId;
+        this.requestId = requestId;
+        this.traceId = requestId;
         this.timestamp = java.time.OffsetDateTime.now().toString();
+    }
+
+    /**
+     * 设置 requestId。
+     * TraceIdFilter 在请求入口生成 traceId 并放入 MDC，
+     * TraceIdResponseAdvice 在响应前从 MDC 取出并调用本方法注入到响应体。
+     * 成功响应需要包含 requestId 以满足审计要求。
+     */
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
+        this.traceId = requestId;
     }
 
     // ===================== 成功响应 =====================
@@ -63,7 +82,7 @@ public class ApiResponse<T> implements Serializable {
         return new ApiResponse<>(code, message, null, null);
     }
 
-    public static <T> ApiResponse<T> fail(int code, String message, String traceId) {
-        return new ApiResponse<>(code, message, null, traceId);
+    public static <T> ApiResponse<T> fail(int code, String message, String requestId) {
+        return new ApiResponse<>(code, message, null, requestId);
     }
 }

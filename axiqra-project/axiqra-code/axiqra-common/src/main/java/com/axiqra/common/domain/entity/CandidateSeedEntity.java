@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -27,11 +28,13 @@ public class CandidateSeedEntity extends BaseEntity {
     @Nullable
     private String coverageGap;
     private String status;
+    @Column("is_deleted")
     private boolean isDeleted = false;
     @Nullable
     private Long assigneeId;
     @Nullable
     private Long solutionId;
     @Nullable
+    @Column("tenant_id")
     private Long tenantId;
 }

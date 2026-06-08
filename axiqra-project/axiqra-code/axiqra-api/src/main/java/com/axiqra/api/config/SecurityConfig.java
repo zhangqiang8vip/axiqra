@@ -42,7 +42,9 @@ public class SecurityConfig {
                                 "/auth/register",
                                 "/auth/captcha"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        // 所有其他接口由 Sa-Token 拦截器在 Controller 层做认证检查
+                        // Spring Security 只负责 CORS 和健康检查放行，禁用自身的认证判断
+                        .anyRequest().permitAll()
                 );
         return http.build();
     }

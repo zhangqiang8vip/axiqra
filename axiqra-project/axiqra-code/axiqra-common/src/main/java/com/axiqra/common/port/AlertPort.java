@@ -57,7 +57,7 @@ public interface AlertPort {
             String reasonCode,
             /** 租户 ID（可为 null） */
             Long tenantId,
-            /** 额外上下文 */
+            /** 额外上下文；POLICY_DENIED 约定包含 action、policyCode */
             Map<String, Object> metadata
     ) {
         public static Builder builder() {

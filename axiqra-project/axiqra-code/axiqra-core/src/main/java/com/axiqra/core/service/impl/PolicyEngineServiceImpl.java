@@ -62,15 +62,17 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
     }
 
     private void sendPolicyDeniedAlert(PolicyEvaluationRequest request, PolicyEvaluationVO result) {
+        Long workspaceId = resolveWorkspaceId(request.getContext());
         try {
-            alertPort.sendAlert(buildPolicyDeniedAlert(request, result));
+            alertPort.sendAlert(buildPolicyDeniedAlert(request, result, workspaceId));
         } catch (RuntimeException e) {
-            log.warn("策略拒绝告警发送失败: userId={}, action={}, message={}",
-                    request.getSubjectId(), request.getAction(), messageOrUnknown(e));
+            log.warn("策略拒绝告警发送失败: userId={}, workspaceId={}, action={}, message={}",
+                    request.getSubjectId(), workspaceId, request.getAction(), messageOrUnknown(e));
         }
     }
 
-    private AlertEvent buildPolicyDeniedAlert(PolicyEvaluationRequest request, PolicyEvaluationVO result) {
+    private AlertEvent buildPolicyDeniedAlert(PolicyEvaluationRequest request, PolicyEvaluationVO result,
+                                              Long workspaceId) {
         return AlertEvent.builder()
                 .type(AlertType.POLICY_DENIED)
                 .severity(alertSeverity(result))
@@ -78,7 +80,7 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
                 .actorType("user")
                 .objectType(request.getObjectType())
                 .objectId(request.getObjectId())
-                .workspaceId(resolveWorkspaceId(request.getContext()))
+                .workspaceId(workspaceId)
                 .message("策略拒绝: " + result.getMessage())
                 .reasonCode(result.getReasonCode())
                 .metadata(Map.of(

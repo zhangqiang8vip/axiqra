@@ -25,7 +25,7 @@ import java.net.URI;
  * <p>将告警事件通过 HTTP POST 发送到配置的 webhook URL。
  * 配置项：
  * <ul>
- *   <li>{@code alert.webhook.url} - Webhook 端点 URL（必填）</li>
+ *   <li>{@code alert.webhook.url} - Webhook HTTPS 端点 URL（启用时必填）</li>
  *   <li>{@code alert.webhook.enabled} - 是否启用（默认 true）</li>
  *   <li>{@code alert.webhook.timeout-ms} - 超时毫秒数（默认 5000）</li>
  * </ul>
@@ -38,6 +38,9 @@ import java.net.URI;
 @Slf4j
 @Component
 public class AlertAdapter implements AlertPort {
+
+    private static final String HEADER_ALERT_TYPE = "X-Alert-Type";
+    private static final String HEADER_ALERT_SEVERITY = "X-Alert-Severity";
 
     @Value("${alert.webhook.url:}")
     private String webhookUrl;
@@ -56,8 +59,12 @@ public class AlertAdapter implements AlertPort {
 
     @Override
     public void sendAlert(AlertEvent event) {
-        if (!enabled || webhookUrl == null || webhookUrl.isBlank()) {
-            log.debug("[Alert] Webhook not configured or disabled, skipping alert type={}", event.type());
+        if (!enabled) {
+            log.debug("[Alert] Webhook disabled, skipping alert type={}", event.type());
+            return;
+        }
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            log.warn("[Alert] Webhook enabled but URL is blank, skipping alert type={}", event.type());
             return;
         }
 
@@ -75,8 +82,8 @@ public class AlertAdapter implements AlertPort {
             String payload = objectMapper.writeValueAsString(event);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-Alert-Type", event.type().name());
-            headers.set("X-Alert-Severity", event.severity().name());
+            headers.set(HEADER_ALERT_TYPE, event.type().name());
+            headers.set(HEADER_ALERT_SEVERITY, event.severity().name());
 
             HttpEntity<String> request = new HttpEntity<>(payload, headers);
             restTemplate.postForEntity(webhookUri, request, String.class);

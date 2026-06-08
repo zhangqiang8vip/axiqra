@@ -74,3 +74,9 @@ logging:
   level:
     com.axiqra: DEBUG
     org.springframework.jdbc: INFO
+
+alert:
+  webhook:
+    enabled: false
+    url: ${ALERT_WEBHOOK_URL:}
+    timeout-ms: 5000

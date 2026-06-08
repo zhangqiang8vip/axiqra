@@ -3,6 +3,8 @@ package com.axiqra.common.domain.enums;
 import com.mybatisflex.annotation.EnumValue;
 import lombok.Getter;
 
+import java.util.Locale;
+
 /**
  * 工作空间类型枚举
  *
@@ -13,9 +15,8 @@ import lombok.Getter;
 public enum WorkspaceType {
 
     PERSONAL("personal", "个人空间"),
-    ORGANIZATION("organization", "组织空间"),
-    ENTERPRISE("enterprise", "企业空间"),
-    GOVERNMENT("government", "政府空间");
+    TEAM("team", "团队空间"),
+    ENTERPRISE("enterprise", "企业空间");
 
     @EnumValue
     private final String code;
@@ -28,7 +29,7 @@ public enum WorkspaceType {
 
     public static WorkspaceType of(String code) {
         if (code == null) return null;
-        String lower = code.trim().toLowerCase(java.util.Locale.ROOT);
+        String lower = code.trim().toLowerCase(Locale.ROOT);
         for (WorkspaceType t : values()) {
             if (t.code.equals(lower)) return t;
         }

@@ -1,0 +1,63 @@
+---
+description: Axiqra S1 workspace, visibility, and scope standard
+alwaysApply: true
+---
+
+# Axiqra S1 Scope / Workspace Standard
+
+This is a new system. Do not add legacy compatibility, aliases, migration shims, or patch-style fallbacks for old enum/scope values.
+
+## WorkspaceType
+
+`workspace_type` is limited to:
+
+- `personal`
+- `team`
+- `enterprise`
+
+Do not use `public`, `organization`, or `government` as `WorkspaceType`.
+
+- `public` is content visibility, represented by `visibility_scope = public`.
+- `government` is a future tenant/compliance profile, not an S1 workspace type.
+
+## VisibilityScope
+
+`visibility_scope` is limited to:
+
+- `private`
+- `workspace`
+- `enterprise`
+- `public`
+
+Do not use old values such as `private_only`, `project_only`, `squad_only`, `team_only`, or `enterprise_only`.
+
+## Scope
+
+Scope names must be simple `resource:action` permissions. They express action capability only. Data reach is decided by ABAC fields such as `workspace_id`, `tenant_id`, `owner_id`, `visibility_scope`, and `license_scope`.
+
+Allowed S1 scopes:
+
+- `connect:read`, `connect:write`, `connect:admin`
+- `search:read`, `search:admin`
+- `solution:read`, `solution:write`, `solution:delete`, `solution:publish`, `solution:maintain`
+- `trace:read`, `trace:write`, `trace:confirm`, `trace:admin`
+- `case:read`, `case:write`, `case:publish`, `case:admin`
+- `feedback:read`, `feedback:write`, `feedback:admin`
+- `review:read`, `review:write`, `review:admin`
+- `contribution:read`, `contribution:write`, `contribution:admin`
+- `audit:read`
+- `public:read`
+- `admin:all`
+
+Do not use or reintroduce:
+
+- `public_search:read`
+- `team_search:read`
+- `enterprise_search:read`
+- `public_case:*`
+- `project_case:*`
+- `public/read`
+- `search:public`
+- `seed:write`
+
+Old values may appear only in illegal-input tests or historical issue retrospectives.

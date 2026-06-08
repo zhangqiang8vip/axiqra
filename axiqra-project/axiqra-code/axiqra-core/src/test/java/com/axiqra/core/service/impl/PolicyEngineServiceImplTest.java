@@ -5,6 +5,7 @@ import com.axiqra.common.domain.enums.PolicyDecision;
 import com.axiqra.common.domain.vo.PolicyEvaluationVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
+import com.axiqra.common.port.AlertPort;
 import com.axiqra.common.port.PolicyEnginePort;
 import com.axiqra.core.service.PolicyEngineService;
 import org.junit.jupiter.api.DisplayName;
@@ -25,10 +26,29 @@ class PolicyEngineServiceImplTest {
     @Mock
     private PolicyEnginePort policyEnginePort;
 
+    @Mock
+    private AlertPort alertPort;
+
     @InjectMocks
     private PolicyEngineServiceImpl policyEngineService;
 
     private static final Long USER_ID = 1L;
+
+    private void verifyPolicyDeniedWarningAlert() {
+        verifyPolicyDeniedAlert(AlertPort.Severity.WARNING, null);
+    }
+
+    private void verifyPolicyDeniedCriticalAlert(Long workspaceId) {
+        verifyPolicyDeniedAlert(AlertPort.Severity.CRITICAL, workspaceId);
+    }
+
+    private void verifyPolicyDeniedAlert(AlertPort.Severity severity, Long workspaceId) {
+        verify(alertPort).sendAlert(argThat(event -> event != null
+                && event.type() == AlertPort.AlertType.POLICY_DENIED
+                && event.severity() == severity
+                && USER_ID.equals(event.actorId())
+                && (workspaceId == null ? event.workspaceId() == null : workspaceId.equals(event.workspaceId()))));
+    }
 
     @Nested
     @DisplayName("evaluate")
@@ -121,6 +141,7 @@ class PolicyEngineServiceImplTest {
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("策略拒绝"));
+            verifyPolicyDeniedWarningAlert();
         }
 
         @Test
@@ -140,6 +161,49 @@ class PolicyEngineServiceImplTest {
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verifyPolicyDeniedWarningAlert();
+        }
+
+        @Test
+        @DisplayName("告警发送失败时仍应抛原始 FORBIDDEN")
+        void shouldStillThrowForbiddenWhenAlertFails() {
+            PolicyEvaluationRequest request = new PolicyEvaluationRequest();
+            request.setSubjectId(USER_ID);
+            request.setAction("write");
+            PolicyEvaluationVO denied = PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .policyCode("ABAC-WRITE-DENY")
+                    .reasonCode("INSUFFICIENT_ROLE")
+                    .message("写入资源至少需要 member 角色")
+                    .build();
+            when(policyEnginePort.evaluate(request)).thenReturn(denied);
+            doThrow(new IllegalStateException()).when(alertPort).sendAlert(any());
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> policyEngineService.enforce(request));
+            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verify(alertPort).sendAlert(any());
+        }
+
+        @Test
+        @DisplayName("非法 workspaceId 上下文应作为空值处理")
+        void shouldIgnoreInvalidWorkspaceIdContext() {
+            PolicyEvaluationRequest request = new PolicyEvaluationRequest();
+            request.setSubjectId(USER_ID);
+            request.setAction("write");
+            request.setContext(java.util.Map.of("workspaceId", "not-a-number"));
+            PolicyEvaluationVO denied = PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .policyCode("ABAC-WRITE-DENY")
+                    .reasonCode("INSUFFICIENT_ROLE")
+                    .message("写入资源至少需要 member 角色")
+                    .build();
+            when(policyEnginePort.evaluate(request)).thenReturn(denied);
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> policyEngineService.enforce(request));
+            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verifyPolicyDeniedWarningAlert();
         }
 
         @Test
@@ -151,6 +215,7 @@ class PolicyEngineServiceImplTest {
             request.setContext(new java.util.HashMap<>() {{
                 put("riskLevel", "R4");
                 put("executionMode", "AUTO");
+                put("workspaceId", "100");
             }});
             PolicyEvaluationVO denied = PolicyEvaluationVO.builder()
                     .decision(PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH)
@@ -163,6 +228,7 @@ class PolicyEngineServiceImplTest {
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
             assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verifyPolicyDeniedCriticalAlert(100L);
         }
     }
 }

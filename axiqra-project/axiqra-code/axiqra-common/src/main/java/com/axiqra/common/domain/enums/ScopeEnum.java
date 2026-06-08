@@ -3,6 +3,8 @@ package com.axiqra.common.domain.enums;
 import com.mybatisflex.annotation.EnumValue;
 import lombok.Getter;
 
+import java.util.Locale;
+
 /**
  * Scope 权限范围枚举，定义系统内所有可授权的操作范围。
  * 格式：resource:action（资源:操作）
@@ -20,7 +22,6 @@ public enum ScopeEnum {
 
     // ==================== 搜索 ====================
     SEARCH_READ("search:read", "发起搜索请求"),
-    SEARCH_PUBLIC("search:public", "公开搜索"),
     SEARCH_ADMIN("search:admin", "搜索管理"),
 
     // ==================== Solution ====================
@@ -28,6 +29,7 @@ public enum ScopeEnum {
     SOLUTION_WRITE("solution:write", "创建/编辑 Solution"),
     SOLUTION_DELETE("solution:delete", "删除 Solution"),
     SOLUTION_PUBLISH("solution:publish", "发布 Solution"),
+    SOLUTION_MAINTAIN("solution:maintain", "维护 Solution"),
 
     // ==================== Trace ====================
     TRACE_READ("trace:read", "查看 Trace"),
@@ -40,6 +42,11 @@ public enum ScopeEnum {
     CASE_WRITE("case:write", "创建/编辑 Case"),
     CASE_PUBLISH("case:publish", "发布 Case"),
     CASE_ADMIN("case:admin", "管理所有 Case"),
+
+    // ==================== Feedback 反馈 ====================
+    FEEDBACK_READ("feedback:read", "查看 Feedback"),
+    FEEDBACK_WRITE("feedback:write", "提交 Feedback"),
+    FEEDBACK_ADMIN("feedback:admin", "反馈管理"),
 
     // ==================== Review 审核 ====================
     REVIEW_READ("review:read", "查看待审核列表"),
@@ -73,8 +80,9 @@ public enum ScopeEnum {
         if (code == null) {
             return null;
         }
+        String normalized = code.trim().toLowerCase(Locale.ROOT);
         for (ScopeEnum s : values()) {
-            if (s.code.equals(code)) {
+            if (s.code.equals(normalized)) {
                 return s;
             }
         }

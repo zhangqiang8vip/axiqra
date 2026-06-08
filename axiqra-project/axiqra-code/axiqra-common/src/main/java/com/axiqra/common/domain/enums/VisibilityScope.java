@@ -3,6 +3,8 @@ package com.axiqra.common.domain.enums;
 import com.mybatisflex.annotation.EnumValue;
 import lombok.Getter;
 
+import java.util.Locale;
+
 /**
  * 可见范围枚举（visibility_scope 字段）
  *
@@ -14,6 +16,7 @@ public enum VisibilityScope {
 
     PRIVATE("private", "私有"),
     WORKSPACE("workspace", "工作空间内可见"),
+    ENTERPRISE("enterprise", "企业内可见"),
     PUBLIC("public", "公开");
 
     @EnumValue
@@ -27,8 +30,9 @@ public enum VisibilityScope {
 
     public static VisibilityScope of(String code) {
         if (code == null) return null;
+        String lower = code.trim().toLowerCase(Locale.ROOT);
         for (VisibilityScope v : values()) {
-            if (v.code.equals(code)) return v;
+            if (v.code.equals(lower)) return v;
         }
         return null;
     }
@@ -41,6 +45,8 @@ public enum VisibilityScope {
     public boolean canView(VisibilityScope other) {
         if (this == PUBLIC && other == PUBLIC) return true;
         if (other == PUBLIC) return this == PUBLIC;
+        if (this == ENTERPRISE && other == ENTERPRISE) return true;
+        if (other == ENTERPRISE) return this == ENTERPRISE;
         if (this == WORKSPACE && other == WORKSPACE) return true;
         if (other == WORKSPACE) return this == WORKSPACE;
         if (other == PRIVATE) return this == PRIVATE;

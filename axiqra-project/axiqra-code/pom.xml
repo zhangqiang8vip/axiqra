@@ -23,8 +23,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- JDK 17+ (Spring Boot 3.5.x 要求) -->
         <java.version>17</java.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
         <!-- Spring Boot 3.5.x -->
         <spring-boot.version>3.5.14</spring-boot.version>
         <!-- Spring Security（由 dependencyManagement 显式管理版本，Spring Boot 3.5.x 依赖 6.5.x 系列） -->
@@ -45,6 +44,7 @@
         <!-- 构建 -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <lombok.version>1.18.46</lombok.version>
         <javadoc.io.tarball.url>https://central.sonatype.com</javadoc.io.tarball.url>
@@ -194,8 +194,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven-compiler-plugin.version}</version>
                     <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
+                        <release>${maven.compiler.release}</release>
                         <encoding>UTF-8</encoding>
                         <!-- 阿里规范：-parameters 保留方法参数名 -->
                         <compilerArgs>
@@ -292,6 +291,29 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- 强制使用 JDK 17，避免本机 Maven 落到 JDK 8 后出现不可重复的编译问题 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-java-version</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[17,18)</version>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <!-- ============ 模块定义 ============ -->

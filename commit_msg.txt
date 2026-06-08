@@ -1,0 +1,12 @@
+chore: close out R1+R2, update bug review, add JDK 17 requirement
+
+- Create R2 completion audit report (96/100 score, 156/156 tests passed)
+- Update R2 README: mark audit report as done
+- Update test-cases/README.md Round table: add R2 entry with status
+- Rename R1-R2_Bug复盘_R3编码Checklist.md -> R1-R2-R3_Bug复盘_编码Checklist.md
+- Add B-004 (LoginResponse @ToString import) and B-005 (NavServiceImpl NPE)
+  to bug history
+- Add 4.3 Lombok annotation import rule (B-004)
+- Add 4.7 MyBatis-Flex @Column mapping rule
+- Add JDK 17 mandatory warning to header (Spring Boot 3.5.x requires 17,
+  JDK 8 is not supported)

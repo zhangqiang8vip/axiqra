@@ -35,7 +35,7 @@ R2-通用验证_RBAC框架/
 | TraceIdResponseAdvice（requestId 注入） | `axiqra-api/.../advice/TraceIdResponseAdvice.java` | ✅ |
 | ApiSignatureFilter（登录白名单修复） | `axiqra-api/.../filter/ApiSignatureFilter.java` | ✅ |
 | SecurityConfig（鉴权链路修复） | `axiqra-api/.../config/SecurityConfig.java` | ✅ |
-| 审核报告 | `01-审核报告/R2-完成度审核报告.md` | 🔄 待补充 |
+| 审核报告 | `01-审核报告/R2-完成度审核报告.md` | ✅ |
 | 单元测试用例文档 | `03-测试用例/R2-单元测试用例.md` | ✅ |
 | 测试执行记录 | `03-测试用例/R2-测试执行记录.md` | ✅ |
 

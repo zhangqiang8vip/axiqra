@@ -165,6 +165,27 @@ class PolicyEngineServiceImplTest {
         }
 
         @Test
+        @DisplayName("告警发送失败时仍应抛原始 FORBIDDEN")
+        void shouldStillThrowForbiddenWhenAlertFails() {
+            PolicyEvaluationRequest request = new PolicyEvaluationRequest();
+            request.setSubjectId(USER_ID);
+            request.setAction("write");
+            PolicyEvaluationVO denied = PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .policyCode("ABAC-WRITE-DENY")
+                    .reasonCode("INSUFFICIENT_ROLE")
+                    .message("写入资源至少需要 member 角色")
+                    .build();
+            when(policyEnginePort.evaluate(request)).thenReturn(denied);
+            doThrow(new IllegalStateException()).when(alertPort).sendAlert(any());
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> policyEngineService.enforce(request));
+            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verify(alertPort).sendAlert(any());
+        }
+
+        @Test
         @DisplayName("DENY_RISK_LEVEL_TOO_HIGH 应抛 FORBIDDEN")
         void shouldThrowWhenRiskLevelTooHigh() {
             PolicyEvaluationRequest request = new PolicyEvaluationRequest();

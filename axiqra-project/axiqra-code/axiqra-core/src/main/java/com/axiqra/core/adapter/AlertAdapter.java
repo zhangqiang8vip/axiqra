@@ -102,9 +102,9 @@ public class AlertAdapter implements AlertPort {
         try {
             URI uri = URI.create(webhookUrl.trim());
             String scheme = uri.getScheme();
-            boolean supportedScheme = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+            boolean supportedScheme = "https".equalsIgnoreCase(scheme);
             if (!supportedScheme || uri.getHost() == null) {
-                log.warn("[Alert] Invalid webhook URL configured, skipping alert: {}", webhookUrl);
+                log.warn("[Alert] Invalid HTTPS webhook URL configured, skipping alert: {}", webhookUrl);
                 return null;
             }
             return uri;

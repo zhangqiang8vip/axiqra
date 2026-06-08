@@ -28,6 +28,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PolicyEngineServiceImpl implements PolicyEngineService {
 
+    private static final String METADATA_ACTION = "action";
+    private static final String METADATA_POLICY_CODE = "policyCode";
+
     private final PolicyEnginePort policyEnginePort;
     private final AlertPort alertPort;
 
@@ -59,7 +62,16 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
     }
 
     private void sendPolicyDeniedAlert(PolicyEvaluationRequest request, PolicyEvaluationVO result) {
-        alertPort.sendAlert(AlertEvent.builder()
+        try {
+            alertPort.sendAlert(buildPolicyDeniedAlert(request, result));
+        } catch (RuntimeException e) {
+            log.warn("策略拒绝告警发送失败: userId={}, action={}, message={}",
+                    request.getSubjectId(), request.getAction(), messageOrUnknown(e));
+        }
+    }
+
+    private AlertEvent buildPolicyDeniedAlert(PolicyEvaluationRequest request, PolicyEvaluationVO result) {
+        return AlertEvent.builder()
                 .type(AlertType.POLICY_DENIED)
                 .severity(alertSeverity(result))
                 .actorId(request.getSubjectId())
@@ -70,10 +82,10 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
                 .message("策略拒绝: " + result.getMessage())
                 .reasonCode(result.getReasonCode())
                 .metadata(Map.of(
-                        "action", request.getAction() != null ? request.getAction() : "",
-                        "policyCode", result.getPolicyCode() != null ? result.getPolicyCode() : ""
+                        METADATA_ACTION, request.getAction() != null ? request.getAction() : "",
+                        METADATA_POLICY_CODE, result.getPolicyCode() != null ? result.getPolicyCode() : ""
                 ))
-                .build());
+                .build();
     }
 
     private Severity alertSeverity(PolicyEvaluationVO result) {
@@ -82,10 +94,13 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
     }
 
     private Long resolveWorkspaceId(Map<String, Object> context) {
-        if (context == null) {
+        if (context == null || !context.containsKey("workspaceId")) {
             return null;
         }
         Object value = context.get("workspaceId");
+        if (value == null) {
+            return null;
+        }
         if (value instanceof Long workspaceId) {
             return workspaceId;
         }
@@ -100,5 +115,9 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
             }
         }
         return null;
+    }
+
+    private String messageOrUnknown(Exception e) {
+        return e.getMessage() != null ? e.getMessage() : "unknown";
     }
 }

@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -33,6 +34,8 @@ public class InvocationEntity extends BaseEntity {
     @Nullable
     private String resultType;
     @Nullable
+    @Column("tenant_id")
     private Long tenantId;
+    @Column("is_deleted")
     private boolean isDeleted = false;
 }

@@ -64,6 +64,18 @@ class NoHtmlValidatorTest {
         assertFalse(validator.isValid(input, context));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "<img/>",
+            "<br/>",
+            "<script/>",
+            "<svg/>"
+    })
+    @DisplayName("自闭合标签应返回 false / Self-closing tags return false")
+    void selfClosingTags_returnsFalse(String input) {
+        assertFalse(validator.isValid(input, context));
+    }
+
     // ==================== Safe Inputs ====================
     // Ordinary text should pass validation
 

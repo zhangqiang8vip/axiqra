@@ -31,7 +31,7 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
     );
 
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile(
-            "<\\/?[a-zA-Z][a-zA-Z0-9]*(?:\\s[^>]*)?>"
+            "<\\/?[a-zA-Z][a-zA-Z0-9]*(?:\\s[^>]*)?\\/?>"
     );
 
     @Override

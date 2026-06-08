@@ -56,7 +56,8 @@ public class TraceIdFilter implements Filter {
         // 2. 放入 MDC
         MDC.put(TRACE_ID_MDC_KEY, traceId);
 
-        // 3. 返回给前端
+        // 3. 返回给前端（X-Request-Id 为文档要求的标准命名，X-Trace-Id 兼容）
+        httpResponse.setHeader("X-Request-Id", traceId);
         httpResponse.setHeader(TRACE_ID_HEADER, traceId);
 
         String sanitizedUri = sanitizeUri(httpRequest.getRequestURI());

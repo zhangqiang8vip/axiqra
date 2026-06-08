@@ -2,6 +2,7 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.dto.WorkspaceCreateRequest;
 import com.axiqra.common.domain.entity.MembershipEntity;
+import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.domain.entity.WorkspaceEntity;
 import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.domain.enums.MemberStatus;
@@ -276,11 +277,17 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         }
 
         List<MembershipEntity> memberships = membershipMapper.selectActiveByWorkspaceId(workspaceId);
+        if (memberships.isEmpty()) {
+            return PageResponse.of(List.of(), 0L);
+        }
+        // 批量查询用户，消除 N+1 问题（1 次查询获取所有用户）
+        List<Long> userIds = memberships.stream().map(MembershipEntity::getUserId).collect(Collectors.toList());
+        Map<Long, UserEntity> userMap = userMapper.selectActiveByIds(userIds)
+                .stream().collect(Collectors.toMap(UserEntity::getId, u -> u));
         List<MemberVO> members = memberships.stream()
                 .map(m -> {
                     MemberVO vo = MemberVO.from(m);
-                    // 补充用户信息
-                    var user = userMapper.selectActiveById(m.getUserId());
+                    UserEntity user = userMap.get(m.getUserId());
                     if (user != null) {
                         vo.setUsername(user.getUsername());
                         vo.setNickname(user.getNickname());
@@ -381,7 +388,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.FORBIDDEN, "不能将您自己从工作空间中移除");
         }
 
-        membershipMapper.updateStatus(targetMemberId, MemberStatus.SUSPENDED.getCode());
+        membershipMapper.softDelete(targetMemberId, MemberStatus.SUSPENDED.getCode());
         log.info("移除成员: memberId={}, removedBy={}", targetMemberId, userId);
     }
 }

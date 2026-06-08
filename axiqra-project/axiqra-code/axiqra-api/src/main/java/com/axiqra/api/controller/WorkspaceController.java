@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/workspaces")
+@RequestMapping("/workspaces")
 @RequiredArgsConstructor
 @Tag(name = "工作空间", description = "工作空间 CRUD + 成员管理")
 public class WorkspaceController {

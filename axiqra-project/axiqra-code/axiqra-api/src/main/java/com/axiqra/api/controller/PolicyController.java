@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/policy")
+@RequestMapping("/policy")
 @RequiredArgsConstructor
 @Tag(name = "策略评估", description = "ABAC 策略引擎评估接口")
 public class PolicyController {

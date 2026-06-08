@@ -41,6 +41,9 @@ public interface MembershipMapper extends BaseMapper<MembershipEntity> {
     @org.apache.ibatis.annotations.Update("UPDATE axiqra_membership SET status = #{status}, gmt_modified = now() WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") String status);
 
+    @org.apache.ibatis.annotations.Update("UPDATE axiqra_membership SET status = #{status}, is_deleted = TRUE, gmt_modified = now() WHERE id = #{id}")
+    int softDelete(@Param("id") Long id, @Param("status") String status);
+
     @org.apache.ibatis.annotations.Update("UPDATE axiqra_membership SET status = #{status}, gmt_modified = now() WHERE workspace_id = #{workspaceId}")
     int softDeleteByWorkspaceId(@Param("workspaceId") Long workspaceId, @Param("status") String status);
 }

@@ -95,14 +95,18 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "登出", description = "注销当前会话")
+    @Operation(summary = "登出", description = "注销当前会话（幂等：未登录时返回成功）")
     public ApiResponse<Void> logout() {
+        long userId = 0;
         try {
-            long userId = StpUtil.getLoginIdAsLong();
-            StpUtil.logout();
-            log.info("用户登出: userId={}", userId);
+            userId = StpUtil.getLoginIdAsLong();
         } catch (Exception e) {
-            log.warn("登出时发生异常", e);
+            log.debug("登出时未检测到登录会话，视为已登出");
+        }
+        try {
+            StpUtil.logout();
+        } catch (Exception e) {
+            log.warn("登出操作异常（可能已超时失效），userId={}", userId, e);
         }
         return ApiResponse.ok();
     }

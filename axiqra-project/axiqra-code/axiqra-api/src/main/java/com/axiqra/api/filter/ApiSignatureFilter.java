@@ -76,7 +76,15 @@ public class ApiSignatureFilter implements Filter {
             "/v3/api-docs",
             "/swagger-ui",
             "/doc.html",
-            "/favicon.ico"
+            "/favicon.ico",
+            // Web 认证入口：登录/注册不要求 API 签名，否则用户无 token 无法完成登录闭环
+            // request.getRequestURI() 含 context-path (/api)，同时支持不带 context-path 的情况
+            "/auth/login",
+            "/auth/register",
+            "/auth/captcha",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/captcha"
     );
 
     public ApiSignatureFilter(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, KeyVaultPort keyVaultPort) {

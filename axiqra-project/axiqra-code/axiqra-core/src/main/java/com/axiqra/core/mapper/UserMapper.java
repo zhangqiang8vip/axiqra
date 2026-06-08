@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * 用户 Mapper
@@ -23,6 +24,9 @@ public interface UserMapper extends BaseMapper<UserEntity> {
 
     @Select("SELECT * FROM axiqra_user WHERE id = #{id} AND is_deleted = FALSE LIMIT 1")
     UserEntity selectActiveById(@Param("id") Long id);
+
+    @Select("<script>SELECT * FROM axiqra_user WHERE id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> AND is_deleted = FALSE</script>")
+    List<UserEntity> selectActiveByIds(@Param("ids") List<Long> ids);
 
     @Select("SELECT * FROM axiqra_user WHERE email = #{email} AND is_deleted = FALSE LIMIT 1")
     UserEntity selectByEmail(@Param("email") String email);

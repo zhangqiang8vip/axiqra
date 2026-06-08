@@ -412,7 +412,7 @@ class WorkspaceServiceImplTest {
 
             workspaceService.removeMember(WORKSPACE_ID, USER_ID, 1L);
 
-            verify(membershipMapper).updateStatus(1L, MemberStatus.SUSPENDED.getCode());
+            verify(membershipMapper).softDelete(1L, MemberStatus.SUSPENDED.getCode());
         }
     }
 

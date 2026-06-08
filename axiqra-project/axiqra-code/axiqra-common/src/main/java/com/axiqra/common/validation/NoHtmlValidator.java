@@ -7,9 +7,9 @@ import org.apache.commons.text.StringEscapeUtils;
 import java.util.regex.Pattern;
 
 /**
- * Validates that a string does not contain HTML or script tags.
+ * Validates that a string does not contain HTML or script content.
  * Checks: (1) length limit, (2) javascript:/data: scheme, (3) on* event handlers,
- * (4) strict HTML tag pattern, (5) HTML entity-encoded tags (e.g. &lt;script&gt;).
+ * (4) strict HTML tag pattern, (5) HTML 4.0 entity-decoded tags (e.g. &lt;script&gt;).
  *
  * @author Axiqra Team
  * @date 2026-06-07
@@ -55,10 +55,15 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
     }
 
     /**
-     * Decodes HTML5 named and numeric entities using Apache Commons Text.
-     * Returns null for null input; blank input returns blank (isBlank caught above).
-     * If decoding fails (e.g., invalid Unicode code point), returns the original
-     * string so validation can still proceed on the raw input.
+     * Decodes HTML 4.0 named and numeric entities using Apache Commons Text.
+     * <p>
+     * Note: {@link StringEscapeUtils#unescapeHtml4(String)} only handles the HTML 4.01
+     * entity set (e.g. {@code &lt;}, {@code &amp;}, {@code &#x3C;}, {@code &#60;}).
+     * HTML5-only entities (e.g. {@code &ast;}, {@code &equals;}, {@code &BackslashRightTriangle;}
+     * and many emoji-name entities) are not decoded by this method.
+     * <p>
+     * Returns null for null input. If decoding fails (e.g., invalid Unicode code point),
+     * returns the original string so validation can still proceed on the raw input.
      */
     private String decodeHtmlEntities(String raw) {
         if (raw == null) return null;

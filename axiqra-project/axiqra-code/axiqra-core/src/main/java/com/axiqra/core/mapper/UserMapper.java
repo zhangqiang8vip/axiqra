@@ -25,7 +25,7 @@ public interface UserMapper extends BaseMapper<UserEntity> {
     @Select("SELECT * FROM axiqra_user WHERE id = #{id} AND is_deleted = FALSE LIMIT 1")
     UserEntity selectActiveById(@Param("id") Long id);
 
-    @Select("<script>SELECT * FROM axiqra_user WHERE is_deleted = FALSE<if test='ids != null and ids.size() &gt; 0'> AND id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></if></script>")
+    @Select("<script>SELECT * FROM axiqra_user WHERE is_deleted = FALSE AND <choose><when test='ids != null and ids.size() &gt; 0'>id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></when><otherwise>1=0</otherwise></choose></script>")
     List<UserEntity> selectActiveByIds(@Param("ids") List<Long> ids);
 
     @Select("SELECT * FROM axiqra_user WHERE email = #{email} AND is_deleted = FALSE LIMIT 1")

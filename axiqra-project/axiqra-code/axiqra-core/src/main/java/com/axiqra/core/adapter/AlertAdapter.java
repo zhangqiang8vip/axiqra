@@ -109,6 +109,9 @@ public class AlertAdapter implements AlertPort {
         } catch (RestClientException e) {
             log.warn("[Alert] Failed to send alert webhook, type={}, url={}: {}",
                     event.type(), webhookUri, messageOrUnknown(e));
+        } catch (RuntimeException e) {
+            log.warn("[Alert] Unexpected alert failure, type={}, url={}: {}",
+                    event.type(), webhookUri, messageOrUnknown(e));
         }
     }
 
@@ -122,8 +125,8 @@ public class AlertAdapter implements AlertPort {
                 log.warn("[Alert] Invalid HTTPS webhook URL configured, skipping alert: {}", webhookUrl);
                 return null;
             }
-            if (isInternalHost(host)) {
-                log.warn("[Alert] Internal webhook host rejected, skipping alert: {}", host);
+            if (isUnsafeHost(host)) {
+                log.warn("[Alert] Unsafe webhook host rejected, skipping alert: {}", host);
                 return null;
             }
             return uri;
@@ -134,13 +137,16 @@ public class AlertAdapter implements AlertPort {
         }
     }
 
-    private boolean isInternalHost(String host) {
+    private boolean isUnsafeHost(String host) {
         String lookupHost = host;
         if (lookupHost.startsWith("[") && lookupHost.endsWith("]")) {
             lookupHost = lookupHost.substring(1, lookupHost.length() - 1);
         }
         String normalizedHost = lookupHost.toLowerCase(Locale.ROOT);
         if ("localhost".equals(normalizedHost) || normalizedHost.endsWith(".localhost")) {
+            return true;
+        }
+        if (isIpLiteral(normalizedHost)) {
             return true;
         }
         try {
@@ -155,6 +161,10 @@ public class AlertAdapter implements AlertPort {
             log.warn("[Alert] Unable to resolve webhook host, skipping alert: {}", host);
             return true;
         }
+    }
+
+    private boolean isIpLiteral(String host) {
+        return host.contains(":") || host.matches("\\d{1,3}(\\.\\d{1,3}){3}");
     }
 
     private boolean isUniqueLocalIpv6Address(InetAddress address) {

@@ -62,9 +62,20 @@ class AlertAdapterTest {
     }
 
     @Test
+    @DisplayName("公网 IP webhook 地址也应被拒绝")
+    void shouldRejectPublicIpWebhookHost() {
+        enableWebhook("https://8.8.8.8/alerts");
+        AlertEvent event = warningEvent();
+
+        alertAdapter.sendAlert(event);
+
+        verifyNoInteractions(restTemplate);
+    }
+
+    @Test
     @DisplayName("有效告警应发送到 webhook")
     void shouldPostWarningAlertToWebhook() throws Exception {
-        URI webhookUri = URI.create("https://8.8.8.8/alerts");
+        URI webhookUri = URI.create("https://example.com/alerts");
         enableWebhook(webhookUri.toString());
         AlertEvent event = warningEvent();
         when(objectMapper.writeValueAsString(event)).thenReturn("{}");
@@ -77,7 +88,7 @@ class AlertAdapterTest {
     @Test
     @DisplayName("序列化失败不应阻断调用方")
     void shouldNotThrowWhenSerializationFails() throws Exception {
-        enableWebhook("https://8.8.8.8/alerts");
+        enableWebhook("https://example.com/alerts");
         AlertEvent event = warningEvent();
         when(objectMapper.writeValueAsString(event)).thenThrow(new JsonProcessingException("boom") {});
 
@@ -88,12 +99,26 @@ class AlertAdapterTest {
     @Test
     @DisplayName("webhook 网络异常不应阻断调用方")
     void shouldNotThrowWhenWebhookRequestFails() throws Exception {
-        URI webhookUri = URI.create("https://8.8.8.8/alerts");
+        URI webhookUri = URI.create("https://example.com/alerts");
         enableWebhook(webhookUri.toString());
         AlertEvent event = warningEvent();
         when(objectMapper.writeValueAsString(event)).thenReturn("{}");
         when(restTemplate.postForEntity(eq(webhookUri), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new ResourceAccessException("timeout"));
+
+        assertDoesNotThrow(() -> alertAdapter.sendAlert(event));
+        verify(restTemplate).postForEntity(eq(webhookUri), any(HttpEntity.class), eq(String.class));
+    }
+
+    @Test
+    @DisplayName("webhook 未预期运行时异常不应阻断调用方")
+    void shouldNotThrowWhenUnexpectedRuntimeExceptionOccurs() throws Exception {
+        URI webhookUri = URI.create("https://example.com/alerts");
+        enableWebhook(webhookUri.toString());
+        AlertEvent event = warningEvent();
+        when(objectMapper.writeValueAsString(event)).thenReturn("{}");
+        when(restTemplate.postForEntity(eq(webhookUri), any(HttpEntity.class), eq(String.class)))
+                .thenThrow(new IllegalStateException("boom"));
 
         assertDoesNotThrow(() -> alertAdapter.sendAlert(event));
         verify(restTemplate).postForEntity(eq(webhookUri), any(HttpEntity.class), eq(String.class));

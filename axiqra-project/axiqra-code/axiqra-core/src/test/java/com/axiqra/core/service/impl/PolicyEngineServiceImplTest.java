@@ -186,6 +186,27 @@ class PolicyEngineServiceImplTest {
         }
 
         @Test
+        @DisplayName("非法 workspaceId 上下文应作为空值处理")
+        void shouldIgnoreInvalidWorkspaceIdContext() {
+            PolicyEvaluationRequest request = new PolicyEvaluationRequest();
+            request.setSubjectId(USER_ID);
+            request.setAction("write");
+            request.setContext(java.util.Map.of("workspaceId", "not-a-number"));
+            PolicyEvaluationVO denied = PolicyEvaluationVO.builder()
+                    .decision(PolicyDecision.DENY)
+                    .policyCode("ABAC-WRITE-DENY")
+                    .reasonCode("INSUFFICIENT_ROLE")
+                    .message("写入资源至少需要 member 角色")
+                    .build();
+            when(policyEnginePort.evaluate(request)).thenReturn(denied);
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> policyEngineService.enforce(request));
+            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            verifyPolicyDeniedWarningAlert();
+        }
+
+        @Test
         @DisplayName("DENY_RISK_LEVEL_TOO_HIGH 应抛 FORBIDDEN")
         void shouldThrowWhenRiskLevelTooHigh() {
             PolicyEvaluationRequest request = new PolicyEvaluationRequest();

@@ -260,11 +260,12 @@ public class ApiSignatureFilter implements Filter {
     }
 
     private void writeError(HttpServletResponse response, int status, ErrorCode errorCode) throws IOException {
-        // Ensure a traceId is available even if TraceIdFilter hasn't run yet
+        boolean weSetTraceId = false;
         String traceId = MDC.get(TraceIdFilter.TRACE_ID_MDC_KEY);
         if (traceId == null || traceId.isBlank()) {
             traceId = UUID.randomUUID().toString().replace("-", "");
             MDC.put(TraceIdFilter.TRACE_ID_MDC_KEY, traceId);
+            weSetTraceId = true;
         }
         response.setHeader("X-Request-Id", traceId);
         response.setHeader(TraceIdFilter.TRACE_ID_HEADER, traceId);
@@ -273,5 +274,10 @@ public class ApiSignatureFilter implements Filter {
         response.setContentType("application/json;charset=UTF-8");
         ApiResponse<Void> body = ApiResponse.fail(errorCode.getCode(), errorCode.getMessage(), traceId);
         objectMapper.writeValue(response.getWriter(), body);
+
+        // Clean up MDC if we injected a traceId, to avoid leaking into pooled threads
+        if (weSetTraceId) {
+            MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
+        }
     }
 }

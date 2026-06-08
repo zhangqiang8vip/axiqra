@@ -142,7 +142,12 @@ public class AuthController {
     @PutMapping("/profile")
     @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname、email 和 avatar")
     public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
-        long userId = StpUtil.getLoginIdAsLong();
+        long userId;
+        try {
+            userId = StpUtil.getLoginIdAsLong();
+        } catch (NotLoginException e) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "未登录或会话已失效");
+        }
         UserEntity user = userService.updateProfile(userId, request.getNickname(), request.getEmail(), request.getAvatar());
         log.info("更新个人资料: userId={}", userId);
         return ApiResponse.ok(LoginResponse.builder()

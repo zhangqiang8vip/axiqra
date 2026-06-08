@@ -409,10 +409,11 @@ class WorkspaceServiceImplTest {
             when(rbacService.isAdmin(USER_ID, WORKSPACE_ID)).thenReturn(true);
             MembershipEntity member = createMembership(1L, OTHER_USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
             when(membershipMapper.selectById(1L)).thenReturn(member);
+            when(membershipMapper.softDelete(eq(1L), eq(MemberStatus.SUSPENDED.getCode()), eq(0L))).thenReturn(1);
 
             workspaceService.removeMember(WORKSPACE_ID, USER_ID, 1L);
 
-            verify(membershipMapper).softDelete(1L, MemberStatus.SUSPENDED.getCode());
+            verify(membershipMapper).softDelete(1L, MemberStatus.SUSPENDED.getCode(), 0L);
         }
     }
 
@@ -603,6 +604,7 @@ class WorkspaceServiceImplTest {
         m.setRole(role.getCode());
         m.setStatus(MemberStatus.ACTIVE.getCode());
         m.setGmtCreate(Instant.now());
+        m.setVersion(0L);
         return m;
     }
 

@@ -55,6 +55,8 @@ class NoHtmlValidatorTest {
             "<img src=x onerror=alert(1)>",
             "javascript:alert(1)",
             "data:text/html,<h1>test</h1>",
+            "data:text/javascript,alert(1)",
+            "data:application/javascript,alert(1)",
             "<svg onload=alert(1)>"
     })
     @DisplayName("危险标签和协议应返回 false / Dangerous tags and protocols return false")

@@ -388,7 +388,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.FORBIDDEN, "不能将您自己从工作空间中移除");
         }
 
-        membershipMapper.softDelete(targetMemberId, MemberStatus.SUSPENDED.getCode());
+        int rows = membershipMapper.softDelete(targetMemberId, MemberStatus.SUSPENDED.getCode(), membership.getVersion());
+        if (rows == 0) {
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "成员记录已被修改或删除，请刷新后重试");
+        }
         log.info("移除成员: memberId={}, removedBy={}", targetMemberId, userId);
     }
 }

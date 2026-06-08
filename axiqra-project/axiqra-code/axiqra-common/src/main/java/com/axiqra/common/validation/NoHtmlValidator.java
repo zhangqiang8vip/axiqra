@@ -2,6 +2,7 @@ package com.axiqra.common.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.regex.Pattern;
 
@@ -17,8 +18,12 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
 
     private static final int MAX_LENGTH = 500;
 
+    /**
+     * Blocks javascript: and all data: URIs (including data:text/javascript,
+     * data:application/javascript, etc.).
+     */
     private static final Pattern SCRIPT_PATTERN = Pattern.compile(
-            "(?i)javascript:|data:text/html"
+            "(?i)(javascript:|data:)"
     );
 
     private static final Pattern EVENT_HANDLER_PATTERN = Pattern.compile(
@@ -50,90 +55,17 @@ public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
     }
 
     /**
-     * Decodes HTML5 numeric (&#xHH; &#DDDD;) and named (&lt; &gt; &amp; &quot;) entities.
-     * Decodes HTML5 numeric (&#xHH; &#DDDD;) and named (&lt; &gt; &amp; &quot;) entities.
-     * Returns the input unchanged for null or blank strings.
-     * Only decodes dangerous patterns; leaves harmless content intact.
+     * Decodes HTML5 named and numeric entities using Apache Commons Text.
+     * Returns null for null input; blank input returns blank (isBlank caught above).
+     * If decoding fails (e.g., invalid Unicode code point), returns the original
+     * string so validation can still proceed on the raw input.
      */
     private String decodeHtmlEntities(String raw) {
-        return decodeHtmlEntitiesMinimal(raw);
-    }
-
-    private String decodeHtmlEntitiesMinimal(String raw) {
         if (raw == null) return null;
-        StringBuilder sb = new StringBuilder(raw.length());
-        int i = 0;
-        while (i < raw.length()) {
-            char c = raw.charAt(i);
-            if (c == '&') {
-                int semicolon = raw.indexOf(';', i);
-                if (semicolon == -1) {
-                    sb.append(c);
-                    i++;
-                    continue;
-                }
-                String entity = raw.substring(i, semicolon + 1);
-                String decoded = decodeSingleEntity(entity);
-                if (decoded != null) {
-                    sb.append(decoded);
-                    i = semicolon + 1;
-                } else {
-                    sb.append(c);
-                    i++;
-                }
-            } else {
-                sb.append(c);
-                i++;
-            }
+        try {
+            return StringEscapeUtils.unescapeHtml4(raw);
+        } catch (IllegalArgumentException e) {
+            return raw;
         }
-        return sb.toString();
-    }
-
-    /**
-     * Decodes a single HTML entity ({@code &name;} or {@code &#xHH;}/{#DDD;}).
-     *
-     * <p>Uses {@code substring(1, len-1)} for the inner content because all
-     * entities share the prefix {@code &} and suffix {@code ;}:</p>
-     * <ul>
-     *   <li>{@code &amp;apos;} → inner = {@code "amp;apos"} → starts with {@code "#"}? No → skip</li>
-     *   <li>{@code &#x3C;}  → inner = {@code "#x3C"}      → starts with {@code "#x"}? Yes → hex decode</li>
-     *   <li>{@code &#60;}    → inner = {@code "#60"}       → starts with {@code "#"}? Yes → dec decode</li>
-     * </ul>
-     */
-    private String decodeSingleEntity(String entity) {
-        // Guard against malformed entities that are too short to decode.
-        // Minimum length is 3: one char prefix + one char content + ';'.
-        if (entity.length() < 3) {
-            return null;
-        }
-        // Named entities
-        return switch (entity.toLowerCase(java.util.Locale.ROOT)) {
-            case "&lt;"  -> "<";
-            case "&gt;"  -> ">";
-            case "&amp;" -> "&";
-            case "&quot;" -> "\"";
-            case "&apos;" -> "'";
-            case "&nbsp;" -> " ";
-            default -> {
-                // Numeric: &#xHHHH; (hex) or &#DDDD; (decimal)
-                String inner = entity.substring(1, entity.length() - 1);
-                if (inner.startsWith("#x") || inner.startsWith("#X")) {
-                    try {
-                        int codePoint = Integer.parseInt(inner.substring(2), 16);
-                        if (codePoint > 0 && codePoint <= 0x10FFFF) {
-                            yield new String(Character.toChars(codePoint));
-                        }
-                    } catch (IllegalArgumentException ignored) {}
-                } else if (inner.startsWith("#")) {
-                    try {
-                        int codePoint = Integer.parseInt(inner.substring(1));
-                        if (codePoint > 0 && codePoint <= 0x10FFFF) {
-                            yield new String(Character.toChars(codePoint));
-                        }
-                    } catch (IllegalArgumentException ignored) {}
-                }
-                yield null;
-            }
-        };
     }
 }

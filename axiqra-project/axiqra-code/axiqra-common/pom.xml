@@ -52,6 +52,13 @@
             <version>${hutool.version}</version>
         </dependency>
 
+        <!-- Apache Commons Text（HTML 实体解码） -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.12.0</version>
+        </dependency>
+
         <!-- Jackson（JSON 序列化/反序列化） -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

@@ -1,628 +1,628 @@
-name: AI Multi-Review
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - ".gitignore"
-      - "**/.gitignore"
-      - "docs/**"
-      - "tests/**"
-      - "axiqra-project/**"
-      - ".github/workflows/*.yml"
-      - ".github/workflows/*.yaml"
-      - "**/*.mjs"
-      - "**/*.js"
-      - "**/*.py"
-      - "**/*.java"
-      - "**/*.xml"
-      - "**/*.yml"
-      - "**/*.yaml"
-      - "**/*.sql"
-      - "**/Dockerfile*"
-
-permissions:
-  pull-requests: read
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
-jobs:
-  prepare:
-    name: Prepare
-    runs-on: ubuntu-latest
-    outputs:
-      has_changes: ${{ steps.changes.outputs.has_changes }}
-      title: ${{ steps.info.outputs.title }}
-      author: ${{ steps.info.outputs.author }}
-      base: ${{ steps.info.outputs.base }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Get PR info
-        id: info
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          write_output() {
-            delimiter="ghadelimiter_$(openssl rand -hex 16)"
-            {
-              echo "$1<<$delimiter"
-              printf '%s\n' "$2"
-              echo "$delimiter"
-            } >> "$GITHUB_OUTPUT"
-          }
-          PR_TITLE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.title')
-          PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.user.login')
-          PR_BASE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.base.ref')
-          write_output "title" "$PR_TITLE"
-          write_output "author" "$PR_AUTHOR"
-          write_output "base" "$PR_BASE"
-
-      - name: Get PR diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          gh pr diff "$PR_NUMBER" > pr_changes.diff
-          echo "diff_size=$(wc -l < pr_changes.diff)" >> "$GITHUB_OUTPUT"
-
-      - name: Detect changes
-        id: changes
-        run: |
-          if [ -s pr_changes.diff ]; then
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "No changes detected; skipping all reviews."
-          fi
-
-  # Run all AI reviewers in parallel
-  codex:
-    name: Codex Review
-    runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.has_changes == 'true'
-    outputs:
-      review_body: ${{ steps.review.outputs.review_body }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Get diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
-
-      - name: Codex Review
-        id: review
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PR_TITLE: ${{ needs.prepare.outputs.title }}
-          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
-          PR_BASE: ${{ needs.prepare.outputs.base }}
-        run: |
-          if [ -z "$OPENAI_API_KEY" ] || [ -z "$API_BASE_URL" ]; then
-            echo "Skipping: API credentials not configured"
-            echo "review_body=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
-          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
-          DIFF_SIZE=$(wc -l < pr_changes.diff)
-
-          USER_CONTENT=$(printf '%s\n' \
-            "Review the following PR changes." \
-            "" \
-            "PR: $PR_INFO" \
-            "Author: $PR_AUTHOR" \
-            "Base branch: $PR_BASE" \
-            "Diff size: $DIFF_SIZE lines" \
-            "" \
-            "## Review Focus" \
-            "1. Security: hardcoded secrets, API key leaks, injection risks" \
-            "2. MCP protocol compliance: quota limits, error handling" \
-            "3. Error handling: async try/catch, proper HTTP status codes" \
-            "4. Test coverage: new code has corresponding tests" \
-            "5. Code quality: ESM imports, naming, error context" \
-            "" \
-            "## Output Format" \
-            "## Summary" \
-            "[One paragraph overview]" \
-            "" \
-            "## Critical Issues (must fix)" \
-            "- [file:line] - issue description" \
-            "" \
-            "## Suggestions (recommended)" \
-            "- [file:line] - suggestion description" \
-            "" \
-            "## Positive Highlights" \
-            "- What was done well" \
-            "" \
-            '```diff' \
-            "$DIFF_CONTENT" \
-            '```')
-
-          PAYLOAD=$(jq -n \
-            --arg model "gpt-4o-mini" \
-            --argjson max_tokens 2048 \
-            --argjson temperature 0.3 \
-            --arg system "You are an expert code reviewer for the Axiqra project. Axiqra is a knowledge engineering and memory system with MCP adapters, search service, audit/tracing, policy-based access control, and JSON store persistence. Review guidelines: 1) SECURITY FIRST: hardcoded secrets, API key leaks, injection risks. 2) MCP compliance: quota limits, error handling, protocol adherence. 3) Error handling: async try/catch, proper HTTP status codes. 4) Test coverage: new code has corresponding tests. 5) Code quality: ESM imports, naming conventions, error context. Output format (Markdown): ## Summary [brief overview] ## Critical Issues (block merge) - [file:line] - issue ## Suggestions (recommended) - [file:line] - suggestion ## Positive Highlights - what was done well. Be concise and actionable." \
-            --arg user "$USER_CONTENT" \
-            '{
-              model: $model,
-              max_tokens: $max_tokens,
-              temperature: $temperature,
-              messages: [
-                {role: "system", content: $system},
-                {role: "user", content: $user}
-              ]
-            }')
-
-          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST "$API_BASE_URL/v1/chat/completions" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -d "$PAYLOAD" 2>/dev/null); then
-            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
-            if [ -n "$REVIEW" ]; then
-              delimiter="ghadelimiter_$(openssl rand -hex 16)"
-              {
-                echo "review_body<<$delimiter"
-                printf '%s\n' "$REVIEW"
-                echo "$delimiter"
-              } >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-          echo "review_body=" >> "$GITHUB_OUTPUT"
-
-  agnes:
-    name: Agnes Review
-    runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.has_changes == 'true'
-    outputs:
-      review_body: ${{ steps.review.outputs.review_body }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Get diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
-
-      - name: Agnes Review
-        id: review
-        env:
-          API_BASE_URL: ${{ secrets.AGNES_API_BASE_URL }}
-          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
-          REVIEW_MODEL: ${{ secrets.AGNES_REVIEW_MODEL }}
-          PR_TITLE: ${{ needs.prepare.outputs.title }}
-          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
-          PR_BASE: ${{ needs.prepare.outputs.base }}
-        run: |
-          if [ -z "$AGNES_API_KEY" ] || [ -z "$API_BASE_URL" ]; then
-            echo "Skipping: API credentials not configured"
-            echo "review_body=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
-          MODEL="${REVIEW_MODEL:-agnes-2.0-flash}"
-          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
-          DIFF_SIZE=$(wc -l < pr_changes.diff)
-
-          USER_CONTENT=$(printf '%s\n' \
-            "Review the following PR changes." \
-            "" \
-            "PR: $PR_INFO" \
-            "Author: $PR_AUTHOR" \
-            "Base branch: $PR_BASE" \
-            "Diff size: $DIFF_SIZE lines" \
-            "" \
-            "## Review Focus" \
-            "1. Security: hardcoded secrets, API key leaks, injection risks" \
-            "2. MCP protocol compliance: quota limits, error handling" \
-            "3. Error handling: async try/catch, proper HTTP status codes" \
-            "4. Test coverage: new code has corresponding tests" \
-            "5. Code quality: ESM imports, naming, error context" \
-            "" \
-            "## Output Format" \
-            "## Summary" \
-            "[One paragraph overview]" \
-            "" \
-            "## Critical Issues (must fix)" \
-            "- [file:line] - issue description" \
-            "" \
-            "## Suggestions (recommended)" \
-            "- [file:line] - suggestion description" \
-            "" \
-            "## Positive Highlights" \
-            "- What was done well" \
-            "" \
-            '```diff' \
-            "$DIFF_CONTENT" \
-            '```')
-
-          PAYLOAD=$(jq -n \
-            --arg model "$MODEL" \
-            --argjson max_tokens 2048 \
-            --argjson temperature 0.3 \
-            --arg system "You are an expert code reviewer for the Axiqra project. Axiqra is a knowledge engineering and memory system with MCP adapters, search service, audit/tracing, policy-based access control, and JSON store persistence. Review guidelines: 1) SECURITY FIRST: hardcoded secrets, API key leaks, injection risks. 2) MCP compliance: quota limits, error handling, protocol adherence. 3) Error handling: async try/catch, proper HTTP status codes. 4) Test coverage: new code has corresponding tests. 5) Code quality: ESM imports, naming conventions, error context. Output format (Markdown): ## Summary [brief overview] ## Critical Issues (block merge) - [file:line] - issue ## Suggestions (recommended) - [file:line] - suggestion ## Positive Highlights - what was done well. Be concise and actionable." \
-            --arg user "$USER_CONTENT" \
-            '{
-              model: $model,
-              max_tokens: $max_tokens,
-              temperature: $temperature,
-              messages: [
-                {role: "system", content: $system},
-                {role: "user", content: $user}
-              ]
-            }')
-
-          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST "$API_BASE_URL/chat/completions" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $AGNES_API_KEY" \
-            -d "$PAYLOAD" 2>/dev/null); then
-            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
-            if [ -n "$REVIEW" ]; then
-              delimiter="ghadelimiter_$(openssl rand -hex 16)"
-              {
-                echo "review_body<<$delimiter"
-                printf '%s\n' "$REVIEW"
-                echo "$delimiter"
-              } >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-          echo "review_body=" >> "$GITHUB_OUTPUT"
-
-  gemini:
-    name: Gemini Review
-    runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.has_changes == 'true'
-    outputs:
-      review_body: ${{ steps.review.outputs.review_body }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Get diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
-
-      - name: Gemini Review
-        id: review
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PR_TITLE: ${{ needs.prepare.outputs.title }}
-          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
-          PR_BASE: ${{ needs.prepare.outputs.base }}
-        run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
-            echo "Skipping: GEMINI_API_KEY not configured"
-            echo "review_body=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
-          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
-          DIFF_SIZE=$(wc -l < pr_changes.diff)
-
-          REVIEW_TEXT=$(printf '%s\n' \
-            "You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Review the following PR changes." \
-            "" \
-            "PR: $PR_INFO" \
-            "Author: $PR_AUTHOR" \
-            "Base branch: $PR_BASE" \
-            "" \
-            "Review focus areas:" \
-            "1. Security: hardcoded secrets, API key leaks, injection risks" \
-            "2. MCP protocol compliance: quota limits, error handling" \
-            "3. Error handling: async try/catch, proper HTTP status codes" \
-            "4. Test coverage: new code has corresponding tests" \
-            "5. Code quality: ESM imports, naming, error context" \
-            "" \
-            "Provide your review in this format:" \
-            "## Summary" \
-            "[One paragraph overview]" \
-            "" \
-            "## Critical Issues (must fix)" \
-            "- [file:line] - issue description" \
-            "" \
-            "## Suggestions (recommended)" \
-            "- [file:line] - suggestion description" \
-            "" \
-            "## Positive Highlights" \
-            "- What was done well" \
-            "" \
-            "Diff size: $DIFF_SIZE lines" \
-            "Output format: Markdown" \
-            "" \
-            '```diff' \
-            "$DIFF_CONTENT" \
-            '```')
-
-          PAYLOAD=$(jq -n --arg text "$REVIEW_TEXT" \
-            '{contents: [{parts: [{text: $text}]}]}')
-
-          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
-            -H "x-goog-api-key: $GEMINI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" 2>/dev/null); then
-            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null || true)
-            if [ -n "$REVIEW" ]; then
-              delimiter="ghadelimiter_$(openssl rand -hex 16)"
-              {
-                echo "review_body<<$delimiter"
-                printf '%s\n' "$REVIEW"
-                echo "$delimiter"
-              } >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-          echo "review_body=" >> "$GITHUB_OUTPUT"
-
-  openrouter:
-    name: OpenRouter Review
-    runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.has_changes == 'true'
-    outputs:
-      review_body: ${{ steps.review.outputs.review_body }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Get diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
-
-      - name: OpenRouter Review
-        id: review
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          PR_TITLE: ${{ needs.prepare.outputs.title }}
-          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
-          PR_BASE: ${{ needs.prepare.outputs.base }}
-        run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "Skipping: OPENROUTER_API_KEY not configured"
-            echo "review_body=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
-          DIFF_CONTENT=$(head -c 120000 pr_changes.diff 2>/dev/null | iconv -f utf-8 -t utf-8 -c 2>/dev/null | cut -c1-120000)
-          [ -z "$DIFF_CONTENT" ] && DIFF_CONTENT=$(head -c 120000 pr_changes.diff 2>/dev/null || echo "[no diff]")
-          DIFF_SIZE=$(wc -l < pr_changes.diff)
-
-          USER_CONTENT=$(printf '%s\n' \
-            "Review the following PR changes." \
-            "" \
-            "PR: $PR_INFO" \
-            "Author: $PR_AUTHOR" \
-            "Base branch: $PR_BASE" \
-            "Diff size: $DIFF_SIZE lines" \
-            "" \
-            "## Review Focus" \
-            "1. Security: hardcoded secrets, API key leaks, injection risks" \
-            "2. MCP protocol compliance: quota limits, error handling" \
-            "3. Error handling: async try/catch, proper HTTP status codes" \
-            "4. Test coverage: new code has corresponding tests" \
-            "5. Code quality: ESM imports, naming, error context" \
-            "" \
-            "## Output Format" \
-            "## Summary" \
-            "[One paragraph overview]" \
-            "" \
-            "## Critical Issues (must fix)" \
-            "- [file:line] - issue description" \
-            "" \
-            "## Suggestions (recommended)" \
-            "- [file:line] - suggestion description" \
-            "" \
-            "## Positive Highlights" \
-            "- What was done well" \
-            "" \
-            "---" \
-            '```diff' \
-            "$DIFF_CONTENT" \
-            '```')
-
-          PAYLOAD=$(jq -n \
-            --arg model "openrouter/free" \
-            --argjson max_tokens 2048 \
-            --arg system "You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Provide concise, actionable feedback." \
-            --arg user "$USER_CONTENT" \
-            '{
-              model: $model,
-              max_tokens: $max_tokens,
-              messages: [
-                {role: "system", content: $system},
-                {role: "user", content: $user}
-              ]
-            }')
-
-          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST \
-            "https://openrouter.ai/api/v1/chat/completions" \
-            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -H "HTTP-Referer: https://github.com/zhangqiang8vipp/axiqra" \
-            -H "X-Title: Axiqra Code Review" \
-            -d "$PAYLOAD" 2>/dev/null); then
-            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
-            if [ -n "$REVIEW" ]; then
-              delimiter="ghadelimiter_$(openssl rand -hex 16)"
-              {
-                echo "review_body<<$delimiter"
-                printf '%s\n' "$REVIEW"
-                echo "$delimiter"
-              } >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-          echo "review_body=" >> "$GITHUB_OUTPUT"
-
-  # Wait for all reviews, then post them
-  post:
-    name: Post Reviews
-    runs-on: ubuntu-latest
-    needs: [codex, agnes, gemini, openrouter]
-    permissions:
-      pull-requests: write
-      contents: read
-    if: always()
-    steps:
-      - name: Dismiss stale CodeRabbit reviews
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
-            if (!prNumber) { return; }
-            const { owner, repo } = context.repo;
-            const reviews = await github.rest.pulls.listReviews({ owner, repo, pull_number: prNumber });
-            for (const r of reviews.data) {
-              if (r.user.login === 'coderabbitai[bot]' && (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED')) {
-                await github.rest.pulls.dismissReview({
-                  owner, repo, pull_number: prNumber,
-                  review_id: r.id,
-                  message: 'Dismissed by workflow: posting fresh review',
-                });
-              }
-            }
-
-      - name: Post Codex Review
-        if: needs.codex.outputs.review_body != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          REVIEW_BODY: ${{ needs.codex.outputs.review_body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const reviewBody = process.env.REVIEW_BODY;
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
-            if (prNumber && reviewBody) {
-              const marker = 'Reviewed by Codex AI';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
-                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
-                }
-              }
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: prNumber,
-                body: `${reviewBody}\n\n---\n*Reviewed by Codex AI (gpt-4o-mini)*`,
-              });
-            }
-
-      - name: Post Agnes Review
-        if: needs.agnes.outputs.review_body != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          REVIEW_BODY: ${{ needs.agnes.outputs.review_body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REVIEW_MODEL: ${{ secrets.AGNES_REVIEW_MODEL }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const reviewBody = process.env.REVIEW_BODY;
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
-            const model = process.env.REVIEW_MODEL || 'default';
-            if (prNumber && reviewBody) {
-              const marker = 'Reviewed by Agnes AI';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
-                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
-                }
-              }
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: prNumber,
-                body: `${reviewBody}\n\n---\n*Reviewed by Agnes AI (${model})*`,
-              });
-            }
-
-      - name: Post Gemini Review
-        if: needs.gemini.outputs.review_body != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          REVIEW_BODY: ${{ needs.gemini.outputs.review_body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const reviewBody = process.env.REVIEW_BODY;
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
-            if (prNumber && reviewBody) {
-              const marker = 'Reviewed by Gemini AI';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
-                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
-                }
-              }
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: prNumber,
-                body: `${reviewBody}\n\n---\n*Reviewed by Gemini AI*`,
-              });
-            }
-
-      - name: Post OpenRouter Review
-        if: needs.openrouter.outputs.review_body != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          REVIEW_BODY: ${{ needs.openrouter.outputs.review_body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const reviewBody = process.env.REVIEW_BODY;
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
-            if (prNumber && reviewBody) {
-              const marker = 'Reviewed by OpenRouter';
-              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
-              for (const c of comments.data) {
-                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
-                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
-                }
-              }
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: prNumber,
-                body: `${reviewBody}\n\n---\n*Reviewed by OpenRouter (openrouter/free model)*`,
-              });
-            }
+name: AI Multi-Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".gitignore"
+      - "**/.gitignore"
+      - "docs/**"
+      - "tests/**"
+      - "axiqra-project/**"
+      - ".github/workflows/*.yml"
+      - ".github/workflows/*.yaml"
+      - "**/*.mjs"
+      - "**/*.js"
+      - "**/*.py"
+      - "**/*.java"
+      - "**/*.xml"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - "**/*.sql"
+      - "**/Dockerfile*"
+
+permissions:
+  pull-requests: read
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      title: ${{ steps.info.outputs.title }}
+      author: ${{ steps.info.outputs.author }}
+      base: ${{ steps.info.outputs.base }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get PR info
+        id: info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          write_output() {
+            delimiter="ghadelimiter_$(openssl rand -hex 16)"
+            {
+              echo "$1<<$delimiter"
+              printf '%s\n' "$2"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          }
+          PR_TITLE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.title')
+          PR_AUTHOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.user.login')
+          PR_BASE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.base.ref')
+          write_output "title" "$PR_TITLE"
+          write_output "author" "$PR_AUTHOR"
+          write_output "base" "$PR_BASE"
+
+      - name: Get PR diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr diff "$PR_NUMBER" > pr_changes.diff
+          echo "diff_size=$(wc -l < pr_changes.diff)" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if [ -s pr_changes.diff ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected; skipping all reviews."
+          fi
+
+  # Run all AI reviewers in parallel
+  codex:
+    name: Codex Review
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    outputs:
+      review_body: ${{ steps.review.outputs.review_body }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
+
+      - name: Codex Review
+        id: review
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PR_TITLE: ${{ needs.prepare.outputs.title }}
+          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
+          PR_BASE: ${{ needs.prepare.outputs.base }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ] || [ -z "$API_BASE_URL" ]; then
+            echo "Skipping: API credentials not configured"
+            echo "review_body=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
+          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
+          DIFF_SIZE=$(wc -l < pr_changes.diff)
+
+          USER_CONTENT=$(printf '%s\n' \
+            "Review the following PR changes." \
+            "" \
+            "PR: $PR_INFO" \
+            "Author: $PR_AUTHOR" \
+            "Base branch: $PR_BASE" \
+            "Diff size: $DIFF_SIZE lines" \
+            "" \
+            "## Review Focus" \
+            "1. Security: hardcoded secrets, API key leaks, injection risks" \
+            "2. MCP protocol compliance: quota limits, error handling" \
+            "3. Error handling: async try/catch, proper HTTP status codes" \
+            "4. Test coverage: new code has corresponding tests" \
+            "5. Code quality: ESM imports, naming, error context" \
+            "" \
+            "## Output Format" \
+            "## Summary" \
+            "[One paragraph overview]" \
+            "" \
+            "## Critical Issues (must fix)" \
+            "- [file:line] - issue description" \
+            "" \
+            "## Suggestions (recommended)" \
+            "- [file:line] - suggestion description" \
+            "" \
+            "## Positive Highlights" \
+            "- What was done well" \
+            "" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```')
+
+          PAYLOAD=$(jq -n \
+            --arg model "gpt-4o-mini" \
+            --argjson max_tokens 2048 \
+            --argjson temperature 0.3 \
+            --arg system "You are an expert code reviewer for the Axiqra project. Axiqra is a knowledge engineering and memory system with MCP adapters, search service, audit/tracing, policy-based access control, and JSON store persistence. Review guidelines: 1) SECURITY FIRST: hardcoded secrets, API key leaks, injection risks. 2) MCP compliance: quota limits, error handling, protocol adherence. 3) Error handling: async try/catch, proper HTTP status codes. 4) Test coverage: new code has corresponding tests. 5) Code quality: ESM imports, naming conventions, error context. Output format (Markdown): ## Summary [brief overview] ## Critical Issues (block merge) - [file:line] - issue ## Suggestions (recommended) - [file:line] - suggestion ## Positive Highlights - what was done well. Be concise and actionable." \
+            --arg user "$USER_CONTENT" \
+            '{
+              model: $model,
+              max_tokens: $max_tokens,
+              temperature: $temperature,
+              messages: [
+                {role: "system", content: $system},
+                {role: "user", content: $user}
+              ]
+            }')
+
+          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST "$API_BASE_URL/v1/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -d "$PAYLOAD" 2>/dev/null); then
+            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+            if [ -n "$REVIEW" ]; then
+              delimiter="ghadelimiter_$(openssl rand -hex 16)"
+              {
+                echo "review_body<<$delimiter"
+                printf '%s\n' "$REVIEW"
+                echo "$delimiter"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "review_body=" >> "$GITHUB_OUTPUT"
+
+  agnes:
+    name: Agnes Review
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    outputs:
+      review_body: ${{ steps.review.outputs.review_body }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
+
+      - name: Agnes Review
+        id: review
+        env:
+          API_BASE_URL: ${{ secrets.AGNES_API_BASE_URL }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          REVIEW_MODEL: ${{ secrets.AGNES_REVIEW_MODEL }}
+          PR_TITLE: ${{ needs.prepare.outputs.title }}
+          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
+          PR_BASE: ${{ needs.prepare.outputs.base }}
+        run: |
+          if [ -z "$AGNES_API_KEY" ] || [ -z "$API_BASE_URL" ]; then
+            echo "Skipping: API credentials not configured"
+            echo "review_body=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
+          MODEL="${REVIEW_MODEL:-agnes-2.0-flash}"
+          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
+          DIFF_SIZE=$(wc -l < pr_changes.diff)
+
+          USER_CONTENT=$(printf '%s\n' \
+            "Review the following PR changes." \
+            "" \
+            "PR: $PR_INFO" \
+            "Author: $PR_AUTHOR" \
+            "Base branch: $PR_BASE" \
+            "Diff size: $DIFF_SIZE lines" \
+            "" \
+            "## Review Focus" \
+            "1. Security: hardcoded secrets, API key leaks, injection risks" \
+            "2. MCP protocol compliance: quota limits, error handling" \
+            "3. Error handling: async try/catch, proper HTTP status codes" \
+            "4. Test coverage: new code has corresponding tests" \
+            "5. Code quality: ESM imports, naming, error context" \
+            "" \
+            "## Output Format" \
+            "## Summary" \
+            "[One paragraph overview]" \
+            "" \
+            "## Critical Issues (must fix)" \
+            "- [file:line] - issue description" \
+            "" \
+            "## Suggestions (recommended)" \
+            "- [file:line] - suggestion description" \
+            "" \
+            "## Positive Highlights" \
+            "- What was done well" \
+            "" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```')
+
+          PAYLOAD=$(jq -n \
+            --arg model "$MODEL" \
+            --argjson max_tokens 2048 \
+            --argjson temperature 0.3 \
+            --arg system "You are an expert code reviewer for the Axiqra project. Axiqra is a knowledge engineering and memory system with MCP adapters, search service, audit/tracing, policy-based access control, and JSON store persistence. Review guidelines: 1) SECURITY FIRST: hardcoded secrets, API key leaks, injection risks. 2) MCP compliance: quota limits, error handling, protocol adherence. 3) Error handling: async try/catch, proper HTTP status codes. 4) Test coverage: new code has corresponding tests. 5) Code quality: ESM imports, naming conventions, error context. Output format (Markdown): ## Summary [brief overview] ## Critical Issues (block merge) - [file:line] - issue ## Suggestions (recommended) - [file:line] - suggestion ## Positive Highlights - what was done well. Be concise and actionable." \
+            --arg user "$USER_CONTENT" \
+            '{
+              model: $model,
+              max_tokens: $max_tokens,
+              temperature: $temperature,
+              messages: [
+                {role: "system", content: $system},
+                {role: "user", content: $user}
+              ]
+            }')
+
+          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST "$API_BASE_URL/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $AGNES_API_KEY" \
+            -d "$PAYLOAD" 2>/dev/null); then
+            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+            if [ -n "$REVIEW" ]; then
+              delimiter="ghadelimiter_$(openssl rand -hex 16)"
+              {
+                echo "review_body<<$delimiter"
+                printf '%s\n' "$REVIEW"
+                echo "$delimiter"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "review_body=" >> "$GITHUB_OUTPUT"
+
+  gemini:
+    name: Gemini Review
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    outputs:
+      review_body: ${{ steps.review.outputs.review_body }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
+
+      - name: Gemini Review
+        id: review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_TITLE: ${{ needs.prepare.outputs.title }}
+          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
+          PR_BASE: ${{ needs.prepare.outputs.base }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "Skipping: GEMINI_API_KEY not configured"
+            echo "review_body=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
+          DIFF_CONTENT=$(head -c 80000 pr_changes.diff 2>/dev/null || echo "[no diff]")
+          DIFF_SIZE=$(wc -l < pr_changes.diff)
+
+          REVIEW_TEXT=$(printf '%s\n' \
+            "You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Review the following PR changes." \
+            "" \
+            "PR: $PR_INFO" \
+            "Author: $PR_AUTHOR" \
+            "Base branch: $PR_BASE" \
+            "" \
+            "Review focus areas:" \
+            "1. Security: hardcoded secrets, API key leaks, injection risks" \
+            "2. MCP protocol compliance: quota limits, error handling" \
+            "3. Error handling: async try/catch, proper HTTP status codes" \
+            "4. Test coverage: new code has corresponding tests" \
+            "5. Code quality: ESM imports, naming, error context" \
+            "" \
+            "Provide your review in this format:" \
+            "## Summary" \
+            "[One paragraph overview]" \
+            "" \
+            "## Critical Issues (must fix)" \
+            "- [file:line] - issue description" \
+            "" \
+            "## Suggestions (recommended)" \
+            "- [file:line] - suggestion description" \
+            "" \
+            "## Positive Highlights" \
+            "- What was done well" \
+            "" \
+            "Diff size: $DIFF_SIZE lines" \
+            "Output format: Markdown" \
+            "" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```')
+
+          PAYLOAD=$(jq -n --arg text "$REVIEW_TEXT" \
+            '{contents: [{parts: [{text: $text}]}]}')
+
+          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
+            -H "x-goog-api-key: $GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" 2>/dev/null); then
+            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null || true)
+            if [ -n "$REVIEW" ]; then
+              delimiter="ghadelimiter_$(openssl rand -hex 16)"
+              {
+                echo "review_body<<$delimiter"
+                printf '%s\n' "$REVIEW"
+                echo "$delimiter"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "review_body=" >> "$GITHUB_OUTPUT"
+
+  openrouter:
+    name: OpenRouter Review
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    outputs:
+      review_body: ${{ steps.review.outputs.review_body }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr diff "$PR_NUMBER" > pr_changes.diff
+
+      - name: OpenRouter Review
+        id: review
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PR_TITLE: ${{ needs.prepare.outputs.title }}
+          PR_AUTHOR: ${{ needs.prepare.outputs.author }}
+          PR_BASE: ${{ needs.prepare.outputs.base }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "Skipping: OPENROUTER_API_KEY not configured"
+            echo "review_body=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_INFO="${{ github.event.pull_request.number }} - $PR_TITLE"
+          DIFF_CONTENT=$(head -c 120000 pr_changes.diff 2>/dev/null | iconv -f utf-8 -t utf-8 -c 2>/dev/null | cut -c1-120000)
+          [ -z "$DIFF_CONTENT" ] && DIFF_CONTENT=$(head -c 120000 pr_changes.diff 2>/dev/null || echo "[no diff]")
+          DIFF_SIZE=$(wc -l < pr_changes.diff)
+
+          USER_CONTENT=$(printf '%s\n' \
+            "Review the following PR changes." \
+            "" \
+            "PR: $PR_INFO" \
+            "Author: $PR_AUTHOR" \
+            "Base branch: $PR_BASE" \
+            "Diff size: $DIFF_SIZE lines" \
+            "" \
+            "## Review Focus" \
+            "1. Security: hardcoded secrets, API key leaks, injection risks" \
+            "2. MCP protocol compliance: quota limits, error handling" \
+            "3. Error handling: async try/catch, proper HTTP status codes" \
+            "4. Test coverage: new code has corresponding tests" \
+            "5. Code quality: ESM imports, naming, error context" \
+            "" \
+            "## Output Format" \
+            "## Summary" \
+            "[One paragraph overview]" \
+            "" \
+            "## Critical Issues (must fix)" \
+            "- [file:line] - issue description" \
+            "" \
+            "## Suggestions (recommended)" \
+            "- [file:line] - suggestion description" \
+            "" \
+            "## Positive Highlights" \
+            "- What was done well" \
+            "" \
+            "---" \
+            '```diff' \
+            "$DIFF_CONTENT" \
+            '```')
+
+          PAYLOAD=$(jq -n \
+            --arg model "openrouter/free" \
+            --argjson max_tokens 2048 \
+            --arg system "You are an expert code reviewer for the Axiqra project (a knowledge engineering and memory system). Provide concise, actionable feedback." \
+            --arg user "$USER_CONTENT" \
+            '{
+              model: $model,
+              max_tokens: $max_tokens,
+              messages: [
+                {role: "system", content: $system},
+                {role: "user", content: $user}
+              ]
+            }')
+
+          if RESPONSE=$(curl --fail-with-body --silent --max-time 60 -X POST \
+            "https://openrouter.ai/api/v1/chat/completions" \
+            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -H "HTTP-Referer: https://github.com/zhangqiang8vipp/axiqra" \
+            -H "X-Title: Axiqra Code Review" \
+            -d "$PAYLOAD" 2>/dev/null); then
+            REVIEW=$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+            if [ -n "$REVIEW" ]; then
+              delimiter="ghadelimiter_$(openssl rand -hex 16)"
+              {
+                echo "review_body<<$delimiter"
+                printf '%s\n' "$REVIEW"
+                echo "$delimiter"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "review_body=" >> "$GITHUB_OUTPUT"
+
+  # Wait for all reviews, then post them
+  post:
+    name: Post Reviews
+    runs-on: ubuntu-latest
+    needs: [codex, agnes, gemini, openrouter]
+    permissions:
+      pull-requests: write
+      contents: read
+    if: always()
+    steps:
+      - name: Dismiss stale CodeRabbit reviews
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            if (!prNumber) { return; }
+            const { owner, repo } = context.repo;
+            const reviews = await github.rest.pulls.listReviews({ owner, repo, pull_number: prNumber });
+            for (const r of reviews.data) {
+              if (r.user.login === 'coderabbitai[bot]' && (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED')) {
+                await github.rest.pulls.dismissReview({
+                  owner, repo, pull_number: prNumber,
+                  review_id: r.id,
+                  message: 'Dismissed by workflow: posting fresh review',
+                });
+              }
+            }
+
+      - name: Post Codex Review
+        if: needs.codex.outputs.review_body != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REVIEW_BODY: ${{ needs.codex.outputs.review_body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const reviewBody = process.env.REVIEW_BODY;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            if (prNumber && reviewBody) {
+              const marker = 'Reviewed by Codex AI';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber,
+                body: `${reviewBody}\n\n---\n*Reviewed by Codex AI (gpt-4o-mini)*`,
+              });
+            }
+
+      - name: Post Agnes Review
+        if: needs.agnes.outputs.review_body != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REVIEW_BODY: ${{ needs.agnes.outputs.review_body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEW_MODEL: ${{ secrets.AGNES_REVIEW_MODEL }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const reviewBody = process.env.REVIEW_BODY;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const model = process.env.REVIEW_MODEL || 'default';
+            if (prNumber && reviewBody) {
+              const marker = 'Reviewed by Agnes AI';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber,
+                body: `${reviewBody}\n\n---\n*Reviewed by Agnes AI (${model})*`,
+              });
+            }
+
+      - name: Post Gemini Review
+        if: needs.gemini.outputs.review_body != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REVIEW_BODY: ${{ needs.gemini.outputs.review_body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const reviewBody = process.env.REVIEW_BODY;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            if (prNumber && reviewBody) {
+              const marker = 'Reviewed by Gemini AI';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber,
+                body: `${reviewBody}\n\n---\n*Reviewed by Gemini AI*`,
+              });
+            }
+
+      - name: Post OpenRouter Review
+        if: needs.openrouter.outputs.review_body != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REVIEW_BODY: ${{ needs.openrouter.outputs.review_body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const reviewBody = process.env.REVIEW_BODY;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            if (prNumber && reviewBody) {
+              const marker = 'Reviewed by OpenRouter';
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+              for (const c of comments.data) {
+                if (c.user.login === 'github-actions[bot]' && c.body.includes(marker)) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: c.id });
+                }
+              }
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber,
+                body: `${reviewBody}\n\n---\n*Reviewed by OpenRouter (openrouter/free model)*`,
+              });
+            }

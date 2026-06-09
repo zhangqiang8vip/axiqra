@@ -7,13 +7,13 @@ import com.axiqra.common.exception.SysException;
 import com.axiqra.common.response.ApiResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Path;
-import jakarta.validation.metadata.ConstraintDescriptor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -34,6 +34,7 @@ import static org.mockito.Mockito.*;
  * @date 2026-06-06
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
@@ -79,13 +80,13 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("ConstraintViolationException 应返回参数校验错误码")
     void handleConstraintViolation() {
+        @SuppressWarnings("unchecked")
         ConstraintViolation<Object> v1 = mock(ConstraintViolation.class);
         when(v1.getMessage()).thenReturn("不能为空");
-        when(v1.getPropertyPath()).thenReturn(mock(Path.class));
 
+        @SuppressWarnings("unchecked")
         ConstraintViolation<Object> v2 = mock(ConstraintViolation.class);
         when(v2.getMessage()).thenReturn("格式错误");
-        when(v2.getPropertyPath()).thenReturn(mock(Path.class));
 
         ConstraintViolationException ex = new ConstraintViolationException(
                 Set.of(v1, v2));

@@ -4,6 +4,8 @@ import com.axiqra.common.domain.entity.ConnectSessionEntity;
 import com.axiqra.common.domain.vo.ConnectDoctorVO;
 import com.axiqra.common.domain.vo.ConnectSessionEventVO;
 import com.axiqra.common.domain.vo.ConnectSessionVO;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.port.ConnectSessionPort;
 import com.axiqra.core.mapper.ConnectSessionMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,6 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -29,9 +32,18 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
     private final ConnectSessionMapper connectSessionMapper;
     private final ObjectMapper objectMapper;
 
+    @Value("${axiqra.tenant.id:0}")
+    private Long tenantId;
+
     @Override
     public void save(ConnectSessionVO session) {
         validateSession(session);
+        if (session.getUserId() != null && tenantId > 0) {
+            ConnectSessionEntity existing = connectSessionMapper.selectBySessionId(session.getSessionId());
+            if (existing != null && !tenantId.equals(existing.getTenantId())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "无权操作其他租户的 session");
+            }
+        }
         connectSessionMapper.insert(toEntity(session));
     }
 

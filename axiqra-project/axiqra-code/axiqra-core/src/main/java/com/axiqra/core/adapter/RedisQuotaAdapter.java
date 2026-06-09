@@ -2,8 +2,10 @@ package com.axiqra.core.adapter;
 
 import com.axiqra.common.port.QuotaInfo;
 import com.axiqra.common.port.QuotaPort;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -20,8 +22,8 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class RedisQuotaAdapter implements QuotaPort {
 
-    private static final int DAILY_LIMIT = 2000;
     private static final Duration DEFAULT_TTL = Duration.ofDays(2);
+    private static final int MAX_RETRY_ATTEMPTS = 3;
     private static final String CONSUME_QUOTA_SCRIPT = "local current = redis.call('GET', KEYS[1]) "
             + "if current and tonumber(current) >= tonumber(ARGV[1]) then return 0 end "
             + "local newVal = redis.call('INCR', KEYS[1]) "
@@ -30,26 +32,49 @@ public class RedisQuotaAdapter implements QuotaPort {
 
     private final StringRedisTemplate stringRedisTemplate;
 
+    @Value("${axiqra.quota.daily-limit:2000}")
+    private int dailyLimit;
+
+    @Value("${axiqra.quota.ttl-hours:48}")
+    private int ttlHours;
+
     @Override
     public QuotaInfo getQuotaInfo(Long userId) {
         int used = getUsedQuota(userId);
-        return QuotaInfo.of(used, DAILY_LIMIT);
+        return QuotaInfo.of(used, dailyLimit);
     }
 
+    @Retry(name = "quotaRetry")
     @Override
     public boolean tryConsumeQuota(Long userId) {
-        try {
-            Long result = stringRedisTemplate.execute(
-                    RedisScript.of(CONSUME_QUOTA_SCRIPT, Long.class),
-                    Collections.singletonList(quotaKey(userId)),
-                    String.valueOf(DAILY_LIMIT),
-                    String.valueOf(ttlUntilNextReset().getSeconds())
-            );
-            return result != null && result > 0 && result <= DAILY_LIMIT;
-        } catch (DataAccessException e) {
-            log.warn("consume quota failed for userId={}: {}", userId, e.getMessage());
-            return false;
+        int attempt = 0;
+        DataAccessException lastException = null;
+        while (attempt < MAX_RETRY_ATTEMPTS) {
+            try {
+                Long result = stringRedisTemplate.execute(
+                        RedisScript.of(CONSUME_QUOTA_SCRIPT, Long.class),
+                        Collections.singletonList(quotaKey(userId)),
+                        String.valueOf(dailyLimit),
+                        String.valueOf(ttlUntilNextReset().getSeconds())
+                );
+                return result != null && result > 0 && result <= dailyLimit;
+            } catch (DataAccessException e) {
+                lastException = e;
+                attempt++;
+                log.warn("consume quota failed for userId={}, attempt={}/{}: {}",
+                        userId, attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
+                if (attempt < MAX_RETRY_ATTEMPTS) {
+                    try {
+                        Thread.sleep((long) Math.pow(2, attempt) * 100L);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                }
+            }
         }
+        log.error("consume quota exhausted retries for userId={}, last error: {}", userId, lastException != null ? lastException.getMessage() : "unknown");
+        return false;
     }
 
     @Override
@@ -79,6 +104,9 @@ public class RedisQuotaAdapter implements QuotaPort {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime nextReset = now.plusDays(1).truncatedTo(ChronoUnit.DAYS);
         Duration ttl = Duration.between(now, nextReset);
-        return ttl.isNegative() || ttl.isZero() ? DEFAULT_TTL : ttl;
+        if (ttl.isNegative() || ttl.isZero()) {
+            return Duration.ofHours(ttlHours > 0 ? ttlHours : 48);
+        }
+        return ttl;
     }
 }

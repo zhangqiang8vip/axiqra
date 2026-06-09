@@ -2,7 +2,6 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.audit.AuditPort;
 import com.axiqra.common.domain.dto.ConnectSessionCreateRequest;
-import com.axiqra.common.domain.entity.MembershipEntity;
 import com.axiqra.common.domain.vo.ConnectDoctorVO;
 import com.axiqra.common.domain.vo.ConnectSessionEventVO;
 import com.axiqra.common.domain.vo.ConnectSessionVO;
@@ -14,6 +13,7 @@ import com.axiqra.core.service.QuotaService;
 import com.axiqra.core.service.RateLimitService;
 import com.axiqra.core.service.RbacService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +21,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ConnectServiceImpl implements ConnectService {
@@ -42,7 +43,7 @@ public class ConnectServiceImpl implements ConnectService {
         OffsetDateTime expiresAt = createdAt.plusHours(1);
         String reason = "doctor=" + doctor.getStatus();
         ConnectSessionVO session = ConnectSessionVO.builder()
-                .sessionId(UUID.randomUUID().toString())
+                .sessionId(UUID.randomUUID().toString().replace("-", ""))
                 .userId(userId)
                 .channel(request.getChannel())
                 .toolType(request.getToolType())
@@ -128,21 +129,24 @@ public class ConnectServiceImpl implements ConnectService {
     }
 
     private boolean hasWorkspaceAccess(Long userId, Long workspaceId) {
-        List<MembershipEntity> memberships = rbacService.getMemberships(userId);
-        if (memberships == null) {
-            return false;
+        if (workspaceId == null) {
+            return true;
         }
-        return memberships.stream()
-                .filter(membership -> membership != null && workspaceId.equals(membership.getWorkspaceId()))
-                .findFirst()
-                .isPresent();
+        return rbacService.isMember(userId, workspaceId);
     }
 
     private String doctorStatusToSessionStatus(String doctorStatus) {
+        if (doctorStatus == null) {
+            log.warn("unknown doctor status: null, defaulting to BLOCKED");
+            return "BLOCKED";
+        }
         return switch (doctorStatus) {
             case "PASS" -> "READY";
             case "WARN" -> "DEGRADED";
-            default -> "BLOCKED";
+            default -> {
+                log.warn("unexpected doctor status: {}, mapping to BLOCKED", doctorStatus);
+                yield "BLOCKED";
+            }
         };
     }
 

@@ -2,8 +2,6 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.audit.AuditPort;
 import com.axiqra.common.domain.dto.ConnectSessionCreateRequest;
-import com.axiqra.common.domain.entity.MembershipEntity;
-import com.axiqra.common.domain.enums.MemberRole;
 import com.axiqra.common.port.ConnectSessionPort;
 import com.axiqra.core.service.QuotaService;
 import com.axiqra.core.service.RateLimitService;
@@ -43,10 +41,7 @@ class ConnectServiceImplTest {
     void doctorShouldReturnEightChecks() {
         when(rbacService.hasScope(1L, "connect:read")).thenReturn(true);
         when(rbacService.hasScope(1L, "connect:write")).thenReturn(true);
-        MembershipEntity membership = new MembershipEntity();
-        membership.setWorkspaceId(100L);
-        membership.setRole(MemberRole.ADMIN.getCode());
-        when(rbacService.getMemberships(1L)).thenReturn(List.of(membership));
+        when(rbacService.isMember(1L, 100L)).thenReturn(true);
 
         var doctor = connectService.runDoctor(1L, "cli", "mcp", 100L);
 
@@ -58,9 +53,9 @@ class ConnectServiceImplTest {
     void createSessionShouldConsumeQuotaAndReturnReadySession() {
         when(rbacService.hasScope(1L, "connect:read")).thenReturn(true);
         when(rbacService.hasScope(1L, "connect:write")).thenReturn(true);
-        MembershipEntity membership = new MembershipEntity();
-        membership.setWorkspaceId(100L);
-        when(rbacService.getMemberships(1L)).thenReturn(List.of(membership));
+        when(rbacService.isMember(1L, 100L)).thenReturn(true);
+        when(quotaService.consumeOrThrow(1L, "connect_session_daily")).thenReturn(null);
+        when(rateLimitService.checkOrThrow(1L, "connect:create")).thenReturn(null);
 
         ConnectSessionCreateRequest request = new ConnectSessionCreateRequest();
         request.setChannel("cli");

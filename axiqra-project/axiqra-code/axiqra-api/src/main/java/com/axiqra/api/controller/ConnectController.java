@@ -6,6 +6,8 @@ import com.axiqra.common.domain.vo.ConnectDoctorVO;
 import com.axiqra.common.domain.vo.ConnectSessionVO;
 import com.axiqra.common.domain.vo.QuotaStatusVO;
 import com.axiqra.common.domain.vo.RateLimitStatusVO;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.response.ApiResponse;
 import com.axiqra.core.service.ConnectService;
 import com.axiqra.core.service.QuotaService;
@@ -61,8 +63,20 @@ public class ConnectController {
                                                @RequestParam String toolType,
                                                @RequestParam(required = false) Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
+        if (!ALLOWED_CHANNELS.contains(channel)) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "channel 值非法: " + channel);
+        }
+        if (!ALLOWED_TOOL_TYPES.contains(toolType)) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "toolType 值非法: " + toolType);
+        }
         return ApiResponse.ok(connectService.runDoctor(userId, channel, toolType, workspaceId));
     }
+
+    private static final java.util.Set<String> ALLOWED_CHANNELS =
+            java.util.Set.of("mcp", "cli", "api", "webhook", "plugin");
+
+    private static final java.util.Set<String> ALLOWED_TOOL_TYPES =
+            java.util.Set.of("mcp", "database", "search", "storage", "compute", "integration", "messaging", "monitoring", "ai");
 
     @GetMapping("/sessions")
     @Operation(summary = "查询我的 Connect 会话列表")

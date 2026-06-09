@@ -6,6 +6,8 @@ import com.axiqra.common.domain.vo.ConnectSessionEventVO;
 import com.axiqra.common.domain.vo.ConnectSessionVO;
 import com.axiqra.common.domain.vo.QuotaStatusVO;
 import com.axiqra.common.domain.vo.RateLimitStatusVO;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.service.ConnectService;
 import com.axiqra.core.service.QuotaService;
 import com.axiqra.core.service.RateLimitService;
@@ -92,6 +94,31 @@ class ConnectControllerTest {
 
         assertEquals("PASS", result.getData().getStatus());
         verify(connectService).runDoctor(1L, "cli", "mcp", 100L);
+    }
+
+    @Test
+    void doctorShouldRejectInvalidToolType() {
+        BizException ex = assertThrows(BizException.class, () -> controller.doctor("cli", "invalid-tool", 100L));
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        verifyNoInteractions(connectService);
+    }
+
+    @Test
+    void createShouldSkipRetryHeaderWhenRateLimitStatusIsNull() {
+        ConnectSessionCreateRequest request = new ConnectSessionCreateRequest();
+        request.setChannel("cli");
+        request.setToolType("mcp");
+        request.setTargetType("solution");
+        request.setTargetId(101L);
+
+        ConnectSessionVO session = sampleSession();
+        when(rateLimitService.checkOrThrow(1L, "connect:create")).thenReturn(null);
+        when(connectService.createSession(1L, request)).thenReturn(session);
+
+        var result = controller.create(request, response);
+
+        assertEquals("s-1", result.getData().getSessionId());
+        verify(response, never()).setHeader(eq("Retry-After"), anyString());
     }
 
     @Test

@@ -61,7 +61,7 @@ public class ConnectServiceImpl implements ConnectService {
 
         connectSessionPort.save(session);
         auditPort.logInvocation(new AuditPort.InvocationEvent(
-                MDC.get("traceId"),
+                traceId(),
                 request.getChannel(),
                 request.getToolType(),
                 userId,
@@ -157,5 +157,10 @@ public class ConnectServiceImpl implements ConnectService {
                 .passed(passed)
                 .detail(detail)
                 .build();
+    }
+
+    private String traceId() {
+        String traceId = MDC.get("traceId");
+        return traceId == null || traceId.isBlank() ? "missing-trace-id" : traceId;
     }
 }

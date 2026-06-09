@@ -39,7 +39,7 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
     public void save(ConnectSessionVO session) {
         validateSession(session);
         if (session.getUserId() != null && tenantId > 0) {
-            ConnectSessionEntity existing = connectSessionMapper.selectBySessionId(session.getSessionId());
+            ConnectSessionEntity existing = connectSessionMapper.selectBySessionId(session.getSessionId(), normalizedTenantId());
             if (existing != null && !tenantId.equals(existing.getTenantId())) {
                 throw new BizException(ErrorCode.FORBIDDEN, "无权操作其他租户的 session");
             }
@@ -49,13 +49,13 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
 
     @Override
     public Optional<ConnectSessionVO> get(String sessionId) {
-        ConnectSessionEntity entity = connectSessionMapper.selectBySessionId(sessionId);
+        ConnectSessionEntity entity = connectSessionMapper.selectBySessionId(sessionId, normalizedTenantId());
         return Optional.ofNullable(entity).map(this::toView);
     }
 
     @Override
     public List<ConnectSessionVO> listByUser(Long userId) {
-        return connectSessionMapper.selectByUserId(userId).stream()
+        return connectSessionMapper.selectByUserId(userId, normalizedTenantId()).stream()
                 .map(this::toView)
                 .toList();
     }
@@ -76,9 +76,14 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
                 .setDoctorStatus(session.getDoctor() == null ? null : session.getDoctor().getStatus())
                 .setDoctorSnapshot(toJson(session.getDoctor()))
                 .setHistorySnapshot(toJson(session.getHistory()));
+        entity.setTenantId(normalizedTenantId());
         entity.setGmtCreate(session.getCreatedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC).toInstant() : session.getCreatedAt().toInstant());
         entity.setGmtModified(OffsetDateTime.now(ZoneOffset.UTC).toInstant());
         return entity;
+    }
+
+    private Long normalizedTenantId() {
+        return tenantId != null ? tenantId : 0L;
     }
 
     private ConnectSessionVO toView(ConnectSessionEntity entity) {

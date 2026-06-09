@@ -99,7 +99,9 @@ public class ConnectController {
         long userId = StpUtil.getLoginIdAsLong();
         RateLimitStatusVO rateLimitStatus = rateLimitService.checkOrThrow(userId, "connect:create");
         ConnectSessionVO session = connectService.createSession(userId, request);
-        response.setHeader(RETRY_AFTER_HEADER, String.valueOf(rateLimitStatus.getRetryAfterSeconds()));
+        if (rateLimitStatus != null) {
+            response.setHeader(RETRY_AFTER_HEADER, String.valueOf(rateLimitStatus.getRetryAfterSeconds()));
+        }
         log.info("创建 Connect 会话: sessionId={}, userId={}", session.getSessionId(), userId);
         return ApiResponse.ok(session);
     }

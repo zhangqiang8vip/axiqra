@@ -52,7 +52,11 @@ public class RateLimitServiceImpl implements RateLimitService {
         ));
 
         if (limited) {
-            throw new BizException(ErrorCode.RATE_LIMITED, "请求过于频繁，请稍后重试（retry_after=" + retryAfter + "）");
+            throw new BizException(
+                    ErrorCode.RATE_LIMITED,
+                    "请求过于频繁，请稍后重试（retry_after=" + retryAfter + "）",
+                    retryAfter
+            );
         }
         return RateLimitStatusVO.builder()
                 .limit(perMinuteLimit)

@@ -83,7 +83,7 @@ class ConnectControllerTest {
     @Test
     void rateLimitShouldSetRetryAfterHeaderWhenLimited() {
         when(rateLimitService.checkOrThrow(1L, "connect:probe"))
-                .thenThrow(new BizException(ErrorCode.RATE_LIMITED, "请求过于频繁，请稍后重试（retry_after=40）"));
+                .thenThrow(new BizException(ErrorCode.RATE_LIMITED, "请求过于频繁，请稍后重试（retry_after=40）", 40));
 
         BizException ex = assertThrows(BizException.class, () -> controller.rateLimit(response));
 

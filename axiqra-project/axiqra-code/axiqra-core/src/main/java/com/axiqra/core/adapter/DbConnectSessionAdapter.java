@@ -38,13 +38,16 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
     @Override
     public void save(ConnectSessionVO session) {
         validateSession(session);
-        if (session.getUserId() != null && tenantId > 0) {
-            ConnectSessionEntity existing = connectSessionMapper.selectBySessionId(session.getSessionId(), normalizedTenantId());
-            if (existing != null && !tenantId.equals(existing.getTenantId())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "无权操作其他租户的 session");
-            }
+        ConnectSessionEntity existing = connectSessionMapper.selectBySessionId(session.getSessionId(), normalizedTenantId());
+        if (existing != null && tenantId > 0 && !tenantId.equals(existing.getTenantId())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权操作其他租户的 session");
         }
-        connectSessionMapper.insert(toEntity(session));
+
+        ConnectSessionEntity entity = toEntity(session);
+        int affectedRows = connectSessionMapper.upsert(entity);
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权操作其他租户的 session");
+        }
     }
 
     @Override

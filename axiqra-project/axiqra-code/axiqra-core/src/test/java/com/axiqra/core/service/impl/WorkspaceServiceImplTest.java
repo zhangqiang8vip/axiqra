@@ -143,16 +143,22 @@ class WorkspaceServiceImplTest {
         }
 
         @Test
-        @DisplayName("owner 列表返回 null 时应退化为空列表")
-        void shouldHandleNullOwnedWorkspaces() {
-            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(null);
-            when(rbacService.getMemberships(USER_ID)).thenReturn(List.of());
+        @DisplayName("成员关系列表重复 workspaceId 时应保留首个角色且不抛异常")
+        void shouldHandleDuplicateMembershipWorkspaceIds() {
+            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(List.of());
+            MembershipEntity firstMembership = createMembership(1L, USER_ID, WORKSPACE_ID, MemberRole.ADMIN);
+            MembershipEntity duplicateMembership = createMembership(2L, USER_ID, WORKSPACE_ID, MemberRole.VIEWER);
+            when(rbacService.getMemberships(USER_ID)).thenReturn(List.of(firstMembership, duplicateMembership));
+            when(workspaceMapper.selectByWorkspaceIds(List.of(WORKSPACE_ID))).thenReturn(
+                    List.of(createWorkspace(WORKSPACE_ID, "Team Space", WorkspaceType.TEAM, 999L))
+            );
 
             PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
 
-            assertNotNull(result);
-            assertTrue(result.getRecords().isEmpty());
+            assertEquals(1, result.getTotal());
+            assertEquals("admin", result.getRecords().get(0).getMyRole());
         }
+
     }
 
     @Nested

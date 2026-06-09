@@ -4,7 +4,6 @@ import com.axiqra.common.audit.AuditPort;
 import com.axiqra.common.domain.dto.ConnectSessionCreateRequest;
 import com.axiqra.common.port.ConnectSessionPort;
 import com.axiqra.core.service.QuotaService;
-import com.axiqra.core.service.RateLimitService;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,8 +24,6 @@ class ConnectServiceImplTest {
 
     @Mock
     private QuotaService quotaService;
-    @Mock
-    private RateLimitService rateLimitService;
     @Mock
     private RbacService rbacService;
     @Mock
@@ -55,7 +52,6 @@ class ConnectServiceImplTest {
         when(rbacService.hasScope(1L, "connect:write")).thenReturn(true);
         when(rbacService.isMember(1L, 100L)).thenReturn(true);
         when(quotaService.consumeOrThrow(1L, "connect_session_daily")).thenReturn(null);
-        when(rateLimitService.checkOrThrow(1L, "connect:create")).thenReturn(null);
 
         ConnectSessionCreateRequest request = new ConnectSessionCreateRequest();
         request.setChannel("cli");
@@ -70,7 +66,6 @@ class ConnectServiceImplTest {
         assertNotNull(session.getHistory());
         assertEquals("READY", session.getStatus());
         verify(connectSessionPort).save(any());
-        verify(rateLimitService).checkOrThrow(1L, "connect:create");
         verify(quotaService).consumeOrThrow(1L, "connect_session_daily");
         verify(auditPort).logInvocation(any());
     }

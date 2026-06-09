@@ -24,8 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -50,33 +52,43 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             return PageResponse.empty();
         }
 
-        // 个人空间：owner_id = userId
-        List<WorkspaceEntity> owned = workspaceMapper.selectByOwnerId(userId);
+        List<WorkspaceEntity> owned = defaultIfNull(workspaceMapper.selectByOwnerId(userId));
+        List<MembershipEntity> memberships = defaultIfNull(rbacService.getMemberships(userId)).stream()
+                .filter(Objects::nonNull)
+                .filter(membership -> membership.getWorkspaceId() != null)
+                .toList();
 
-        // 成员空间：membership 表中 user_id = userId
-        List<MembershipEntity> memberships = rbacService.getMemberships(userId);
         List<Long> workspaceIds = memberships.stream()
                 .map(MembershipEntity::getWorkspaceId)
+                .distinct()
                 .collect(Collectors.toList());
 
         List<WorkspaceEntity> memberSpaces = workspaceIds.isEmpty()
                 ? List.of()
-                : workspaceMapper.selectByWorkspaceIds(workspaceIds);
+                : defaultIfNull(workspaceMapper.selectByWorkspaceIds(workspaceIds)).stream()
+                .filter(Objects::nonNull)
+                .toList();
 
-        // 合并去重
+        Map<Long, MembershipEntity> membershipByWorkspaceId = memberships.stream()
+                .collect(Collectors.toMap(
+                        MembershipEntity::getWorkspaceId,
+                        membership -> membership,
+                        (existing, ignored) -> existing
+                ));
+
         Map<Long, WorkspaceVO> merged = owned.stream()
-                .map(e -> WorkspaceVO.from(e).withMyRole(MemberRole.OWNER.getCode()))
-                .collect(Collectors.toMap(WorkspaceVO::getId, v -> v));
+                .filter(Objects::nonNull)
+                .filter(workspace -> workspace.getId() != null)
+                .map(entity -> WorkspaceVO.from(entity).withMyRole(MemberRole.OWNER.getCode()))
+                .collect(Collectors.toMap(WorkspaceVO::getId, workspace -> workspace, (existing, ignored) -> existing));
 
-        for (WorkspaceEntity e : memberSpaces) {
-            if (!merged.containsKey(e.getId())) {
-                MembershipEntity m = memberships.stream()
-                        .filter(ms -> ms.getWorkspaceId().equals(e.getId()))
-                        .findFirst()
-                        .orElse(null);
-                String role = m != null ? m.getRole() : MemberRole.MEMBER.getCode();
-                merged.put(e.getId(), WorkspaceVO.from(e).withMyRole(role));
+        for (WorkspaceEntity workspace : memberSpaces) {
+            if (workspace.getId() == null || merged.containsKey(workspace.getId())) {
+                continue;
             }
+            MembershipEntity membership = membershipByWorkspaceId.get(workspace.getId());
+            String role = membership != null ? membership.getRole() : MemberRole.MEMBER.getCode();
+            merged.put(workspace.getId(), WorkspaceVO.from(workspace).withMyRole(role));
         }
 
         List<WorkspaceVO> result = merged.values().stream()
@@ -272,23 +284,27 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if (workspaceId == null) {
             throw new BizException(ErrorCode.PARAM_INVALID, "workspaceId 不能为空");
         }
-        // 任意成员可见成员列表
         if (!rbacService.isMember(userId, workspaceId) && !rbacService.isOwner(userId, workspaceId)) {
             throw new BizException(ErrorCode.FORBIDDEN, "非成员无权查看成员列表");
         }
 
-        List<MembershipEntity> memberships = membershipMapper.selectActiveByWorkspaceId(workspaceId);
+        List<MembershipEntity> memberships = defaultIfNull(membershipMapper.selectActiveByWorkspaceId(workspaceId)).stream()
+                .filter(Objects::nonNull)
+                .filter(membership -> membership.getUserId() != null)
+                .toList();
         if (memberships.isEmpty()) {
             return PageResponse.of(List.of(), 0L);
         }
-        // 批量查询用户，消除 N+1 问题（1 次查询获取所有用户）
-        List<Long> userIds = memberships.stream().map(MembershipEntity::getUserId).collect(Collectors.toList());
-        Map<Long, UserEntity> userMap = userMapper.selectActiveByIds(userIds)
-                .stream().collect(Collectors.toMap(UserEntity::getId, u -> u));
+
+        List<Long> userIds = memberships.stream().map(MembershipEntity::getUserId).distinct().collect(Collectors.toList());
+        Map<Long, UserEntity> userMap = defaultIfNull(userMapper.selectActiveByIds(userIds)).stream()
+                .filter(Objects::nonNull)
+                .filter(user -> user.getId() != null)
+                .collect(Collectors.toMap(UserEntity::getId, user -> user, (existing, ignored) -> existing));
         List<MemberVO> members = memberships.stream()
-                .map(m -> {
-                    MemberVO vo = MemberVO.from(m);
-                    UserEntity user = userMap.get(m.getUserId());
+                .map(membership -> {
+                    MemberVO vo = MemberVO.from(membership);
+                    UserEntity user = userMap.get(membership.getUserId());
                     if (user != null) {
                         vo.setUsername(user.getUsername());
                         vo.setNickname(user.getNickname());
@@ -394,5 +410,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "成员记录已被修改或删除，请刷新后重试");
         }
         log.info("移除成员: memberId={}, removedBy={}", targetMemberId, userId);
+    }
+
+    private <T> List<T> defaultIfNull(List<T> items) {
+        return items != null ? items : Collections.emptyList();
     }
 }

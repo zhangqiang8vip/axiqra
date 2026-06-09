@@ -185,10 +185,15 @@ public class ApiSignatureFilter implements Filter {
         if (nonce == null || nonce.isBlank()) {
             return false;
         }
-        // Redis SETNX with TTL=5min; scoped by appId to avoid cross-app collisions
-        Boolean success = redisTemplate.opsForValue()
-                .setIfAbsent("nonce:" + appId + ":" + nonce, "1", NONCE_TTL);
-        return Boolean.TRUE.equals(success);
+        try {
+            Boolean success = redisTemplate.opsForValue()
+                    .setIfAbsent("nonce:" + appId + ":" + nonce, "1", NONCE_TTL);
+            return Boolean.TRUE.equals(success);
+        } catch (RuntimeException e) {
+            String traceId = MDC.get("traceId");
+            log.error("[Sig] Nonce validation unavailable due to Redis error, appId={}, traceId={}", appId, traceId, e);
+            return false;
+        }
     }
 
     private boolean isSignatureValid(String appId, String timestamp, String nonce,

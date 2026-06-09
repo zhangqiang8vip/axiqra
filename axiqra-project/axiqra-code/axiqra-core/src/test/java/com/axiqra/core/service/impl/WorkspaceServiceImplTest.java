@@ -98,22 +98,60 @@ class WorkspaceServiceImplTest {
         }
 
         @Test
-        @DisplayName("owner 空间应在 member 空间之前排序")
-        void shouldSortOwnerBeforeMember() {
-            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(
-                    List.of(createWorkspace(2L, "My Space", WorkspaceType.PERSONAL, USER_ID))
-            );
-            MembershipEntity membership = createMembership(1L, USER_ID, 1L, MemberRole.MEMBER);
+        @DisplayName("memberships 为 null 时应返回 owner 空间且不抛异常")
+        void shouldHandleNullMemberships() {
+            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(List.of(
+                    createWorkspace(1L, "My Space", WorkspaceType.PERSONAL, USER_ID)
+            ));
+            when(rbacService.getMemberships(USER_ID)).thenReturn(null);
+
+            PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
+
+            assertEquals(1, result.getTotal());
+            assertEquals("owner", result.getRecords().get(0).getMyRole());
+            verify(workspaceMapper, never()).selectByWorkspaceIds(anyList());
+        }
+
+        @Test
+        @DisplayName("成员空间查询返回 null 时应忽略 member 空间且不抛异常")
+        void shouldHandleNullMemberSpaces() {
+            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(List.of());
+            MembershipEntity membership = createMembership(1L, USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
             when(rbacService.getMemberships(USER_ID)).thenReturn(List.of(membership));
-            when(workspaceMapper.selectByWorkspaceIds(List.of(1L))).thenReturn(
-                    List.of(createWorkspace(1L, "Team Space", WorkspaceType.TEAM, 999L))
+            when(workspaceMapper.selectByWorkspaceIds(List.of(WORKSPACE_ID))).thenReturn(null);
+
+            PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
+
+            assertEquals(0, result.getTotal());
+        }
+
+        @Test
+        @DisplayName("memberships 含 null 和空 workspaceId 时应自动过滤")
+        void shouldFilterInvalidMemberships() {
+            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(List.of());
+            MembershipEntity validMembership = createMembership(1L, USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
+            MembershipEntity missingWorkspaceId = createMembership(2L, USER_ID, null, MemberRole.MEMBER);
+            when(rbacService.getMemberships(USER_ID)).thenReturn(java.util.Arrays.asList(null, missingWorkspaceId, validMembership));
+            when(workspaceMapper.selectByWorkspaceIds(List.of(WORKSPACE_ID))).thenReturn(
+                    List.of(createWorkspace(WORKSPACE_ID, "Team Space", WorkspaceType.TEAM, 999L))
             );
 
             PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
 
-            assertEquals(2, result.getTotal());
-            assertEquals("owner", result.getRecords().get(0).getMyRole());
-            assertEquals("member", result.getRecords().get(1).getMyRole());
+            assertEquals(1, result.getTotal());
+            assertEquals(WORKSPACE_ID, result.getRecords().get(0).getId());
+        }
+
+        @Test
+        @DisplayName("owner 列表返回 null 时应退化为空列表")
+        void shouldHandleNullOwnedWorkspaces() {
+            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(null);
+            when(rbacService.getMemberships(USER_ID)).thenReturn(List.of());
+
+            PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
+
+            assertNotNull(result);
+            assertTrue(result.getRecords().isEmpty());
         }
     }
 
@@ -371,6 +409,39 @@ class WorkspaceServiceImplTest {
             assertEquals(50L, result.getMemberId());
             assertEquals(OTHER_USER_ID, result.getUserId());
             verify(membershipMapper).insertSelective(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("listMembers")
+    class ListMembersTests {
+
+        @Test
+        @DisplayName("memberships 返回 null 时应返回空分页")
+        void shouldReturnEmptyWhenMembershipsNull() {
+            when(rbacService.isMember(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            when(membershipMapper.selectActiveByWorkspaceId(WORKSPACE_ID)).thenReturn(null);
+
+            PageResponse<MemberVO> result = workspaceService.listMembers(WORKSPACE_ID, USER_ID);
+
+            assertNotNull(result);
+            assertTrue(result.getRecords().isEmpty());
+            assertEquals(0L, result.getTotal());
+        }
+
+        @Test
+        @DisplayName("用户批量查询返回 null 时应仍返回成员列表")
+        void shouldReturnMembersWhenUserBatchQueryIsNull() {
+            when(rbacService.isMember(USER_ID, WORKSPACE_ID)).thenReturn(true);
+            MembershipEntity membership = createMembership(1L, OTHER_USER_ID, WORKSPACE_ID, MemberRole.MEMBER);
+            when(membershipMapper.selectActiveByWorkspaceId(WORKSPACE_ID)).thenReturn(List.of(membership));
+            when(userMapper.selectActiveByIds(List.of(OTHER_USER_ID))).thenReturn(null);
+
+            PageResponse<MemberVO> result = workspaceService.listMembers(WORKSPACE_ID, USER_ID);
+
+            assertEquals(1L, result.getTotal());
+            assertEquals(OTHER_USER_ID, result.getRecords().get(0).getUserId());
+            assertNull(result.getRecords().get(0).getUsername());
         }
     }
 

@@ -54,7 +54,7 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
 
             sendPolicyDeniedAlert(request, result);
 
-            throw new BizException(ErrorCode.FORBIDDEN,
+            throw new BizException(resolveErrorCode(result),
                     "策略拒绝: " + result.getMessage());
         }
         log.debug("策略评估通过: userId={}, action={}, policyCode={}",
@@ -93,6 +93,21 @@ public class PolicyEngineServiceImpl implements PolicyEngineService {
     private Severity alertSeverity(PolicyEvaluationVO result) {
         return result.getDecision() == PolicyDecision.DENY_RISK_LEVEL_TOO_HIGH
                 ? Severity.CRITICAL : Severity.WARNING;
+    }
+
+    private ErrorCode resolveErrorCode(PolicyEvaluationVO result) {
+        PolicyDecision decision = result.getDecision();
+        if (decision == null) {
+            return ErrorCode.FORBIDDEN;
+        }
+        return switch (decision) {
+            case DENY_RISK_LEVEL_TOO_HIGH -> ErrorCode.RISK_LEVEL_TOO_HIGH;
+            case DENY_SCOPE_MISSING -> ErrorCode.PERMISSION_DENIED;
+            case DENY_RATE_LIMITED -> ErrorCode.RATE_LIMITED;
+            case DENY_QUOTA_EXCEEDED -> ErrorCode.QUOTA_EXCEEDED;
+            case DENY, DENY_CONDITION_NOT_MET, ABSTAIN -> ErrorCode.FORBIDDEN;
+            case ALLOW -> ErrorCode.FORBIDDEN;
+        };
     }
 
     private Long resolveWorkspaceId(Map<String, Object> context) {

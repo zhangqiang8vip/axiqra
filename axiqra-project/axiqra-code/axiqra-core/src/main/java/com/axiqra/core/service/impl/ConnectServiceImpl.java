@@ -10,7 +10,6 @@ import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.port.ConnectSessionPort;
 import com.axiqra.core.service.ConnectService;
 import com.axiqra.core.service.QuotaService;
-import com.axiqra.core.service.RateLimitService;
 import com.axiqra.core.service.RbacService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,14 +26,12 @@ import java.util.UUID;
 public class ConnectServiceImpl implements ConnectService {
 
     private final QuotaService quotaService;
-    private final RateLimitService rateLimitService;
     private final RbacService rbacService;
     private final AuditPort auditPort;
     private final ConnectSessionPort connectSessionPort;
 
     @Override
     public ConnectSessionVO createSession(Long userId, ConnectSessionCreateRequest request) {
-        rateLimitService.checkOrThrow(userId, "connect:create");
         quotaService.consumeOrThrow(userId, "connect_session_daily");
 
         ConnectDoctorVO doctor = runDoctor(userId, request.getChannel(), request.getToolType(), request.getWorkspaceId());

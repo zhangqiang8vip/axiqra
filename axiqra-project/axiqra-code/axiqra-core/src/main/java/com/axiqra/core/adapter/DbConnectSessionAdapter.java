@@ -58,7 +58,11 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
 
     @Override
     public List<ConnectSessionVO> listByUser(Long userId) {
-        return connectSessionMapper.selectByUserId(userId, normalizedTenantId()).stream()
+        List<ConnectSessionEntity> entities = connectSessionMapper.selectByUserId(userId, normalizedTenantId());
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+        return entities.stream()
                 .map(this::toView)
                 .toList();
     }

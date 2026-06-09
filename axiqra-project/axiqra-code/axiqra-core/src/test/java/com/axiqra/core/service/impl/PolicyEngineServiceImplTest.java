@@ -145,7 +145,7 @@ class PolicyEngineServiceImplTest {
         }
 
         @Test
-        @DisplayName("DENY_SCOPE_MISSING 应抛 FORBIDDEN")
+        @DisplayName("DENY_SCOPE_MISSING 应抛 PERMISSION_DENIED")
         void shouldThrowWhenScopeMissing() {
             PolicyEvaluationRequest request = new PolicyEvaluationRequest();
             request.setSubjectId(USER_ID);
@@ -160,7 +160,7 @@ class PolicyEngineServiceImplTest {
 
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.PERMISSION_DENIED.getCode(), ex.getCode());
             verifyPolicyDeniedWarningAlert();
         }
 
@@ -207,7 +207,7 @@ class PolicyEngineServiceImplTest {
         }
 
         @Test
-        @DisplayName("DENY_RISK_LEVEL_TOO_HIGH 应抛 FORBIDDEN")
+        @DisplayName("DENY_RISK_LEVEL_TOO_HIGH 应抛 RISK_LEVEL_TOO_HIGH")
         void shouldThrowWhenRiskLevelTooHigh() {
             PolicyEvaluationRequest request = new PolicyEvaluationRequest();
             request.setSubjectId(USER_ID);
@@ -227,7 +227,7 @@ class PolicyEngineServiceImplTest {
 
             BizException ex = assertThrows(BizException.class,
                     () -> policyEngineService.enforce(request));
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.RISK_LEVEL_TOO_HIGH.getCode(), ex.getCode());
             verifyPolicyDeniedCriticalAlert(100L);
         }
     }

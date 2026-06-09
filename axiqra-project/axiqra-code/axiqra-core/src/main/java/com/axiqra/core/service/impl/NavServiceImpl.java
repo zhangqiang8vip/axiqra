@@ -114,7 +114,11 @@ public class NavServiceImpl implements NavService {
             if (workspaces != null && !workspaces.isEmpty()) {
                 workspaceNameMap = workspaces.stream()
                         .filter(w -> w != null && w.getId() != null && w.getWorkspaceName() != null)
-                        .collect(Collectors.toMap(WorkspaceEntity::getId, WorkspaceEntity::getWorkspaceName));
+                        .collect(Collectors.toMap(
+                                WorkspaceEntity::getId,
+                                WorkspaceEntity::getWorkspaceName,
+                                (existing, ignored) -> existing
+                        ));
             }
         }
 

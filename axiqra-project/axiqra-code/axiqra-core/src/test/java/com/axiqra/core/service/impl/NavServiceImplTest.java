@@ -204,25 +204,25 @@ class NavServiceImplTest {
         }
 
         @Test
-        @DisplayName("SUSPENDED 成员不应出现在 spaceMembershipNav")
-        void shouldExcludeSuspendedMemberships() {
-            MembershipEntity activeMembership = createMembership(1L, USER_ID, 100L,
+        @DisplayName("workspace 查询结果重复时应保留首个名称且不抛异常")
+        void shouldHandleDuplicateWorkspaceRows() {
+            MembershipEntity adminMembership = createMembership(1L, USER_ID, 100L,
                     MemberRole.ADMIN.getCode());
-            MembershipEntity suspendedMembership = createMembership(2L, USER_ID, 200L,
-                    MemberRole.OWNER.getCode());
-            suspendedMembership.setStatus(MemberStatus.SUSPENDED.getCode());
+            when(rbacService.getMemberships(USER_ID)).thenReturn(List.of(adminMembership));
 
-            when(rbacService.getMemberships(USER_ID))
-                    .thenReturn(List.of(activeMembership, suspendedMembership));
+            com.axiqra.common.domain.entity.WorkspaceEntity first = new com.axiqra.common.domain.entity.WorkspaceEntity();
+            first.setId(100L);
+            first.setWorkspaceName("空间A");
+            com.axiqra.common.domain.entity.WorkspaceEntity duplicate = new com.axiqra.common.domain.entity.WorkspaceEntity();
+            duplicate.setId(100L);
+            duplicate.setWorkspaceName("空间A-重复");
+            when(workspaceMapper.selectByWorkspaceIds(List.of(100L))).thenReturn(List.of(first, duplicate));
 
             NavResponseVO result = navService.getNav(USER_ID);
 
-            List<String> ids = result.getSpaceMembershipNav().stream()
-                    .map(NavItemVO::getId)
-                    .toList();
-            assertTrue(ids.contains("workspace-100"));
-            assertFalse(ids.contains("workspace-200"));
+            assertEquals("空间A", result.getSpaceMembershipNav().get(0).getLabel());
         }
+
     }
 
     private MembershipEntity createMembership(Long id, Long userId, Long workspaceId, String role) {

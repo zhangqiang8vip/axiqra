@@ -52,9 +52,19 @@ public class ConnectController {
     @Operation(summary = "检查当前限流窗口")
     public ApiResponse<RateLimitStatusVO> rateLimit(HttpServletResponse response) {
         long userId = StpUtil.getLoginIdAsLong();
-        RateLimitStatusVO result = rateLimitService.checkOrThrow(userId, "connect:probe");
-        response.setHeader(RETRY_AFTER_HEADER, String.valueOf(result.getRetryAfterSeconds()));
-        return ApiResponse.ok(result);
+        try {
+            RateLimitStatusVO result = rateLimitService.checkOrThrow(userId, "connect:probe");
+            response.setHeader(RETRY_AFTER_HEADER, String.valueOf(result.getRetryAfterSeconds()));
+            return ApiResponse.ok(result);
+        } catch (BizException ex) {
+            if (ex.getCode() == ErrorCode.RATE_LIMITED.getCode()) {
+                int retryAfterSeconds = extractRetryAfterSeconds(ex.getMessage());
+                if (retryAfterSeconds > 0) {
+                    response.setHeader(RETRY_AFTER_HEADER, String.valueOf(retryAfterSeconds));
+                }
+            }
+            throw ex;
+        }
     }
 
     @GetMapping("/doctor")
@@ -104,5 +114,24 @@ public class ConnectController {
         }
         log.info("创建 Connect 会话: sessionId={}, userId={}", session.getSessionId(), userId);
         return ApiResponse.ok(session);
+    }
+
+    private int extractRetryAfterSeconds(String message) {
+        if (message == null || message.isBlank()) {
+            return -1;
+        }
+        int marker = message.indexOf("retry_after=");
+        if (marker < 0) {
+            return -1;
+        }
+        int start = marker + "retry_after=".length();
+        int end = message.indexOf('）', start);
+        String value = (end > start ? message.substring(start, end) : message.substring(start)).trim();
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ex) {
+            log.warn("failed to parse retry_after from message={}", message);
+            return -1;
+        }
     }
 }

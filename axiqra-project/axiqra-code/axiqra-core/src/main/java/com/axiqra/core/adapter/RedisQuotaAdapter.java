@@ -2,7 +2,6 @@ package com.axiqra.core.adapter;
 
 import com.axiqra.common.port.QuotaInfo;
 import com.axiqra.common.port.QuotaPort;
-import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +43,6 @@ public class RedisQuotaAdapter implements QuotaPort {
         return QuotaInfo.of(used, dailyLimit);
     }
 
-    @Retry(name = "quotaRetry")
     @Override
     public boolean tryConsumeQuota(Long userId) {
         int attempt = 0;

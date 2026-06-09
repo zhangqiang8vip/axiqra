@@ -81,6 +81,17 @@ class ConnectControllerTest {
     }
 
     @Test
+    void rateLimitShouldSetRetryAfterHeaderWhenLimited() {
+        when(rateLimitService.checkOrThrow(1L, "connect:probe"))
+                .thenThrow(new BizException(ErrorCode.RATE_LIMITED, "请求过于频繁，请稍后重试（retry_after=40）"));
+
+        BizException ex = assertThrows(BizException.class, () -> controller.rateLimit(response));
+
+        assertEquals(ErrorCode.RATE_LIMITED.getCode(), ex.getCode());
+        verify(response).setHeader("Retry-After", "40");
+    }
+
+    @Test
     void doctorShouldReturnEightChecks() {
         ConnectDoctorVO doctor = ConnectDoctorVO.builder()
                 .status("PASS")

@@ -166,6 +166,14 @@ resilience4j:
 
 # ===================== 审计库（PostgreSQL）=====================
 axiqra:
+  quota:
+    daily-limit: 2000
+    ttl-hours: 48
+  rate-limit:
+    per-minute: 100
+    window-seconds: 60
+  tenant:
+    id: 0
   audit-datasource:
     enabled: true
     url: jdbc:postgresql://${AUDIT_DB_HOST:localhost}:${AUDIT_DB_PORT:5432}/axiqra_audit_db

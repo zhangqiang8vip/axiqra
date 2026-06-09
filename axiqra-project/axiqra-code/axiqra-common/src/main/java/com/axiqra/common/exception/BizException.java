@@ -19,23 +19,29 @@ public class BizException extends RuntimeException {
 
     private final int code;
     private final Integer httpStatus;
+    private final Integer retryAfterSeconds;
 
     public BizException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.code = errorCode.getCode();
-        this.httpStatus = errorCode.getHttpStatus();
+        this(errorCode, errorCode.getMessage(), null, null);
     }
 
     public BizException(ErrorCode errorCode, String message) {
-        super(message);
-        this.code = errorCode.getCode();
-        this.httpStatus = errorCode.getHttpStatus();
+        this(errorCode, message, null, null);
+    }
+
+    public BizException(ErrorCode errorCode, String message, Integer retryAfterSeconds) {
+        this(errorCode, message, null, retryAfterSeconds);
     }
 
     public BizException(ErrorCode errorCode, String message, Throwable cause) {
+        this(errorCode, message, cause, null);
+    }
+
+    public BizException(ErrorCode errorCode, String message, Throwable cause, Integer retryAfterSeconds) {
         super(message, cause);
         this.code = errorCode.getCode();
         this.httpStatus = errorCode.getHttpStatus();
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 
     public Integer getHttpStatus() {
@@ -44,5 +50,9 @@ public class BizException extends RuntimeException {
 
     public int getCode() {
         return code;
+    }
+
+    public Integer getRetryAfterSeconds() {
+        return retryAfterSeconds;
     }
 }

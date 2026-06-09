@@ -280,6 +280,37 @@ CREATE TABLE IF NOT EXISTS axiqra_invocation (
     INDEX idx_gmt_create (gmt_create)
 );
 
+-- ===================== Connect Session =====================
+CREATE TABLE IF NOT EXISTS axiqra_connect_session (
+    id BIGINT NOT NULL DEFAULT unique_rowid(),
+    gmt_create TIMESTAMPTZ NOT NULL DEFAULT now(),
+    gmt_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
+    session_id VARCHAR(96) NOT NULL,
+    user_id BIGINT NOT NULL,
+    channel VARCHAR(32) NOT NULL,
+    tool_type VARCHAR(50) NOT NULL,
+    target_type VARCHAR(32) NULL,
+    target_id BIGINT NULL,
+    workspace_id BIGINT NULL,
+    status VARCHAR(32) NOT NULL,
+    risk_level VARCHAR(16) NOT NULL DEFAULT 'R1',
+    confirmation_obtained SMALLINT NOT NULL DEFAULT 0,
+    expires_at TIMESTAMPTZ NOT NULL,
+    doctor_status VARCHAR(16) NULL,
+    doctor_snapshot JSONB NULL,
+    history_snapshot JSONB NULL,
+    tenant_id BIGINT NULL,
+    is_deleted BOOL NOT NULL DEFAULT FALSE,
+    version BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    CHECK (id > 0),
+    UNIQUE INDEX idx_connect_session_id (session_id),
+    INDEX idx_connect_user_id (user_id),
+    INDEX idx_connect_workspace_id (workspace_id),
+    INDEX idx_connect_status (status),
+    INDEX idx_connect_gmt_create (gmt_create)
+);
+
 -- ===================== Feedback =====================
 CREATE TABLE IF NOT EXISTS axiqra_feedback (
     id BIGINT NOT NULL DEFAULT unique_rowid(),
@@ -490,5 +521,5 @@ GRANT ALL ON TABLE axiqra_user, axiqra_workspace, axiqra_membership,
     axiqra_solution_version, axiqra_invocation, axiqra_feedback,
     axiqra_review, axiqra_authorization, axiqra_contribution_ledger,
     axiqra_candidate_seed, axiqra_tool_model_attribution,
-    axiqra_tool_model_performance_daily,
+    axiqra_tool_model_performance_daily, axiqra_connect_session,
     axiqra_tool_model_leaderboard_snapshot TO root;

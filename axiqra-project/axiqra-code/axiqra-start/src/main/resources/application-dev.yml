@@ -79,4 +79,6 @@ alert:
   webhook:
     enabled: false
     url: ${ALERT_WEBHOOK_URL:}
+    # Comma-separated exact domain allowlist. Required when webhook is enabled; IP literals are rejected.
+    allowed-hosts: ${ALERT_WEBHOOK_ALLOWED_HOSTS:}
     timeout-ms: 5000

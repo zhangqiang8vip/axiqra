@@ -61,9 +61,8 @@
 - 不将 `target` 目录作为长期测试资料存放位置。
 
 ## 5. 使用建议
-- 需要查看团队正式规范时，优先阅读 `../test-cases/standards/test-case-process.md`；
-- 需要记录一次新的测试执行时，优先复制 `../test-cases/templates/test-execution-record-template.md`；
-- 需要编写 PR 测试计划时，优先参考 `../test-cases/templates/pr-test-plan-template.md`；
-- 需要整理提交说明时，优先参考 `../test-cases/templates/commit-test-note-template.md`；
-- 需要维护模块覆盖范围或发布检查项时，优先更新 `../test-cases/inventories/` 下的清单文件；
+- 需要查看团队正式测试归档时，优先阅读 `../test-cases/README.md` 与各 Round 目录下的 README；
+- 需要记录一次新的测试执行时，优先沿用相邻 Round 已有归档格式；
+- 需要编写 PR 测试计划或模板化材料时，若目标模板文件尚未落地，应先补文件再引用；
+- 需要维护模块覆盖范围或发布检查项时，优先确认仓库中是否已存在对应清单目录；
 - 不要将大段测试日志、XML 内容或临时排错输出直接保留在 `axiqra-code` 或 `target` 目录中作为正式文档。

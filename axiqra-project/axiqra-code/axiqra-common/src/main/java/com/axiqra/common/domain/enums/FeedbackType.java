@@ -12,9 +12,10 @@ import lombok.Getter;
 @Getter
 public enum FeedbackType {
 
-    POSITIVE("positive", "正向反馈"),
-    NEGATIVE("negative", "负向反馈"),
-    NEUTRAL("neutral", "中性反馈");
+    WORKED("worked", "方案有效"),
+    PARTIAL("partial", "部分有效"),
+    FAILED("failed", "方案无效"),
+    NOT_APPLICABLE("not_applicable", "不适用");
 
     @EnumValue
     private final String code;

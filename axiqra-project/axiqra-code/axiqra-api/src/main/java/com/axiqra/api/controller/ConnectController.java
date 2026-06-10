@@ -118,8 +118,8 @@ public class ConnectController {
         }
         log.info("创建 Connect 会话: sessionId={}, userId={}", session.getSessionId(), userId);
         URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
-                .replacePath("/connect/sessions/" + session.getSessionId())
-                .build().toUri();
+                .replacePath("/connect/sessions/{sessionId}")
+                .build().expand(session.getSessionId()).toUri();
         return ResponseEntity.created(location).body(ApiResponse.ok(session));
     }
 }

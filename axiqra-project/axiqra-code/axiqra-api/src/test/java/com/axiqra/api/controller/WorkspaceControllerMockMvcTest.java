@@ -25,6 +25,7 @@ import java.time.Instant;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -80,7 +81,8 @@ class WorkspaceControllerMockMvcTest {
                                   "workspaceName": "My Space"
                                 }
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "http://localhost/workspaces/100"))
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.message").value("操作成功"))
                 .andExpect(jsonPath("$.requestId").value("trace-workspace-create-001"))

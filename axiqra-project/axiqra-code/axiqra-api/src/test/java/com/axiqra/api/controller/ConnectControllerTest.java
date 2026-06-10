@@ -11,6 +11,7 @@ import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.service.ConnectService;
 import com.axiqra.core.service.QuotaService;
 import com.axiqra.core.service.RateLimitService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -39,17 +41,24 @@ class ConnectControllerTest {
     @Mock
     private RateLimitService rateLimitService;
     @Mock
+    private HttpServletRequest httpRequest;
+    @Mock
     private HttpServletResponse response;
 
     @InjectMocks
     private ConnectController controller;
 
     private MockedStatic<cn.dev33.satoken.stp.StpUtil> stpUtilMock;
+    private MockHttpServletRequest mockHttpRequest;
 
     @BeforeEach
     void setUp() {
         stpUtilMock = mockStatic(cn.dev33.satoken.stp.StpUtil.class);
         stpUtilMock.when(cn.dev33.satoken.stp.StpUtil::getLoginIdAsLong).thenReturn(1L);
+        mockHttpRequest = new MockHttpServletRequest();
+        mockHttpRequest.setScheme("http");
+        mockHttpRequest.setServerName("localhost");
+        mockHttpRequest.setServerPort(8080);
     }
 
     @AfterEach
@@ -126,9 +135,9 @@ class ConnectControllerTest {
         when(rateLimitService.checkOrThrow(1L, "connect:create")).thenReturn(null);
         when(connectService.createSession(1L, request)).thenReturn(session);
 
-        var result = controller.create(request, response);
+        var result = controller.create(request, mockHttpRequest, response);
 
-        assertEquals("s-1", result.getData().getSessionId());
+        assertEquals("s-1", result.getBody().getData().getSessionId());
         verify(response, never()).setHeader(eq("Retry-After"), anyString());
     }
 
@@ -172,9 +181,9 @@ class ConnectControllerTest {
         when(rateLimitService.checkOrThrow(1L, "connect:create")).thenReturn(rateLimitStatus);
         when(connectService.createSession(1L, request)).thenReturn(session);
 
-        var result = controller.create(request, response);
+        var result = controller.create(request, mockHttpRequest, response);
 
-        assertEquals("s-1", result.getData().getSessionId());
+        assertEquals("s-1", result.getBody().getData().getSessionId());
         verify(response).setHeader("Retry-After", "60");
         verify(rateLimitService).checkOrThrow(1L, "connect:create");
     }

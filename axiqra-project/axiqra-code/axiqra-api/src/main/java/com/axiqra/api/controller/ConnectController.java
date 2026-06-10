@@ -14,10 +14,12 @@ import com.axiqra.core.service.QuotaService;
 import com.axiqra.core.service.RateLimitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 
 @Slf4j
@@ -103,7 +107,8 @@ public class ConnectController {
 
     @PostMapping("/sessions")
     @Operation(summary = "创建 Connect 会话")
-    public ApiResponse<ConnectSessionVO> create(@Valid @RequestBody ConnectSessionCreateRequest request,
+    public ResponseEntity<ApiResponse<ConnectSessionVO>> create(@Valid @RequestBody ConnectSessionCreateRequest request,
+                                                HttpServletRequest httpRequest,
                                                 HttpServletResponse response) {
         long userId = StpUtil.getLoginIdAsLong();
         RateLimitStatusVO rateLimitStatus = rateLimitService.checkOrThrow(userId, "connect:create");
@@ -112,6 +117,9 @@ public class ConnectController {
             response.setHeader(RETRY_AFTER_HEADER, String.valueOf(rateLimitStatus.getRetryAfterSeconds()));
         }
         log.info("创建 Connect 会话: sessionId={}, userId={}", session.getSessionId(), userId);
-        return ApiResponse.ok(session);
+        URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
+                .replacePath("/connect/sessions/{sessionId}")
+                .build().expand(session.getSessionId()).toUri();
+        return ResponseEntity.created(location).body(ApiResponse.ok(session));
     }
 }

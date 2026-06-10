@@ -10,6 +10,7 @@ import com.axiqra.common.domain.vo.WorkspaceVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.service.WorkspaceService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.time.Instant;
 import java.util.List;
@@ -62,15 +64,20 @@ class WorkspaceControllerTest {
         void shouldCallServiceCreate() {
             WorkspaceVO workspace = createWorkspaceVO(WORKSPACE_ID, "My Space", "personal");
             when(workspaceService.create(any(), any(), any())).thenReturn(workspace);
+            MockHttpServletRequest mockRequest = new MockHttpServletRequest();
+            mockRequest.setScheme("http");
+            mockRequest.setServerName("localhost");
+            mockRequest.setServerPort(8080);
 
             WorkspaceCreateRequest request = new WorkspaceCreateRequest();
             request.setWorkspaceType("personal");
             request.setWorkspaceName("My Space");
 
-            var response = controller.create(request);
+            var response = controller.create(request, mockRequest);
 
-            assertNotNull(response.getData());
-            assertEquals(WORKSPACE_ID, response.getData().getId());
+            assertNotNull(response.getBody());
+            assertNotNull(response.getBody().getData());
+            assertEquals(WORKSPACE_ID, response.getBody().getData().getId());
             verify(workspaceService).create(eq(USER_ID), eq("personal"), eq("My Space"));
         }
     }
@@ -80,7 +87,6 @@ class WorkspaceControllerTest {
     class DeleteTests {
 
         @Test
-        @DisplayName("应调用 service.delete")
         void shouldCallServiceDelete() {
             doNothing().when(workspaceService).delete(any(), any());
 
@@ -98,7 +104,7 @@ class WorkspaceControllerTest {
         @DisplayName("无效角色应抛 BizException")
         void shouldThrowWhenRoleInvalid() {
             BizException ex = assertThrows(BizException.class,
-                    () -> controller.addMember(WORKSPACE_ID, 2L, "invalid_role"));
+                    () -> controller.addMember(WORKSPACE_ID, 2L, "invalid_role", new MockHttpServletRequest()));
             assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
         }
 
@@ -107,10 +113,15 @@ class WorkspaceControllerTest {
         void shouldCallServiceAddMember() {
             MemberVO member = createMemberVO(1L, USER_ID, WORKSPACE_ID, "member");
             when(workspaceService.addMember(any(), any(), any(), any())).thenReturn(member);
+            MockHttpServletRequest mockRequest = new MockHttpServletRequest();
+            mockRequest.setScheme("http");
+            mockRequest.setServerName("localhost");
+            mockRequest.setServerPort(8080);
 
-            var result = controller.addMember(WORKSPACE_ID, 2L, "member");
+            var result = controller.addMember(WORKSPACE_ID, 2L, "member", mockRequest);
 
-            assertNotNull(result.getData());
+            assertNotNull(result.getBody());
+            assertNotNull(result.getBody().getData());
             verify(workspaceService).addMember(eq(WORKSPACE_ID), eq(USER_ID), eq(2L), eq(MemberRole.MEMBER));
         }
     }

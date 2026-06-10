@@ -16,8 +16,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
+import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -47,7 +50,7 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "登录", description = "用户名密码登录，返回 Sa-Token")
-    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         UserEntity user = userService.getByUsername(request.getUsername());
         String targetHash = user != null ? user.getPasswordHash() : DUMMY_BCRYPT_HASH;
         boolean passwordMatches = userService.checkPassword(request.getPassword(), targetHash);
@@ -57,19 +60,14 @@ public class AuthController {
         StpUtil.login(user.getId());
         String token = StpUtil.getTokenValue();
         log.info("用户登录成功: userId={}", user.getId());
-        return ApiResponse.ok(LoginResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .nickname(user.getNickname())
-                .email(user.getEmail())
-                .avatar(user.getAvatar())
-                .token(token)
-                .build());
+        LoginResponse body = buildLoginResponse(user, token);
+        return ResponseEntity.ok(ApiResponse.ok(body));
     }
 
     @PostMapping("/register")
     @Operation(summary = "注册", description = "注册新用户")
-    public ApiResponse<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> register(@Valid @RequestBody RegisterRequest request,
+                                                              HttpServletRequest httpRequest) {
         try {
             UserEntity user = userService.register(
                     request.getUsername(),
@@ -79,14 +77,9 @@ public class AuthController {
             );
             StpUtil.login(user.getId());
             String token = StpUtil.getTokenValue();
-            return ApiResponse.ok(LoginResponse.builder()
-                    .userId(user.getId())
-                    .username(user.getUsername())
-                    .nickname(user.getNickname())
-                    .email(user.getEmail())
-                    .avatar(user.getAvatar())
-                    .token(token)
-                    .build());
+            LoginResponse body = buildLoginResponse(user, token);
+            URI location = buildAbsoluteUri(httpRequest, "/auth/me");
+            return ResponseEntity.created(location).body(ApiResponse.ok(body));
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
@@ -95,21 +88,42 @@ public class AuthController {
         }
     }
 
+    private URI buildAbsoluteUri(HttpServletRequest httpRequest, String path) {
+        return org.springframework.web.servlet.support.ServletUriComponentsBuilder
+                .fromRequestUri(httpRequest)
+                .replacePath(path)
+                .build()
+                .toUri();
+    }
+
+    private LoginResponse buildLoginResponse(UserEntity user, String token) {
+        return LoginResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
+                .token(token)
+                .build();
+    }
+
     @PostMapping("/logout")
     @Operation(summary = "登出", description = "注销当前会话（幂等：未登录时返回成功）")
-    public ApiResponse<Void> logout() {
+    public ResponseEntity<Void> logout() {
         long userId = 0;
         try {
             userId = StpUtil.getLoginIdAsLong();
-        } catch (Exception e) {
+        } catch (NotLoginException e) {
             log.debug("登出时未检测到登录会话，视为已登出");
+        } catch (Exception e) {
+            log.warn("获取登录状态异常，userId={}", userId, e);
         }
         try {
             StpUtil.logout();
-        } catch (Exception e) {
-            log.warn("登出操作异常（可能已超时失效），userId={}", userId, e);
+        } catch (NotLoginException e) {
+            log.debug("会话已失效或已登出，视为成功");
         }
-        return ApiResponse.ok();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")

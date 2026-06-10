@@ -17,10 +17,15 @@ import com.axiqra.common.response.ApiResponse;
 import com.axiqra.core.service.WorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
 
 /**
  * Workspace 工作空间控制器
@@ -49,7 +54,8 @@ public class WorkspaceController {
 
     @PostMapping
     @Operation(summary = "创建工作空间", description = "创建新工作空间，自动将自己设为 owner")
-    public ApiResponse<WorkspaceVO> create(@Valid @RequestBody WorkspaceCreateRequest request) {
+    public ResponseEntity<ApiResponse<WorkspaceVO>> create(@Valid @RequestBody WorkspaceCreateRequest request,
+                                                          HttpServletRequest httpRequest) {
         long userId = StpUtil.getLoginIdAsLong();
         WorkspaceVO workspace = workspaceService.create(
                 userId,
@@ -57,7 +63,10 @@ public class WorkspaceController {
                 request.getWorkspaceName()
         );
         log.info("创建工作空间: userId={}, workspaceId={}", userId, workspace.getId());
-        return ApiResponse.ok(workspace);
+        URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
+                .replacePath("/workspaces/" + workspace.getId())
+                .build().toUri();
+        return ResponseEntity.created(location).body(ApiResponse.ok(workspace));
     }
 
     @GetMapping("/{workspaceId}")
@@ -88,11 +97,11 @@ public class WorkspaceController {
     @DeleteMapping("/{workspaceId}")
     @Operation(summary = "删除工作空间", description = "仅 owner 可删除")
     @RequireWorkspaceRole(role = WorkspaceRole.OWNER, workspaceParam = "workspaceId")
-    public ApiResponse<Void> delete(@PathVariable Long workspaceId) {
+    public ResponseEntity<Void> delete(@PathVariable Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
         workspaceService.delete(workspaceId, userId);
         log.info("删除工作空间: workspaceId={}, deletedBy={}", workspaceId, userId);
-        return ApiResponse.ok();
+        return ResponseEntity.noContent().build();
     }
 
     // ==================== 成员管理 ====================
@@ -108,10 +117,11 @@ public class WorkspaceController {
     @PostMapping("/{workspaceId}/members")
     @Operation(summary = "添加成员", description = "admin 或 owner 可添加成员")
     @RequireWorkspaceRole(role = WorkspaceRole.ADMIN, workspaceParam = "workspaceId")
-    public ApiResponse<MemberVO> addMember(
+    public ResponseEntity<ApiResponse<MemberVO>> addMember(
             @PathVariable Long workspaceId,
             @RequestParam Long userId,
-            @RequestParam(defaultValue = "member") String role) {
+            @RequestParam(defaultValue = "member") String role,
+            HttpServletRequest httpRequest) {
         long currentUserId = StpUtil.getLoginIdAsLong();
         MemberRole memberRole = MemberRole.of(role);
         if (memberRole == null) {
@@ -120,31 +130,34 @@ public class WorkspaceController {
         }
         MemberVO member = workspaceService.addMember(workspaceId, currentUserId, userId, memberRole);
         log.info("添加成员: workspaceId={}, targetUserId={}, role={}", workspaceId, userId, role);
-        return ApiResponse.ok(member);
+        URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
+                .replacePath("/workspaces/" + workspaceId + "/members")
+                .build().toUri();
+        return ResponseEntity.created(location).body(ApiResponse.ok(member));
     }
 
     @PutMapping("/{workspaceId}/members")
     @Operation(summary = "更新成员角色", description = "仅 owner 可更新成员角色")
     @RequireWorkspaceRole(role = WorkspaceRole.OWNER, workspaceParam = "workspaceId")
-    public ApiResponse<Void> updateMemberRole(
+    public ResponseEntity<Void> updateMemberRole(
             @PathVariable Long workspaceId,
             @Valid @RequestBody MemberRoleUpdateRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         MemberRole newRole = request.getRole();
         workspaceService.updateMemberRole(workspaceId, userId, request.getMemberId(), newRole);
         log.info("更新成员角色: workspaceId={}, memberId={}, newRole={}", workspaceId, request.getMemberId(), newRole);
-        return ApiResponse.ok();
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{workspaceId}/members/{memberId}")
     @Operation(summary = "移除成员", description = "admin 或 owner 可移除成员（不能移除 owner）")
     @RequireWorkspaceRole(role = WorkspaceRole.ADMIN, workspaceParam = "workspaceId")
-    public ApiResponse<Void> removeMember(
+    public ResponseEntity<Void> removeMember(
             @PathVariable Long workspaceId,
             @PathVariable Long memberId) {
         long userId = StpUtil.getLoginIdAsLong();
         workspaceService.removeMember(workspaceId, userId, memberId);
         log.info("移除成员: workspaceId={}, memberId={}, removedBy={}", workspaceId, memberId, userId);
-        return ApiResponse.ok();
+        return ResponseEntity.noContent().build();
     }
 }

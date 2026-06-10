@@ -421,7 +421,7 @@ CREATE TABLE IF NOT EXISTS axiqra_candidate_seed (
     tenant_id BIGINT NULL,
     PRIMARY KEY (id),
     CHECK (id > 0),
-    UNIQUE INDEX idx_query_hash (query_hash),
+    UNIQUE INDEX idx_workspace_query_hash_active (workspace_id, query_hash) WHERE is_deleted = FALSE,
     INDEX idx_workspace_id (workspace_id),
     INDEX idx_author_id (author_id),
     INDEX idx_status (status),

@@ -116,13 +116,13 @@ todos:
     wbs: [WBS-013]
     req: [REQ-SEA-001, REQ-SEA-002, REQ-SEA-003, REQ-SEA-004, REQ-SEA-005]
     status: completed
-    commit: "[PR #27]"
+    commit: "[PR #28]"
   - id: r5b-solution-module
     content: "Round 5B: Solution 模块（SolutionController 详情/版本/反馈统计 + L0-L5 验证等级 + R0-R4 风险等级 + 状态机 Draft→Candidate→NeedsReview→Reviewed→Verified→Stable→Canonical）"
     wbs: [WBS-014]
     req: [REQ-SOL-001, REQ-SOL-002, REQ-SOL-003]
     status: completed
-    commit: "[PR #27]"
+    commit: "[PR #28]"
 
   # ===================== Round 6: 第四层——Trace + Project Case + Public Case =====================
   # 前置：Round 5 完成
@@ -202,7 +202,7 @@ isProject: false
 | R2 通用验证 RBAC 框架 | 已完成，合入 main | #20 |
 | R3 Auth + Workspace + Nav | 已完成，合入 main | #24 |
 | R4 Quota + Connect + MCP/CLI | 已完成，合入 main | #25 |
-| R5 Search + Solution | 已完成（待合入 main） | #27 |
+| R5 Search + Solution | 已完成，合入 main | #28 |
 | R6 Trace + Project Case + Public Case | 待开发 | — |
 | R7 Feedback + Review + Contribution | 待开发 | — |
 | R8 前端 + 测试 + 验收 | 待开发 | — |
@@ -257,7 +257,7 @@ isProject: false
 
 ## R5: Search + Solution
 
-**状态：已完成，待合入 main（PR #27）**
+**状态：已完成，合入 main（PR #28）**
 
 ### 功能交付
 
@@ -1563,9 +1563,9 @@ CI 失败通知：
 
 ## 待办事项
 
-- [ ] PR #27 合入 main
+- [x] PR #28 合入 main
 - [ ] `test-cases/R5-*/` 测试用例目录（执行记录、覆盖率说明、审核报告）
-- [ ] `docs/R5-启动与计划同步说明.md` 更新 R5 完成状态
+- [x] `docs/R5-启动与计划同步说明.md` 更新 R5 完成状态
 - [ ] `ROADMAP.md` 更新 Phase 描述（对应 S1 MVP 范围）
 - [ ] R6 开发（Trace + Project Case + Public Case）
 - [ ] R7 开发（Feedback + Review + Contribution + 排行榜）

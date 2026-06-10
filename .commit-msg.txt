@@ -1,0 +1,21 @@
+fix: resolve security, async error handling, and HTTP status code issues
+
+Security:
+- Remove hardcoded Agnes API key from REVIEW-BOTS-SETUP.md
+
+Async:
+- Add AsyncUncaughtExceptionHandler to prevent silent async failures
+
+HTTP Status Codes:
+- POST /auth/login -> 201 + Location
+- POST /auth/register -> 201 + Location
+- POST /auth/logout -> 204
+- POST /workspaces -> 201 + Location
+- DELETE /workspaces/{id} -> 204
+- POST /workspaces/{id}/members -> 201 + Location
+- PUT /workspaces/{id}/members -> 204
+- DELETE /workspaces/{id}/members/{memberId} -> 204
+- POST /connect/sessions -> 201 + Location
+
+Documentation:
+- Update R5 sync doc and plan file R5 status to #28

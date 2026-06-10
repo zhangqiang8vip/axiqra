@@ -69,8 +69,9 @@ class WorkspaceControllerTest {
 
             var response = controller.create(request);
 
-            assertNotNull(response.getData());
-            assertEquals(WORKSPACE_ID, response.getData().getId());
+            assertNotNull(response.getBody());
+            assertNotNull(response.getBody().getData());
+            assertEquals(WORKSPACE_ID, response.getBody().getData().getId());
             verify(workspaceService).create(eq(USER_ID), eq("personal"), eq("My Space"));
         }
     }
@@ -110,7 +111,8 @@ class WorkspaceControllerTest {
 
             var result = controller.addMember(WORKSPACE_ID, 2L, "member");
 
-            assertNotNull(result.getData());
+            assertNotNull(result.getBody());
+            assertNotNull(result.getBody().getData());
             verify(workspaceService).addMember(eq(WORKSPACE_ID), eq(USER_ID), eq(2L), eq(MemberRole.MEMBER));
         }
     }

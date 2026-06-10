@@ -128,7 +128,7 @@ class ConnectControllerTest {
 
         var result = controller.create(request, response);
 
-        assertEquals("s-1", result.getData().getSessionId());
+        assertEquals("s-1", result.getBody().getData().getSessionId());
         verify(response, never()).setHeader(eq("Retry-After"), anyString());
     }
 
@@ -174,7 +174,7 @@ class ConnectControllerTest {
 
         var result = controller.create(request, response);
 
-        assertEquals("s-1", result.getData().getSessionId());
+        assertEquals("s-1", result.getBody().getData().getSessionId());
         verify(response).setHeader("Retry-After", "60");
         verify(rateLimitService).checkOrThrow(1L, "connect:create");
     }

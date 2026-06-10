@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
 import java.util.List;
 
 @Slf4j
@@ -103,7 +105,7 @@ public class ConnectController {
 
     @PostMapping("/sessions")
     @Operation(summary = "创建 Connect 会话")
-    public ApiResponse<ConnectSessionVO> create(@Valid @RequestBody ConnectSessionCreateRequest request,
+    public ResponseEntity<ApiResponse<ConnectSessionVO>> create(@Valid @RequestBody ConnectSessionCreateRequest request,
                                                 HttpServletResponse response) {
         long userId = StpUtil.getLoginIdAsLong();
         RateLimitStatusVO rateLimitStatus = rateLimitService.checkOrThrow(userId, "connect:create");
@@ -112,6 +114,7 @@ public class ConnectController {
             response.setHeader(RETRY_AFTER_HEADER, String.valueOf(rateLimitStatus.getRetryAfterSeconds()));
         }
         log.info("创建 Connect 会话: sessionId={}, userId={}", session.getSessionId(), userId);
-        return ApiResponse.ok(session);
+        URI location = URI.create("/connect/sessions/" + session.getSessionId());
+        return ResponseEntity.created(location).body(ApiResponse.ok(session));
     }
 }

@@ -30,7 +30,7 @@
 | `API_BASE_URL` | Codex 审查 API 地址 | `https://free.v36.cm` |
 | `OPENAI_API_KEY` | Codex 审查 Key | 对应 API Key |
 | `AGNES_API_BASE_URL` | Agnes AI API 地址 | `https://apihub.agnes-ai.com/v1` |
-| `AGNES_API_KEY` | Agnes AI Key | `sk-N6X6vCFW2d4vgAo6REX6iyIQGywc12AGnGjViffJa7zXCoHu` |
+| `AGNES_API_KEY` | Agnes AI Key | 添加到 GitHub Secrets，不要填入本文档 |
 | `AGNES_REVIEW_MODEL` | Agnes 审查模型 | `agnes-2.0-flash` |
 
 ---
@@ -177,7 +177,7 @@ Gemini Flash 模型价格极低（免费额度充足），适合日常审查。
 
 1. 添加 Secrets：
    - `AGNES_API_BASE_URL` = `https://apihub.agnes-ai.com/v1`
-   - `AGNES_API_KEY` = `sk-N6X6vCFW2d4vgAo6REX6iyIQGywc12AGnGjViffJa7zXCoHu`
+   - `AGNES_API_KEY` = 添加到 GitHub Secrets，不要填入配置文件
    - `AGNES_REVIEW_MODEL` = `agnes-2.0-flash`
 2. 将 `.github/workflows/agnes-review.yml.disabled` 重命名为 `.github/workflows/agnes-review.yml` 即可启用
 

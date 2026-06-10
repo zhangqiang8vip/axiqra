@@ -167,6 +167,56 @@ class SolutionServiceImplTest {
         assertEquals(101L, result.getActiveVersion().getId());
     }
 
+    @Test
+    @DisplayName("废弃态 solution 应抛 SOLUTION_DEPRECATED")
+    void shouldThrowWhenSolutionDeprecated() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.DEPRECATED);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getDetail(1L, 10L));
+
+        assertEquals(ErrorCode.SOLUTION_DEPRECATED.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("低验证等级 solution 非作者访问应抛 VERIFICATION_LEVEL_TOO_LOW")
+    void shouldRejectLowVerificationLevelForNonAuthor() {
+        SolutionEntity solution = baseSolution();
+        solution.setVerificationLevel(VerificationLevel.L0);
+        solution.setAuthorId(2L);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getDetail(1L, 10L));
+
+        assertEquals(ErrorCode.VERIFICATION_LEVEL_TOO_LOW.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("null userId 应抛 UNAUTHORIZED")
+    void shouldThrowWhenUserIdNull() {
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getDetail(null, 10L));
+
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("无效 solutionId 应抛 PARAM_INVALID")
+    void shouldThrowWhenSolutionIdInvalid() {
+        BizException exNull = assertThrows(BizException.class,
+                () -> solutionService.getDetail(1L, null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), exNull.getCode());
+
+        BizException exZero = assertThrows(BizException.class,
+                () -> solutionService.getDetail(1L, 0L));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), exZero.getCode());
+    }
+
     private SolutionEntity baseSolution() {
         SolutionEntity solution = new SolutionEntity();
         solution.setId(10L);

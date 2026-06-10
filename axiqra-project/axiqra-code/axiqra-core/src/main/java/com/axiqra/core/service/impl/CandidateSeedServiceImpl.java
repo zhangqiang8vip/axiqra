@@ -9,7 +9,6 @@ import com.axiqra.core.service.CandidateSeedService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -24,7 +23,7 @@ public class CandidateSeedServiceImpl implements CandidateSeedService {
     private final CandidateSeedMapper candidateSeedMapper;
 
     @Override
-    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+    @Transactional(rollbackFor = Exception.class)
     public CandidateSeedCreationResult createOrReuseCandidateSeed(Long userId, SearchRequest request) {
         String queryHash = hashQuery(request.getQuery(), request.getWorkspaceId(), request.getTechStack(), request.getDomain());
         CandidateSeedEntity existing = candidateSeedMapper.selectByQueryHashAndWorkspaceId(queryHash, request.getWorkspaceId());
@@ -51,7 +50,7 @@ public class CandidateSeedServiceImpl implements CandidateSeedService {
             if (reused != null) {
                 return new CandidateSeedCreationResult(reused, false);
             }
-            throw new BizException(ErrorCode.DUPLICATE_ENTRY, "候选种子已存在", ex);
+            throw new BizException(ErrorCode.DUPLICATE_ENTRY, "候选种子在重试时已被删除或处于不一致状态", ex);
         }
     }
 

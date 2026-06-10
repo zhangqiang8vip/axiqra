@@ -115,5 +115,6 @@ class CandidateSeedServiceImplTest {
                 () -> candidateSeedService.createOrReuseCandidateSeed(1L, request));
 
         assertEquals(ErrorCode.DUPLICATE_ENTRY.getCode(), ex.getCode());
+        assertEquals("候选种子在重试时已被删除或处于不一致状态", ex.getMessage());
     }
 }

@@ -1,12 +1,7 @@
-chore: address CodeRabbit review comments - MDC propagation, absolute Location URIs, deduplicate LoginResponse
+fix: return 200 OK for auth/login instead of 201
 
-- AsyncConfig: add TaskDecorator (MdcTaskDecorator) to propagate MDC context from
-  request threads into async worker threads, so traceId is available in
-  AsyncUncaughtExceptionHandler logs
-- AuthController: use HttpServletRequest to build absolute Location URIs for 201
-  responses; extract buildLoginResponse() helper to deduplicate LoginResponse
-  construction in login() and register()
-- ConnectController: inject HttpServletRequest and build absolute Location URI
-- WorkspaceController: inject HttpServletRequest and build absolute Location URIs
-  for create() and addMember()
-- Update unit tests and MockMvc test to match new signatures and absolute URIs
+Per CodeRabbit review: POST /auth/login authenticates an existing user and
+creates a session - it does not create a new addressable resource at /auth/me.
+HTTP 201 is semantically incorrect; 200 OK is appropriate for authentication.
+
+register() remains 201 as it does create a new user resource.

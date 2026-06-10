@@ -50,8 +50,7 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "登录", description = "用户名密码登录，返回 Sa-Token")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request,
-                                                            HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         UserEntity user = userService.getByUsername(request.getUsername());
         String targetHash = user != null ? user.getPasswordHash() : DUMMY_BCRYPT_HASH;
         boolean passwordMatches = userService.checkPassword(request.getPassword(), targetHash);
@@ -62,8 +61,7 @@ public class AuthController {
         String token = StpUtil.getTokenValue();
         log.info("用户登录成功: userId={}", user.getId());
         LoginResponse body = buildLoginResponse(user, token);
-        URI location = buildAbsoluteUri(httpRequest, "/auth/me");
-        return ResponseEntity.created(location).body(ApiResponse.ok(body));
+        return ResponseEntity.ok(ApiResponse.ok(body));
     }
 
     @PostMapping("/register")

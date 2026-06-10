@@ -1,7 +1,7 @@
-fix: return 200 OK for auth/login instead of 201
+fix: logout() only swallow NotLoginException for idempotency
 
-Per CodeRabbit review: POST /auth/login authenticates an existing user and
-creates a session - it does not create a new addressable resource at /auth/me.
-HTTP 201 is semantically incorrect; 200 OK is appropriate for authentication.
-
-register() remains 201 as it does create a new user resource.
+Per CodeRabbit review: the previous implementation swallowed all exceptions
+from StpUtil.getLoginIdAsLong() and StpUtil.logout(), masking real failures
+from clients. Now only NotLoginException is caught (the idempotent case); any
+other unexpected exception propagates to GlobalExceptionHandler so clients get
+proper error feedback.

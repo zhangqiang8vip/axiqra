@@ -112,13 +112,15 @@ public class AuthController {
         long userId = 0;
         try {
             userId = StpUtil.getLoginIdAsLong();
-        } catch (Exception e) {
+        } catch (NotLoginException e) {
             log.debug("登出时未检测到登录会话，视为已登出");
+        } catch (Exception e) {
+            log.warn("获取登录状态异常，userId={}", userId, e);
         }
         try {
             StpUtil.logout();
-        } catch (Exception e) {
-            log.warn("登出操作异常（可能已超时失效），userId={}", userId, e);
+        } catch (NotLoginException e) {
+            log.debug("会话已失效或已登出，视为成功");
         }
         return ResponseEntity.noContent().build();
     }

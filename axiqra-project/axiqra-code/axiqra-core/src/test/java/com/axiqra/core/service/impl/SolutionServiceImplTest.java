@@ -1,8 +1,8 @@
 package com.axiqra.core.service.impl;
 
-import com.axiqra.common.domain.entity.FeedbackEntity;
 import com.axiqra.common.domain.entity.SolutionEntity;
 import com.axiqra.common.domain.entity.SolutionVersionEntity;
+import com.axiqra.common.domain.enums.FeedbackType;
 import com.axiqra.common.domain.enums.RiskLevel;
 import com.axiqra.common.domain.enums.SolutionStatus;
 import com.axiqra.common.domain.enums.VerificationLevel;
@@ -10,6 +10,7 @@ import com.axiqra.common.domain.enums.VisibilityScope;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
+import com.axiqra.core.mapper.FeedbackStatRow;
 import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.mapper.SolutionVersionMapper;
 import com.axiqra.core.service.RbacService;
@@ -111,20 +112,24 @@ class SolutionServiceImplTest {
         version.setSteps("step-1");
         version.setIsActive(1);
 
-        FeedbackEntity worked = new FeedbackEntity().setFeedbackType("worked");
-        FeedbackEntity failed = new FeedbackEntity().setFeedbackType("failed");
-
         when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
         when(rbacService.isMember(1L, 100L)).thenReturn(true);
         when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of(version));
-        when(feedbackMapper.selectBySolutionId(10L)).thenReturn(List.of(worked, failed));
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of(
+                new FeedbackStatRow(FeedbackType.WORKED.getCode(), 2L),
+                new FeedbackStatRow(FeedbackType.FAILED.getCode(), 1L),
+                new FeedbackStatRow("unknown", 7L),
+                new FeedbackStatRow(FeedbackType.NOT_APPLICABLE.getCode(), null)
+        ));
 
         var result = solutionService.getDetail(1L, 10L);
 
         assertNotNull(result);
         assertEquals("SOL-010", result.getSolutionCode());
-        assertEquals(1, result.getFeedbackStats().getWorkedCount());
+        assertEquals(2, result.getFeedbackStats().getWorkedCount());
         assertEquals(1, result.getFeedbackStats().getFailedCount());
+        assertEquals(0, result.getFeedbackStats().getNotApplicableCount());
+        assertEquals(3, result.getFeedbackStats().getTotalCount());
         assertEquals(101L, result.getActiveVersion().getId());
     }
 

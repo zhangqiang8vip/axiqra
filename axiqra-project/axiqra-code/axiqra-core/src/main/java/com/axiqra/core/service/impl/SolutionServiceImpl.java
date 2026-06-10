@@ -1,8 +1,8 @@
 package com.axiqra.core.service.impl;
 
-import com.axiqra.common.domain.entity.FeedbackEntity;
 import com.axiqra.common.domain.entity.SolutionEntity;
 import com.axiqra.common.domain.entity.SolutionVersionEntity;
+import com.axiqra.common.domain.enums.FeedbackType;
 import com.axiqra.common.domain.enums.RiskLevel;
 import com.axiqra.common.domain.enums.SolutionStatus;
 import com.axiqra.common.domain.enums.VerificationLevel;
@@ -13,6 +13,7 @@ import com.axiqra.common.domain.vo.SolutionVersionVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
+import com.axiqra.core.mapper.FeedbackStatRow;
 import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.mapper.SolutionVersionMapper;
 import com.axiqra.core.service.RbacService;
@@ -113,24 +114,11 @@ public class SolutionServiceImpl implements SolutionService {
     }
 
     private SolutionFeedbackStatsVO buildFeedbackStats(Long solutionId) {
-        List<FeedbackEntity> feedbacks = defaultIfNull(feedbackMapper.selectBySolutionId(solutionId));
-        long workedCount = 0L;
-        long partialCount = 0L;
-        long failedCount = 0L;
-        long notApplicableCount = 0L;
-        for (FeedbackEntity feedback : feedbacks) {
-            if (feedback == null || feedback.getFeedbackType() == null) {
-                continue;
-            }
-            switch (feedback.getFeedbackType()) {
-                case "worked" -> workedCount++;
-                case "partial" -> partialCount++;
-                case "failed" -> failedCount++;
-                case "not_applicable" -> notApplicableCount++;
-                default -> {
-                }
-            }
-        }
+        List<FeedbackStatRow> stats = defaultIfNull(feedbackMapper.selectFeedbackStatsBySolutionId(solutionId));
+        long workedCount = countByType(stats, FeedbackType.WORKED);
+        long partialCount = countByType(stats, FeedbackType.PARTIAL);
+        long failedCount = countByType(stats, FeedbackType.FAILED);
+        long notApplicableCount = countByType(stats, FeedbackType.NOT_APPLICABLE);
         return SolutionFeedbackStatsVO.builder()
                 .workedCount(workedCount)
                 .partialCount(partialCount)
@@ -138,6 +126,16 @@ public class SolutionServiceImpl implements SolutionService {
                 .notApplicableCount(notApplicableCount)
                 .totalCount(workedCount + partialCount + failedCount + notApplicableCount)
                 .build();
+    }
+
+    private long countByType(List<FeedbackStatRow> stats, FeedbackType targetType) {
+        return stats.stream()
+                .filter(Objects::nonNull)
+                .filter(stat -> targetType == FeedbackType.of(stat.getFeedbackType()))
+                .map(FeedbackStatRow::getCount)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(0L);
     }
 
     private SolutionVersionVO toVersionVO(SolutionVersionEntity entity) {

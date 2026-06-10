@@ -16,4 +16,12 @@ public interface FeedbackMapper extends BaseMapper<FeedbackEntity> {
 
     @Select("SELECT f.* FROM axiqra_feedback f INNER JOIN axiqra_invocation i ON i.id = f.invocation_id WHERE i.target_type = 'solution' AND i.target_id = #{solutionId} AND i.is_deleted = FALSE AND f.is_deleted = FALSE")
     List<FeedbackEntity> selectBySolutionId(@Param("solutionId") Long solutionId);
+
+    @Select("SELECT f.feedback_type AS feedbackType, COUNT(*) AS count " +
+            "FROM axiqra_feedback f " +
+            "INNER JOIN axiqra_invocation i ON i.id = f.invocation_id " +
+            "WHERE i.target_type = 'solution' AND i.target_id = #{solutionId} " +
+            "AND i.is_deleted = FALSE AND f.is_deleted = FALSE " +
+            "GROUP BY f.feedback_type")
+    List<FeedbackStatRow> selectFeedbackStatsBySolutionId(@Param("solutionId") Long solutionId);
 }

@@ -73,10 +73,11 @@ class SolutionServiceImplTest {
     }
 
     @Test
-    @DisplayName("草稿态 solution 应抛 SOLUTION_NOT_VERIFIED")
-    void shouldRejectDraftSolution() {
+    @DisplayName("草稿态 solution 非作者访问应抛 SOLUTION_NOT_VERIFIED")
+    void shouldRejectDraftSolutionForNonAuthor() {
         SolutionEntity solution = baseSolution();
         solution.setStatus(SolutionStatus.DRAFT);
+        solution.setAuthorId(2L);
         when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
 
         BizException ex = assertThrows(BizException.class,
@@ -86,16 +87,49 @@ class SolutionServiceImplTest {
     }
 
     @Test
-    @DisplayName("高风险 solution 应抛 SOLUTION_QUARANTINED")
-    void shouldRejectHighRiskSolution() {
+    @DisplayName("草稿态 solution 作者本人可查看")
+    void shouldAllowAuthorToViewDraftSolution() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.DRAFT);
+        solution.setAuthorId(1L);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of());
+
+        var result = solutionService.getDetail(1L, 10L);
+
+        assertNotNull(result);
+        assertEquals("draft", result.getStatus());
+    }
+
+    @Test
+    @DisplayName("高风险 solution 非作者访问应抛 SOLUTION_QUARANTINED")
+    void shouldRejectHighRiskSolutionForNonAuthor() {
         SolutionEntity solution = baseSolution();
         solution.setRiskLevel(RiskLevel.R4);
+        solution.setAuthorId(2L);
         when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
 
         BizException ex = assertThrows(BizException.class,
                 () -> solutionService.getDetail(1L, 10L));
 
         assertEquals(ErrorCode.SOLUTION_QUARANTINED.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("高风险 solution 作者本人可查看")
+    void shouldAllowAuthorToViewHighRiskSolution() {
+        SolutionEntity solution = baseSolution();
+        solution.setRiskLevel(RiskLevel.R4);
+        solution.setAuthorId(1L);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of());
+
+        var result = solutionService.getDetail(1L, 10L);
+
+        assertNotNull(result);
+        assertEquals(RiskLevel.R4.getCode(), result.getRiskLevel());
     }
 
     @Test

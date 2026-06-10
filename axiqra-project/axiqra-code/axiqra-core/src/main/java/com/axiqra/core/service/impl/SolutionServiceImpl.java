@@ -55,16 +55,17 @@ public class SolutionServiceImpl implements SolutionService {
         if (!canView(userId, solution)) {
             throw new BizException(ErrorCode.FORBIDDEN, "无权访问该 Solution");
         }
+        boolean isAuthor = userId.equals(solution.getAuthorId());
         if (solution.getStatus() == SolutionStatus.DEPRECATED) {
             throw new BizException(ErrorCode.SOLUTION_DEPRECATED);
         }
-        if (solution.getStatus() == SolutionStatus.DRAFT) {
+        if (solution.getStatus() == SolutionStatus.DRAFT && !isAuthor) {
             throw new BizException(ErrorCode.SOLUTION_NOT_VERIFIED, "Solution 仍处于草稿态，无法查看详情");
         }
-        if (solution.getRiskLevel() != null && solution.getRiskLevel().getLevel() >= RiskLevel.R4.getLevel()) {
+        if (solution.getRiskLevel() != null && solution.getRiskLevel().getLevel() >= RiskLevel.R4.getLevel() && !isAuthor) {
             throw new BizException(ErrorCode.SOLUTION_QUARANTINED, "高风险 Solution 已隔离，无法查看详情");
         }
-        if (solution.getVerificationLevel() == null || solution.getVerificationLevel().getLevel() < VerificationLevel.L1.getLevel()) {
+        if ((solution.getVerificationLevel() == null || solution.getVerificationLevel().getLevel() < VerificationLevel.L1.getLevel()) && !isAuthor) {
             throw new BizException(ErrorCode.VERIFICATION_LEVEL_TOO_LOW);
         }
 

@@ -113,6 +113,9 @@ public class ConnectController {
         long userId = StpUtil.getLoginIdAsLong();
         RateLimitStatusVO rateLimitStatus = rateLimitService.checkOrThrow(userId, "connect:create");
         ConnectSessionVO session = connectService.createSession(userId, request);
+        if (session == null || session.getSessionId() == null || session.getSessionId().isBlank()) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "Connect 会话创建失败，sessionId 为空");
+        }
         if (rateLimitStatus != null) {
             response.setHeader(RETRY_AFTER_HEADER, String.valueOf(rateLimitStatus.getRetryAfterSeconds()));
         }

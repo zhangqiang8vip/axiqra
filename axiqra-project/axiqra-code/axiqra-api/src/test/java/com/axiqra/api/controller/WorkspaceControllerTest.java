@@ -109,7 +109,7 @@ class WorkspaceControllerTest {
         }
 
         @Test
-        @DisplayName("有效参数应调用 service.addMember")
+        @DisplayName("有效参数应调用 service.addMember 并返回成员资源 Location")
         void shouldCallServiceAddMember() {
             MemberVO member = createMemberVO(1L, USER_ID, WORKSPACE_ID, "member");
             when(workspaceService.addMember(any(), any(), any(), any())).thenReturn(member);
@@ -122,6 +122,8 @@ class WorkspaceControllerTest {
 
             assertNotNull(result.getBody());
             assertNotNull(result.getBody().getData());
+            assertNotNull(result.getHeaders().getLocation());
+            assertEquals("http://localhost:8080/workspaces/100/members/1", result.getHeaders().getLocation().toString());
             verify(workspaceService).addMember(eq(WORKSPACE_ID), eq(USER_ID), eq(2L), eq(MemberRole.MEMBER));
         }
     }

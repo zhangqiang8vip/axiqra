@@ -131,7 +131,7 @@ public class WorkspaceController {
         MemberVO member = workspaceService.addMember(workspaceId, currentUserId, userId, memberRole);
         log.info("添加成员: workspaceId={}, targetUserId={}, role={}", workspaceId, userId, role);
         URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
-                .replacePath("/workspaces/" + workspaceId + "/members")
+                .replacePath("/workspaces/" + workspaceId + "/members/" + member.getMemberId())
                 .build().toUri();
         return ResponseEntity.created(location).body(ApiResponse.ok(member));
     }

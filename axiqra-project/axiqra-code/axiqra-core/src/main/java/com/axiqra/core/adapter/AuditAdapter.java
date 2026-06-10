@@ -52,7 +52,8 @@ public class AuditAdapter implements AuditPort {
                     event.tenantId()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write generic audit event, action={}, actorId={}: {}", event.action(), event.actorId(), e.getMessage());
+            log.error("[Audit] Failed to write generic audit event, action={}, actorId={}: {}",
+                    event.action(), event.actorId(), safeMessage(e));
         }
     }
 
@@ -77,7 +78,8 @@ public class AuditAdapter implements AuditPort {
                     event.tenantId()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write policy decision log, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write policy decision log, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
     }
 
@@ -105,7 +107,8 @@ public class AuditAdapter implements AuditPort {
                     event.status()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write invocation log, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write invocation log, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
     }
 
@@ -129,7 +132,8 @@ public class AuditAdapter implements AuditPort {
                     event.tenantId()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write review decision log, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write review decision log, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
     }
 
@@ -152,7 +156,8 @@ public class AuditAdapter implements AuditPort {
                     event.result()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write Quota event, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write Quota event, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
     }
 
@@ -175,7 +180,8 @@ public class AuditAdapter implements AuditPort {
                     event.retryAfter()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write rate limit event, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write rate limit event, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
     }
 
@@ -196,7 +202,8 @@ public class AuditAdapter implements AuditPort {
                     event.licenseScope()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write authorization change log, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write authorization change log, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
     }
 
@@ -217,8 +224,13 @@ public class AuditAdapter implements AuditPort {
                     event.result()
             );
         } catch (Exception e) {
-            log.error("[Audit] Failed to write tool model attribution log, requestId={}: {}", event.requestId(), e.getMessage());
+            log.error("[Audit] Failed to write tool model attribution log, requestId={}: {}",
+                    event.requestId(), safeMessage(e));
         }
+    }
+
+    private String safeMessage(Exception exception) {
+        return exception.getMessage() != null ? exception.getMessage() : "unknown";
     }
 
     private String toJson(Map<String, Object> payload) {

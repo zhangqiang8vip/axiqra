@@ -3,6 +3,8 @@ package com.axiqra.api.controller;
 import com.axiqra.common.domain.dto.SearchRequest;
 import com.axiqra.common.domain.vo.SearchResponseVO;
 import com.axiqra.common.domain.vo.SearchResultItemVO;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.service.SearchService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +47,23 @@ class SearchControllerTest {
     @AfterEach
     void tearDown() {
         stpUtilMock.close();
+    }
+
+    @Test
+    @DisplayName("空 query 请求仍由 service 承担校验")
+    void searchBeforeActShouldDelegateBlankQueryToServiceValidation() {
+        SearchRequest request = SearchRequest.builder()
+                .query("   ")
+                .workspaceId(100L)
+                .limit(10)
+                .build();
+        BizException exception = new BizException(ErrorCode.PARAM_INVALID, "query 不能为空");
+        when(searchService.searchBeforeAct(1L, request)).thenThrow(exception);
+
+        BizException ex = assertThrows(BizException.class, () -> controller.searchBeforeAct(request));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        verify(searchService).searchBeforeAct(1L, request);
     }
 
     @Test

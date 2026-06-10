@@ -3,6 +3,7 @@ package com.axiqra.api.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.vo.PublicCaseDetailVO;
 import com.axiqra.common.response.ApiResponse;
+import com.axiqra.common.util.PrivacyUtils;
 import com.axiqra.core.service.PublicCaseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,9 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 /**
@@ -39,7 +37,7 @@ public class PublicCaseController {
         PublicCaseDetailVO result = publicCaseService.publish(userId, projectCaseId);
         // 隐私合规：控制器日志不直接记录用户标识，改为稳定脱敏摘要。
         log.info("发布 Public Case: sourceCaseId={}, publicCaseId={}, actorHash={}",
-                projectCaseId, result.getId(), pseudonymizeUserId(userId));
+                projectCaseId, result.getId(), PrivacyUtils.pseudonymizeUserId(userId));
         return ApiResponse.ok(result);
     }
 
@@ -48,7 +46,7 @@ public class PublicCaseController {
     public ApiResponse<PublicCaseDetailVO> getDetail(@PathVariable Long publicCaseId) {
         long userId = StpUtil.getLoginIdAsLong();
         PublicCaseDetailVO result = publicCaseService.getDetail(userId, publicCaseId);
-        log.info("读取 Public Case 详情: publicCaseId={}, actorHash={}", publicCaseId, pseudonymizeUserId(userId));
+        log.info("读取 Public Case 详情: publicCaseId={}, actorHash={}", publicCaseId, PrivacyUtils.pseudonymizeUserId(userId));
         return ApiResponse.ok(result);
     }
 
@@ -57,17 +55,8 @@ public class PublicCaseController {
     public ApiResponse<List<PublicCaseDetailVO>> list(@RequestParam(required = false) Integer limit) {
         long userId = StpUtil.getLoginIdAsLong();
         List<PublicCaseDetailVO> result = publicCaseService.listPublicCases(userId, limit);
-        log.info("列出 Public Case: limit={}, actorHash={}, count={}", limit, pseudonymizeUserId(userId), result.size());
+        log.info("列出 Public Case: limit={}, actorHash={}, count={}", limit, PrivacyUtils.pseudonymizeUserId(userId), result.size());
         return ApiResponse.ok(result);
     }
 
-    private String pseudonymizeUserId(Long userId) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(String.valueOf(userId).getBytes(StandardCharsets.UTF_8));
-            return "%02x%02x%02x%02x".formatted(hash[0], hash[1], hash[2], hash[3]);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
-    }
 }

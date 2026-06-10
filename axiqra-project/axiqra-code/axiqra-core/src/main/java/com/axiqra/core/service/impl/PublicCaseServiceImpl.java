@@ -138,7 +138,11 @@ public class PublicCaseServiceImpl implements PublicCaseService {
             throw new BizException(ErrorCode.FORBIDDEN, "缺少 public:read 权限");
         }
         int normalizedLimit = normalizeLimit(limit);
-        return publicCaseMapper.selectPubliclySearchable(normalizedLimit).stream()
+        List<PublicCaseEntity> entities = publicCaseMapper.selectPubliclySearchable(normalizedLimit);
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream()
                 .map(this::toDetailVO)
                 .toList();
     }

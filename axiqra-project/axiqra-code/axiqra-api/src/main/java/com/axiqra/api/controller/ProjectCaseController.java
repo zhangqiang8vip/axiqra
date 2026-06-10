@@ -4,16 +4,13 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.dto.ProjectCaseCreateRequest;
 import com.axiqra.common.domain.vo.ProjectCaseDetailVO;
 import com.axiqra.common.response.ApiResponse;
+import com.axiqra.common.util.PrivacyUtils;
 import com.axiqra.core.service.ProjectCaseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,7 +37,7 @@ public class ProjectCaseController {
         long userId = StpUtil.getLoginIdAsLong();
         ProjectCaseDetailVO result = projectCaseService.create(userId, request);
         // 隐私合规：控制器日志不直接记录用户标识，改为稳定脱敏摘要。
-        log.info("创建 Project Case: caseId={}, actorHash={}", result.getId(), pseudonymizeUserId(userId));
+        log.info("创建 Project Case: caseId={}, actorHash={}", result.getId(), PrivacyUtils.pseudonymizeUserId(userId));
         return ApiResponse.ok(result);
     }
 
@@ -49,7 +46,7 @@ public class ProjectCaseController {
     public ApiResponse<ProjectCaseDetailVO> getDetail(@PathVariable Long caseId) {
         long userId = StpUtil.getLoginIdAsLong();
         ProjectCaseDetailVO result = projectCaseService.getDetail(userId, caseId);
-        log.info("读取 Project Case 详情: caseId={}, actorHash={}", caseId, pseudonymizeUserId(userId));
+        log.info("读取 Project Case 详情: caseId={}, actorHash={}", caseId, PrivacyUtils.pseudonymizeUserId(userId));
         return ApiResponse.ok(result);
     }
 
@@ -60,24 +57,8 @@ public class ProjectCaseController {
         long userId = StpUtil.getLoginIdAsLong();
         ProjectCaseDetailVO result = projectCaseService.requestPublish(userId, caseId, authorizationId);
         log.info("发起 Project Case 发布申请: caseId={}, authorizationId={}, actorHash={}",
-                caseId, authorizationId, pseudonymizeUserId(userId));
+                caseId, authorizationId, PrivacyUtils.pseudonymizeUserId(userId));
         return ApiResponse.ok(result);
     }
 
-    private String pseudonymizeUserId(Long userId) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(String.valueOf(userId).getBytes(StandardCharsets.UTF_8));
-            if (hash.length < 8) {
-                throw new IllegalStateException("SHA-256 digest too short");
-            }
-            StringBuilder hex = new StringBuilder(16);
-            for (int i = 0; i < 8; i++) {
-                hex.append(String.format("%02x", hash[i]));
-            }
-            return hex.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
-    }
 }

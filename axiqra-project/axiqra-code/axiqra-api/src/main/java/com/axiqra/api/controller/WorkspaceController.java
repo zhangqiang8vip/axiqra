@@ -17,6 +17,7 @@ import com.axiqra.common.response.ApiResponse;
 import com.axiqra.core.service.WorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +53,8 @@ public class WorkspaceController {
 
     @PostMapping
     @Operation(summary = "创建工作空间", description = "创建新工作空间，自动将自己设为 owner")
-    public ResponseEntity<ApiResponse<WorkspaceVO>> create(@Valid @RequestBody WorkspaceCreateRequest request) {
+    public ResponseEntity<ApiResponse<WorkspaceVO>> create(@Valid @RequestBody WorkspaceCreateRequest request,
+                                                          HttpServletRequest httpRequest) {
         long userId = StpUtil.getLoginIdAsLong();
         WorkspaceVO workspace = workspaceService.create(
                 userId,
@@ -60,7 +62,9 @@ public class WorkspaceController {
                 request.getWorkspaceName()
         );
         log.info("创建工作空间: userId={}, workspaceId={}", userId, workspace.getId());
-        URI location = URI.create("/workspaces/" + workspace.getId());
+        URI location = URI.create(httpRequest.getScheme() + "://" + httpRequest.getServerName()
+                + ":" + httpRequest.getServerPort()
+                + "/workspaces/" + workspace.getId());
         return ResponseEntity.created(location).body(ApiResponse.ok(workspace));
     }
 
@@ -115,7 +119,8 @@ public class WorkspaceController {
     public ResponseEntity<ApiResponse<MemberVO>> addMember(
             @PathVariable Long workspaceId,
             @RequestParam Long userId,
-            @RequestParam(defaultValue = "member") String role) {
+            @RequestParam(defaultValue = "member") String role,
+            HttpServletRequest httpRequest) {
         long currentUserId = StpUtil.getLoginIdAsLong();
         MemberRole memberRole = MemberRole.of(role);
         if (memberRole == null) {
@@ -124,7 +129,9 @@ public class WorkspaceController {
         }
         MemberVO member = workspaceService.addMember(workspaceId, currentUserId, userId, memberRole);
         log.info("添加成员: workspaceId={}, targetUserId={}, role={}", workspaceId, userId, role);
-        URI location = URI.create("/workspaces/" + workspaceId + "/members");
+        URI location = URI.create(httpRequest.getScheme() + "://" + httpRequest.getServerName()
+                + ":" + httpRequest.getServerPort()
+                + "/workspaces/" + workspaceId + "/members");
         return ResponseEntity.created(location).body(ApiResponse.ok(member));
     }
 

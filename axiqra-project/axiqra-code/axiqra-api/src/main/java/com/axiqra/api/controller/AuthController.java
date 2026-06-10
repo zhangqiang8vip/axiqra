@@ -18,7 +18,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
@@ -50,7 +50,8 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "登录", description = "用户名密码登录，返回 Sa-Token")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request,
+                                                            HttpServletRequest httpRequest) {
         UserEntity user = userService.getByUsername(request.getUsername());
         String targetHash = user != null ? user.getPasswordHash() : DUMMY_BCRYPT_HASH;
         boolean passwordMatches = userService.checkPassword(request.getPassword(), targetHash);
@@ -60,20 +61,15 @@ public class AuthController {
         StpUtil.login(user.getId());
         String token = StpUtil.getTokenValue();
         log.info("用户登录成功: userId={}", user.getId());
-        LoginResponse body = LoginResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .nickname(user.getNickname())
-                .email(user.getEmail())
-                .avatar(user.getAvatar())
-                .token(token)
-                .build();
-        return ResponseEntity.created(URI.create("/auth/me")).body(ApiResponse.ok(body));
+        LoginResponse body = buildLoginResponse(user, token);
+        URI location = buildAbsoluteUri(httpRequest, "/auth/me");
+        return ResponseEntity.created(location).body(ApiResponse.ok(body));
     }
 
     @PostMapping("/register")
     @Operation(summary = "注册", description = "注册新用户")
-    public ResponseEntity<ApiResponse<LoginResponse>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> register(@Valid @RequestBody RegisterRequest request,
+                                                              HttpServletRequest httpRequest) {
         try {
             UserEntity user = userService.register(
                     request.getUsername(),
@@ -83,21 +79,33 @@ public class AuthController {
             );
             StpUtil.login(user.getId());
             String token = StpUtil.getTokenValue();
-            LoginResponse body = LoginResponse.builder()
-                    .userId(user.getId())
-                    .username(user.getUsername())
-                    .nickname(user.getNickname())
-                    .email(user.getEmail())
-                    .avatar(user.getAvatar())
-                    .token(token)
-                    .build();
-            return ResponseEntity.created(URI.create("/auth/me")).body(ApiResponse.ok(body));
+            LoginResponse body = buildLoginResponse(user, token);
+            URI location = buildAbsoluteUri(httpRequest, "/auth/me");
+            return ResponseEntity.created(location).body(ApiResponse.ok(body));
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
             log.error("用户注册失败: username={}", request.getUsername(), e);
             throw new BizException(ErrorCode.SYSTEM_ERROR, "注册失败，请稍后重试");
         }
+    }
+
+    private URI buildAbsoluteUri(HttpServletRequest httpRequest, String path) {
+        String scheme = httpRequest.getScheme();
+        String host = httpRequest.getServerName();
+        int port = httpRequest.getServerPort();
+        return URI.create(scheme + "://" + host + ":" + port + path);
+    }
+
+    private LoginResponse buildLoginResponse(UserEntity user, String token) {
+        return LoginResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .nickname(user.getNickname())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
+                .token(token)
+                .build();
     }
 
     @PostMapping("/logout")

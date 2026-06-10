@@ -5,10 +5,12 @@ import org.slf4j.MDC;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -31,8 +33,30 @@ public class AsyncConfig {
         executor.setThreadNamePrefix("axiqra-async-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
+        executor.setTaskDecorator(new MdcTaskDecorator());
         executor.initialize();
         return executor;
+    }
+
+    /**
+     * TaskDecorator that propagates MDC context (traceId, userId) from the submitting
+     * thread into the async worker thread, and clears it afterwards.
+     */
+    private static class MdcTaskDecorator implements TaskDecorator {
+        @Override
+        public Runnable decorate(Runnable runnable) {
+            Map<String, String> context = MDC.getCopyOfContextMap();
+            return () -> {
+                try {
+                    if (context != null) {
+                        MDC.setContextMap(context);
+                    }
+                    runnable.run();
+                } finally {
+                    MDC.clear();
+                }
+            };
+        }
     }
 
     /**

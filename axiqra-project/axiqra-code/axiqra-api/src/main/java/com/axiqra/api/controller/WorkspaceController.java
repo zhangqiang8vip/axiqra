@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 
@@ -62,9 +63,9 @@ public class WorkspaceController {
                 request.getWorkspaceName()
         );
         log.info("创建工作空间: userId={}, workspaceId={}", userId, workspace.getId());
-        URI location = URI.create(httpRequest.getScheme() + "://" + httpRequest.getServerName()
-                + ":" + httpRequest.getServerPort()
-                + "/workspaces/" + workspace.getId());
+        URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
+                .replacePath("/workspaces/" + workspace.getId())
+                .build().toUri();
         return ResponseEntity.created(location).body(ApiResponse.ok(workspace));
     }
 
@@ -129,9 +130,9 @@ public class WorkspaceController {
         }
         MemberVO member = workspaceService.addMember(workspaceId, currentUserId, userId, memberRole);
         log.info("添加成员: workspaceId={}, targetUserId={}, role={}", workspaceId, userId, role);
-        URI location = URI.create(httpRequest.getScheme() + "://" + httpRequest.getServerName()
-                + ":" + httpRequest.getServerPort()
-                + "/workspaces/" + workspaceId + "/members");
+        URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
+                .replacePath("/workspaces/" + workspaceId + "/members")
+                .build().toUri();
         return ResponseEntity.created(location).body(ApiResponse.ok(member));
     }
 

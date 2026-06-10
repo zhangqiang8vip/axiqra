@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -117,11 +117,9 @@ public class ConnectController {
             response.setHeader(RETRY_AFTER_HEADER, String.valueOf(rateLimitStatus.getRetryAfterSeconds()));
         }
         log.info("创建 Connect 会话: sessionId={}, userId={}", session.getSessionId(), userId);
-        String scheme = httpRequest.getScheme();
-        String host = httpRequest.getServerName();
-        int port = httpRequest.getServerPort();
-        URI location = URI.create(scheme + "://" + host + ":" + port
-                + "/connect/sessions/" + session.getSessionId());
+        URI location = ServletUriComponentsBuilder.fromRequestUri(httpRequest)
+                .replacePath("/connect/sessions/" + session.getSessionId())
+                .build().toUri();
         return ResponseEntity.created(location).body(ApiResponse.ok(session));
     }
 }

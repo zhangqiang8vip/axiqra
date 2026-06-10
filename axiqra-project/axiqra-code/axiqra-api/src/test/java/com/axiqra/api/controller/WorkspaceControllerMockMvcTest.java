@@ -82,7 +82,7 @@ class WorkspaceControllerMockMvcTest {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "http://localhost:80/workspaces/100"))
+                .andExpect(header().string("Location", "http://localhost/workspaces/100"))
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.message").value("操作成功"))
                 .andExpect(jsonPath("$.requestId").value("trace-workspace-create-001"))

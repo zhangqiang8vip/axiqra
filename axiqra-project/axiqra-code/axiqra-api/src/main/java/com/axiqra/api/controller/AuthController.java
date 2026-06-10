@@ -89,10 +89,11 @@ public class AuthController {
     }
 
     private URI buildAbsoluteUri(HttpServletRequest httpRequest, String path) {
-        String scheme = httpRequest.getScheme();
-        String host = httpRequest.getServerName();
-        int port = httpRequest.getServerPort();
-        return URI.create(scheme + "://" + host + ":" + port + path);
+        return org.springframework.web.servlet.support.ServletUriComponentsBuilder
+                .fromRequestUri(httpRequest)
+                .replacePath(path)
+                .build()
+                .toUri();
     }
 
     private LoginResponse buildLoginResponse(UserEntity user, String token) {

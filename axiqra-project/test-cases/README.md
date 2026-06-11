@@ -56,6 +56,7 @@
 | R2 | 通用验证 + RBAC 框架 | `R2-通用验证_RBAC框架/` | ✅ 完成 |
 | R3 | Auth + Workspace + Nav | `R3-Auth_Workspace_Nav/` | ✅ 已归档，100/100 闭环 |
 | R4 | Quota + Connect + MCP/CLI | `R4-Quota_Connect_MCP_CLI/` | ✅ 已完成结构化闭环，当前评估 100/100 |
+| R6 | Trace + Project Case + Public Case | `R6-Trace_ProjectCase_PublicCase/` | ✅ 已归档，100/100 闭环 |
 
 ### 5.1 当前目录现状说明
 

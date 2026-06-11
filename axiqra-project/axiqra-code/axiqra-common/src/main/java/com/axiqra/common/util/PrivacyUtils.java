@@ -13,6 +13,9 @@ public final class PrivacyUtils {
     }
 
     public static String pseudonymizeUserId(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId must not be null");
+        }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(String.valueOf(userId).getBytes(StandardCharsets.UTF_8));

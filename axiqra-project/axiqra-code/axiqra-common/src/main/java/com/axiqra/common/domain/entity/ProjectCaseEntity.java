@@ -1,5 +1,6 @@
 package com.axiqra.common.domain.entity;
 
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -32,5 +33,6 @@ public class ProjectCaseEntity extends BaseEntity {
     private String status;
     @Nullable
     private Long reviewId;
+    @Column("is_deleted")
     private boolean isDeleted = false;
 }

@@ -19,6 +19,7 @@ import com.axiqra.core.service.RbacService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,9 +63,6 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
         if (trace.getStatus() == null || !trace.getStatus().isSubmitted()) {
             throw new BizException(ErrorCode.CASE_SOURCE_MISSING, "Trace 尚未提交，不能创建 Case");
         }
-        if (projectCaseMapper.selectByTraceId(trace.getId()) != null) {
-            throw new BizException(ErrorCode.CASE_DUPLICATE_SOURCE);
-        }
 
         LicenseScope licenseScope = LicenseScope.of(request.getLicenseScope().trim());
         if (licenseScope == null) {
@@ -83,7 +81,14 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
                 .setStatus(STATUS_PRIVATE)
                 .setReviewId(null)
                 .setDeleted(false);
-        projectCaseMapper.insertSelective(entity);
+        try {
+            projectCaseMapper.insertSelective(entity);
+        } catch (DataIntegrityViolationException ex) {
+            if (isDuplicateTraceViolation(ex)) {
+                throw new BizException(ErrorCode.CASE_DUPLICATE_SOURCE);
+            }
+            throw ex;
+        }
 
         auditPort.log(AuditPort.AuditEvent.builder()
                 .requestId(traceId())
@@ -166,7 +171,10 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
 
         entity.setAuthorizationId(authorizationId);
         entity.setStatus(STATUS_PENDING_REVIEW);
-        projectCaseMapper.update(entity);
+        int rows = projectCaseMapper.update(entity);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.CONCURRENT_MODIFICATION, "Project Case 已被其他人修改，请重试");
+        }
 
         auditPort.logAuthorizationChange(new AuditPort.AuthorizationEvent(
                 traceId(),
@@ -226,5 +234,14 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
     private String traceId() {
         String traceId = MDC.get("traceId");
         return traceId == null || traceId.isBlank() ? "missing-trace-id" : traceId;
+    }
+
+    private boolean isDuplicateTraceViolation(DataIntegrityViolationException ex) {
+        Throwable cause = ex.getRootCause();
+        if (cause instanceof java.sql.SQLIntegrityConstraintViolationException sqlEx) {
+            String message = sqlEx.getMessage() != null ? sqlEx.getMessage().toLowerCase() : "unknown";
+            return message.contains("trace_id");
+        }
+        return false;
     }
 }

@@ -1,9 +1,11 @@
 package com.axiqra;
 
+import com.axiqra.context.ApplicationContextHolder;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 public class AxiqraApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AxiqraApplication.class, args);
+        ApplicationContext ctx = SpringApplication.run(AxiqraApplication.class, args);
+        ApplicationContextHolder.setApplicationContext(ctx);
     }
 }

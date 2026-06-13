@@ -56,7 +56,6 @@ class PublicCaseServiceImplTest {
         ProjectCaseEntity sourceCase = projectCaseEntity();
         when(rbacService.hasScope(1L, "case:publish")).thenReturn(true);
         when(projectCaseMapper.selectActiveById(101L)).thenReturn(sourceCase);
-        when(publicCaseMapper.selectBySourceCaseId(101L)).thenReturn(null);
 
         ArgumentCaptor<PublicCaseEntity> captor = ArgumentCaptor.forClass(PublicCaseEntity.class);
         org.mockito.Mockito.doAnswer(invocation -> {
@@ -89,11 +88,15 @@ class PublicCaseServiceImplTest {
     }
 
     @Test
-    @DisplayName("重复来源 Project Case 应拒绝发布")
+    @DisplayName("重复来源 Project Case 应拒绝发布 — DB 唯一约束冲突")
     void shouldRejectDuplicateSourceCase() {
+        ProjectCaseEntity sourceCase = projectCaseEntity();
         when(rbacService.hasScope(1L, "case:publish")).thenReturn(true);
-        when(projectCaseMapper.selectActiveById(101L)).thenReturn(projectCaseEntity());
-        when(publicCaseMapper.selectBySourceCaseId(101L)).thenReturn(publicCaseEntity());
+        when(projectCaseMapper.selectActiveById(101L)).thenReturn(sourceCase);
+        org.mockito.Mockito.doThrow(new DataIntegrityViolationException(
+                        "duplicate key",
+                        new SQLIntegrityConstraintViolationException("duplicate source_case_id on idx_source_case")))
+                .when(publicCaseMapper).insertSelective(any());
 
         BizException ex = assertThrows(BizException.class, () -> publicCaseService.publish(1L, 101L));
 
@@ -101,12 +104,11 @@ class PublicCaseServiceImplTest {
     }
 
     @Test
-    @DisplayName("数据库唯一约束冲突时应转换为重复来源错误")
+    @DisplayName("数据库唯一约束冲突时应正确翻译为业务异常")
     void shouldTranslateDuplicateKeyViolation() {
         ProjectCaseEntity sourceCase = projectCaseEntity();
         when(rbacService.hasScope(1L, "case:publish")).thenReturn(true);
         when(projectCaseMapper.selectActiveById(101L)).thenReturn(sourceCase);
-        when(publicCaseMapper.selectBySourceCaseId(101L)).thenReturn(null);
         org.mockito.Mockito.doThrow(new DataIntegrityViolationException(
                         "duplicate key",
                         new SQLIntegrityConstraintViolationException("duplicate source_case_id on idx_source_case")))

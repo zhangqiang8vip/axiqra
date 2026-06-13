@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -31,6 +32,7 @@ public class ConnectServiceImpl implements ConnectService {
     private final ConnectSessionPort connectSessionPort;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ConnectSessionVO createSession(Long userId, ConnectSessionCreateRequest request) {
         quotaService.consumeOrThrow(userId, "connect_session_daily");
 

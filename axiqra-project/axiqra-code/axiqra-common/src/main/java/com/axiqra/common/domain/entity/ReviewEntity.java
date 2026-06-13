@@ -29,6 +29,15 @@ public class ReviewEntity extends BaseEntity {
     private Long reviewerId;
     private RiskLevel riskLevel;
     private ReviewResult status;
+    @Nullable
+    @Column("reason_code")
+    private String reasonCode;
+    @Nullable
+    @Column("notes")
+    private String notes;
+    @Nullable
+    @Column("appeal_content")
+    private String appealContent;
     @Column("is_deleted")
     private boolean isDeleted = false;
     @Nullable

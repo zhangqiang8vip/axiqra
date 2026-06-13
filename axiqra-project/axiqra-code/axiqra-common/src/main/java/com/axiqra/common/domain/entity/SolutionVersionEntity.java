@@ -34,5 +34,5 @@ public class SolutionVersionEntity extends BaseEntity {
     @Nullable
     @ColumnAlias("rollback_info")
     private String rollback;
-    private Integer isActive;
+    private boolean isActive;
 }

@@ -5,6 +5,7 @@ import com.axiqra.common.domain.enums.RiskLevel;
 import com.axiqra.common.domain.enums.SolutionStatus;
 import com.axiqra.common.domain.enums.VerificationLevel;
 import com.axiqra.common.domain.enums.VisibilityScope;
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -40,8 +41,10 @@ public class SolutionEntity extends BaseEntity {
     @Nullable
     private LicenseScope licenseScope;
     @Nullable
+    @Column("tenant_id")
     private Long tenantId;
     @Nullable
     private Long sourceCaseId;
+    @Column("is_deleted")
     private boolean isDeleted = false;
 }

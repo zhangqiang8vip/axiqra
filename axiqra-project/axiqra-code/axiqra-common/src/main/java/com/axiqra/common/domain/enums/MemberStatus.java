@@ -30,7 +30,7 @@ public enum MemberStatus {
             return null;
         }
         for (MemberStatus s : values()) {
-            if (s.code.equals(code)) {
+            if (s.code.equals(code.toLowerCase())) {
                 return s;
             }
         }

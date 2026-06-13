@@ -71,9 +71,6 @@ public class PublicCaseServiceImpl implements PublicCaseService {
         if (licenseScope == null || !licenseScope.allowsPublicRelease()) {
             throw new BizException(ErrorCode.FORBIDDEN, "当前 licenseScope 不允许公开发布");
         }
-        if (publicCaseMapper.selectBySourceCaseId(projectCaseId) != null) {
-            throw new BizException(ErrorCode.CASE_DUPLICATE_SOURCE);
-        }
 
         PublicCaseEntity entity = new PublicCaseEntity()
                 .setSourceCaseId(projectCaseId)

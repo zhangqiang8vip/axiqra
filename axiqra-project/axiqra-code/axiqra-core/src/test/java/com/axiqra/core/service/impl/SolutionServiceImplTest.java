@@ -10,7 +10,6 @@ import com.axiqra.common.domain.enums.VisibilityScope;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
-import com.axiqra.core.mapper.FeedbackStatRow;
 import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.mapper.SolutionVersionMapper;
 import com.axiqra.core.service.RbacService;
@@ -26,6 +25,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -144,17 +145,29 @@ class SolutionServiceImplTest {
         version.setSolutionId(10L);
         version.setVersionNumber(3);
         version.setSteps("step-1");
-        version.setIsActive(1);
+        version.setActive(true);
 
         when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
         when(rbacService.isMember(1L, 100L)).thenReturn(true);
         when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of(version));
+        FeedbackMapper.FeedbackStatRow workedRow = mock(FeedbackMapper.FeedbackStatRow.class);
+        when(workedRow.getFeedbackType()).thenReturn(FeedbackType.WORKED.getCode());
+        when(workedRow.getCount()).thenReturn(2L);
+
+        FeedbackMapper.FeedbackStatRow failedRow = mock(FeedbackMapper.FeedbackStatRow.class);
+        when(failedRow.getFeedbackType()).thenReturn(FeedbackType.FAILED.getCode());
+        when(failedRow.getCount()).thenReturn(1L);
+
+        FeedbackMapper.FeedbackStatRow unknownRow = mock(FeedbackMapper.FeedbackStatRow.class);
+        lenient().when(unknownRow.getFeedbackType()).thenReturn("unknown");
+        lenient().when(unknownRow.getCount()).thenReturn(7L);
+
+        FeedbackMapper.FeedbackStatRow notApplicableRow = mock(FeedbackMapper.FeedbackStatRow.class);
+        when(notApplicableRow.getFeedbackType()).thenReturn(FeedbackType.NOT_APPLICABLE.getCode());
+        when(notApplicableRow.getCount()).thenReturn(null);
+
         when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of(
-                new FeedbackStatRow(FeedbackType.WORKED.getCode(), 2L),
-                new FeedbackStatRow(FeedbackType.FAILED.getCode(), 1L),
-                new FeedbackStatRow("unknown", 7L),
-                new FeedbackStatRow(FeedbackType.NOT_APPLICABLE.getCode(), null)
-        ));
+                workedRow, failedRow, unknownRow, notApplicableRow));
 
         var result = solutionService.getDetail(1L, 10L);
 

@@ -23,6 +23,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import java.sql.SQLIntegrityConstraintViolationException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -65,7 +68,6 @@ class ProjectCaseServiceImplTest {
         EngineeringTraceEntity trace = traceEntity();
         when(rbacService.hasScope(1L, "case:write")).thenReturn(true);
         when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
-        when(projectCaseMapper.selectByTraceId(88L)).thenReturn(null);
 
         ArgumentCaptor<ProjectCaseEntity> captor = ArgumentCaptor.forClass(ProjectCaseEntity.class);
         org.mockito.Mockito.doAnswer(invocation -> {
@@ -84,16 +86,20 @@ class ProjectCaseServiceImplTest {
     }
 
     @Test
-    @DisplayName("同一 Trace 不能重复创建 Project Case")
-    void shouldRejectDuplicateSourceTrace() {
+    @DisplayName("同一 Trace 不能重复创建 Project Case — DB 唯一约束冲突")
+    void shouldRejectDuplicateViaDbConstraint() {
         ProjectCaseCreateRequest request = ProjectCaseCreateRequest.builder()
                 .traceId(88L)
                 .licenseScope("open_source")
                 .redactionStatus("complete")
                 .build();
+        EngineeringTraceEntity trace = traceEntity();
         when(rbacService.hasScope(1L, "case:write")).thenReturn(true);
-        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(traceEntity());
-        when(projectCaseMapper.selectByTraceId(88L)).thenReturn(projectCaseEntity());
+        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
+        org.mockito.Mockito.doThrow(new DataIntegrityViolationException(
+                        "duplicate key",
+                        new SQLIntegrityConstraintViolationException("duplicate key: trace_id")))
+                .when(projectCaseMapper).insertSelective(any());
 
         BizException ex = assertThrows(BizException.class, () -> projectCaseService.create(1L, request));
 
@@ -136,6 +142,7 @@ class ProjectCaseServiceImplTest {
         when(rbacService.hasScope(1L, "case:publish")).thenReturn(true);
         when(projectCaseMapper.selectActiveById(101L)).thenReturn(entity);
         when(authorizationMapper.selectActiveById(201L)).thenReturn(authorization);
+        when(projectCaseMapper.update(any())).thenReturn(1);
 
         ProjectCaseDetailVO result = projectCaseService.requestPublish(1L, 101L, 201L);
 

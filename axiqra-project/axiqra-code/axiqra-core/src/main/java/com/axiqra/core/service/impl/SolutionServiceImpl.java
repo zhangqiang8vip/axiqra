@@ -13,7 +13,6 @@ import com.axiqra.common.domain.vo.SolutionVersionVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
-import com.axiqra.core.mapper.FeedbackStatRow;
 import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.mapper.SolutionVersionMapper;
 import com.axiqra.core.service.RbacService;
@@ -115,7 +114,7 @@ public class SolutionServiceImpl implements SolutionService {
     }
 
     private SolutionFeedbackStatsVO buildFeedbackStats(Long solutionId) {
-        List<FeedbackStatRow> stats = defaultIfNull(feedbackMapper.selectFeedbackStatsBySolutionId(solutionId));
+        List<FeedbackMapper.FeedbackStatRow> stats = defaultIfNull(feedbackMapper.selectFeedbackStatsBySolutionId(solutionId));
         long workedCount = countByType(stats, FeedbackType.WORKED);
         long partialCount = countByType(stats, FeedbackType.PARTIAL);
         long failedCount = countByType(stats, FeedbackType.FAILED);
@@ -129,11 +128,11 @@ public class SolutionServiceImpl implements SolutionService {
                 .build();
     }
 
-    private long countByType(List<FeedbackStatRow> stats, FeedbackType targetType) {
+    private long countByType(List<FeedbackMapper.FeedbackStatRow> stats, FeedbackType targetType) {
         return stats.stream()
                 .filter(Objects::nonNull)
                 .filter(stat -> targetType == FeedbackType.of(stat.getFeedbackType()))
-                .map(FeedbackStatRow::getCount)
+                .map(FeedbackMapper.FeedbackStatRow::getCount)
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(0L);
@@ -149,7 +148,7 @@ public class SolutionServiceImpl implements SolutionService {
                 .evidence(entity.getEvidence())
                 .risk(entity.getRisk())
                 .rollback(entity.getRollback())
-                .active(entity.getIsActive() != null && entity.getIsActive() == 1)
+                .active(entity.isActive())
                 .build();
     }
 

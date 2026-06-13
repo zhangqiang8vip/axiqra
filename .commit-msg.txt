@@ -1,8 +1,9 @@
-refactor: 使用 ServletUriComponentsBuilder 构造 Location 头，移除手写字符串拼接
+fix: resolve remaining API review issues from GitHub Actions
 
-- AuthController: buildAbsoluteUri() 改用 ServletUriComponentsBuilder.fromRequestUri()
-- ConnectController: create() 改用 ServletUriComponentsBuilder.fromRequestUri()
-- WorkspaceController: create() 和 addMember() 改用 ServletUriComponentsBuilder.fromRequestUri()
-- WorkspaceControllerMockMvcTest: 修正 Location 期望值为 http://localhost/workspaces/100
-
-CodeRabbit 反馈：手写 URI 构造在反向代理场景下不够健壮，改用 Spring 内置 URI 构建器自动处理 X-Forwarded-* 头和标准端口。
+- InvocationServiceImpl: use insert-first with unique-constraint catch
+  for idempotency, fixing check-then-insert race condition
+- All 5 controllers wrap responses in ApiResponse<>
+  (Feedback, Review, Contribution, ToolModel, Invocation)
+- 403 response body now includes ApiResponse.fail() instead of empty
+- Add boundary tests: empty list, zero counts, invalid request
+- Update controller/service tests to match new response patterns

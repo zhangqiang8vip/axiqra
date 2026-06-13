@@ -1,6 +1,7 @@
 package com.axiqra.common.domain.entity;
 
 import com.axiqra.common.domain.enums.WorkspaceType;
+import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -26,5 +27,6 @@ public class PublicCaseEntity extends BaseEntity {
     @Nullable
     private Long reviewId;
     private com.axiqra.common.domain.enums.PublicCaseStatus status;
+    @Column("is_deleted")
     private boolean isDeleted = false;
 }

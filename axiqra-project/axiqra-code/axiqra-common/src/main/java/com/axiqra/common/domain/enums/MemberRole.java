@@ -3,6 +3,8 @@ package com.axiqra.common.domain.enums;
 import com.mybatisflex.annotation.EnumValue;
 import lombok.Getter;
 
+import java.util.Locale;
+
 /**
  * 成员角色枚举
  *
@@ -29,7 +31,7 @@ public enum MemberRole {
     public static MemberRole of(String code) {
         if (code == null) return null;
         for (MemberRole r : values()) {
-            if (r.code.equals(code)) return r;
+            if (r.code.equals(code.toLowerCase(Locale.ROOT))) return r;
         }
         return null;
     }

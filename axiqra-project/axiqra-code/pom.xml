@@ -37,6 +37,7 @@
         <shardingsphere.version>5.5.3</shardingsphere.version>
         <resilience4j.version>2.3.0</resilience4j.version>
         <snakeyaml.version>2.6</snakeyaml.version>
+        <flyway.version>11.6.0</flyway.version>
         <!-- 测试 -->
         <testcontainers.version>1.20.6</testcontainers.version>
         <mockito.version>5.15.2</mockito.version>
@@ -140,6 +141,18 @@
                 <groupId>io.github.resilience4j</groupId>
                 <artifactId>resilience4j-timelimiter</artifactId>
                 <version>${resilience4j.version}</version>
+            </dependency>
+
+            <!-- Flyway（数据库版本化管理，审计库 PostgreSQL） -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
             </dependency>
 
             <!-- 测试：TestContainers（容器化数据库测试） -->
@@ -288,6 +301,12 @@
                             </exclude>
                         </excludes>
                     </configuration>
+                </plugin>
+                <!-- Flyway Maven 插件（用于数据库迁移） -->
+                <plugin>
+                    <groupId>org.flywaydb</groupId>
+                    <artifactId>flyway-maven-plugin</artifactId>
+                    <version>${flyway.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

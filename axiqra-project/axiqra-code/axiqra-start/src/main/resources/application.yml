@@ -71,13 +71,6 @@ knife4j:
   setting:
     language: zh_cn
 
-springdoc:
-  api-docs:
-    enabled: true
-    path: /v3/api-docs
-  swagger-ui:
-    enabled: false
-
 sa-token:
   token-name: Authorization
   timeout: 2592000
@@ -180,3 +173,12 @@ axiqra:
     username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
     password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
     driver-class-name: org.postgresql.Driver
+
+# Flyway：仅审计库（PostgreSQL），业务库（CockroachDB）保持外部 SQL 文件
+# 参考：https://flywaydb.org/documentation/configuration/
+axiqra-flyway:
+  enabled: true
+  baseline-on-migrate: true
+  locations: classpath:db/audit
+  table: flyway_schema_history
+  connect-on-startup: true

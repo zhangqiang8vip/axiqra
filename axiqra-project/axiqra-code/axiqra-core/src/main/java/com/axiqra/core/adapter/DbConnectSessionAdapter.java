@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
@@ -56,7 +57,7 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
         return Optional.ofNullable(entity).map(this::toView);
     }
 
-    @Override
+    @Override   
     public List<ConnectSessionVO> listByUser(Long userId) {
         List<ConnectSessionEntity> entities = connectSessionMapper.selectByUserId(userId, normalizedTenantId());
         if (entities == null || entities.isEmpty()) {
@@ -82,10 +83,16 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
                 .setExpiresAt(session.getExpiresAt())
                 .setDoctorStatus(session.getDoctor() == null ? null : session.getDoctor().getStatus())
                 .setDoctorSnapshot(toJson(session.getDoctor()))
-                .setHistorySnapshot(toJson(session.getHistory()));
+                .setHistorySnapshot(toJson(session.getHistory()))
+                .setToolCapability(session.getToolCapability())
+                .setAuthScope(session.getAuthScope())
+                .setDoctorResult(session.getDoctorResult())
+                .setLastSeenAt(session.getLastSeenAt() == null ? null : session.getLastSeenAt().toInstant())
+                .setInstructionSnapshot(session.getInstructionSnapshot())
+                .setFailureReason(session.getFailureReason());
         entity.setTenantId(normalizedTenantId());
-        entity.setGmtCreate(session.getCreatedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC).toInstant() : session.getCreatedAt().toInstant());
-        entity.setGmtModified(OffsetDateTime.now(ZoneOffset.UTC).toInstant());
+        entity.setGmtCreate(session.getCreatedAt() == null ? Instant.now() : session.getCreatedAt().toInstant());
+        entity.setGmtModified(Instant.now());
         entity.setVersion(0L);
         return entity;
     }
@@ -108,10 +115,16 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
                 .status(entity.getStatus())
                 .riskLevel(entity.getRiskLevel())
                 .confirmationObtained(entity.getConfirmationObtained() != null && entity.getConfirmationObtained() == 1)
-                .createdAt(entity.getGmtCreate() == null ? null : entity.getGmtCreate().atOffset(ZoneOffset.UTC))
+                .createdAt(entity.getGmtCreate() == null ? null : OffsetDateTime.ofInstant(entity.getGmtCreate(), ZoneOffset.UTC))
                 .expiresAt(entity.getExpiresAt())
                 .doctor(doctor)
                 .history(history == null ? Collections.emptyList() : history)
+                .toolCapability(entity.getToolCapability())
+                .authScope(entity.getAuthScope())
+                .doctorResult(entity.getDoctorResult())
+                .lastSeenAt(entity.getLastSeenAt() == null ? null : entity.getLastSeenAt().atOffset(ZoneOffset.UTC))
+                .instructionSnapshot(entity.getInstructionSnapshot())
+                .failureReason(entity.getFailureReason())
                 .build();
     }
 

@@ -1,0 +1,151 @@
+# Axiqra 反馈规则
+
+> **触发时机**：AI Agent 调用 Solution 并获得结果后必须提交反馈
+
+## 反馈类型
+
+| 类型 | 值 | 含义 | 影响 |
+|------|-----|------|------|
+| 好评 | `worked` | 方案有效解决问题 | +1 有效样本 |
+| 一般 | `partial` | 部分有效，需要补充 | +0.5 样本 |
+| 差评 | `failed` | 方案不适用或过时 | 触发复核 |
+| 不适用 | `not_applicable` | 场景不匹配 | 更新边界 |
+
+## 触发条件
+
+### 必须反馈
+
+- 调用 Solution 执行后获得明确结果
+- 方案完全解决或部分解决问题
+- 方案明确不适用当前场景
+
+### 可选反馈
+
+- 执行过程中发现新问题
+- 有改进建议
+
+### 禁止刷反馈
+
+- ❌ 无效调用（未实际使用方案）
+- ❌ 刷 worked 提升成功率
+- ❌ 批量提交无意义的 partial
+
+## 反馈质量
+
+### 有效反馈必须包含
+
+```json
+{
+  "invocation_id": "INV-xxx",      // 调用记录 ID
+  "feedback_type": "worked",        // 反馈类型
+  "context": {
+    "tech_stack": "Spring Boot 3.x",
+    "environment": "K8s + AWS",
+    "problem": "Redis 连接超时"
+  },
+  "evidence": [
+    "测试日志",
+    "压测结果",
+    "监控截图"
+  ],
+  "notes": "可选备注"
+}
+```
+
+### partial 反馈必须说明
+
+- 哪部分有效
+- 哪部分无效
+- 需要补充什么
+
+```json
+{
+  "feedback_type": "partial",
+  "what_worked": "连接池配置生效",
+  "what_failed": "超时时间仍不足",
+  "suggestion": "需要增加 readTimeout 配置"
+}
+```
+
+### failed 反馈必须说明
+
+- 为什么失败
+- 在什么场景下失败
+- 是否有替代方案
+
+```json
+{
+  "feedback_type": "failed",
+  "failure_reason": "Spring Boot 版本过低，不支持新配置",
+  "environment": "Spring Boot 2.7.x",
+  "alternative_found": "降级到兼容配置"
+}
+```
+
+## 反馈影响
+
+### 对验证等级的影响
+
+| 反馈类型 | 积累效果 |
+|---------|---------|
+| worked × 3+ | L2 → L3 候选 |
+| worked × 5+ (跨上下文) | L3 → L4 候选 |
+| failed × 3 | 触发降级复核 |
+| failed × 5 | 降级或隔离 |
+
+### 对排序的影响
+
+- worked 增多 → 排序权重提升
+- failed 增多 → 排序权重降低
+- not_applicable → 更新适用边界，降低相似场景推荐
+
+## CLI 提交命令
+
+```bash
+# 方案有效
+axiqra feedback INV-xxx worked --evidence ./test-result.json
+
+# 部分有效
+axiqra feedback INV-xxx partial --reason "版本不匹配" --note "需要补充配置"
+
+# 无效
+axiqra feedback INV-xxx failed --reason "场景完全不同"
+
+# 不适用
+axiqra feedback INV-xxx not_applicable --reason "Go 项目不适用 Java 方案"
+```
+
+## 反馈状态
+
+```
+submitted → validated → accepted → applied
+                      ↓
+                  rejected（无效反馈）
+```
+
+## 低质量反馈处理
+
+以下反馈会被标记或拒绝：
+
+- 无 invocation_id 的反馈
+- 批量刷 worked
+- 重复提交相同反馈
+- 无证据的 partial/failed
+
+## 反馈与 Contribution Ledger
+
+每次有效反馈都会记录到贡献账本：
+
+| 贡献类型 | 权重 |
+|---------|------|
+| 提供有效 worked | +10 分 |
+| 提供有效 failed（纠错） | +15 分 |
+| 提供 partial 并有说明 | +5 分 |
+| 更新边界（not_applicable） | +8 分 |
+
+> 注：刷反馈会被扣除贡献积分
+
+## 关联规则
+
+- `search-before-act.mdc` - 行动前搜索规则
+- `trace-submit.mdc` - 轨迹提交规则

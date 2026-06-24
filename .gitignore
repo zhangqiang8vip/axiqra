@@ -26,3 +26,10 @@ tools/nssm/extract/
 tools/start-backend-temp.ps1
 tools/maven-install-all.ps1
 
+# IDE
+.idea/
+*.iml
+
+# IDE
+**/rebel.xml
+

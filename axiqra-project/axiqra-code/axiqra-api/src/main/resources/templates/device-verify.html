@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axiqra 设备授权</title>
+  <link rel="icon" href="/logo/icon.svg">
+  <style>
+    :root {
+      --ink: #111318;
+      --sub: #5c6675;
+      --soft: #8a93a2;
+      --blue: #1267ff;
+      --aqua: #18c4bd;
+      --lime: #c8ff5f;
+      --rose: #ff7aa8;
+      --paper: #fbfbf8;
+      --line: rgba(17,19,24,0.12);
+      --line-blue: rgba(18,103,255,0.18);
+      --dark: #0b0f17;
+      --green: #12966b;
+      --red: #b64040;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink);
+      background: 
+        radial-gradient(circle at 16% 8%, rgba(18,103,255,0.08), transparent 26%),
+        radial-gradient(circle at 88% 4%, rgba(24,196,189,0.07), transparent 24%),
+        linear-gradient(180deg, #fbfbf8, #ffffff 42%, #fbfbf8);
+      overflow-x: hidden;
+    }
+    
+    .card {
+      position: relative;
+      width: min(440px, calc(100% - 40px));
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.66);
+      border-radius: 32px;
+      padding: 48px 40px;
+      box-shadow: 
+        0 30px 90px rgba(20,38,68,0.14),
+        0 1px 0 rgba(255,255,255,0.8) inset;
+    }
+    
+    .card::before {
+      content: "";
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      top: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--blue), var(--aqua), var(--lime));
+      border-radius: 999px;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+    
+    .logo svg {
+      width: 32px;
+      height: 32px;
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: var(--sub);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    
+    .code-display {
+      position: relative;
+      background: linear-gradient(135deg, #18c4bd, #c8ff5f);
+      color: var(--ink);
+      padding: 28px 32px;
+      border-radius: 20px;
+      margin: 24px 0;
+      text-align: center;
+      box-shadow: 0 18px 38px rgba(24,196,189,0.25);
+    }
+    
+    .code-display::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    
+    .code-label {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.85;
+      margin-bottom: 8px;
+    }
+    
+    .code-value {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      font-size: 36px;
+      font-weight: 950;
+      letter-spacing: 6px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    
+    .orb {
+      position: fixed;
+      right: -20vw;
+      top: -10vh;
+      width: min(600px, 60vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 27%, #fff 0 6%, transparent 7%),
+        radial-gradient(circle at 31% 34%, var(--lime), transparent 18%),
+        radial-gradient(circle at 55% 31%, var(--rose), transparent 18%),
+        radial-gradient(circle at 56% 52%, var(--aqua), transparent 34%),
+        radial-gradient(circle at 43% 65%, var(--blue), transparent 46%),
+        #dfefff;
+      filter: saturate(1.08);
+      opacity: 0.6;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    .input-group {
+      margin: 24px 0;
+    }
+    
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--ink);
+      margin-bottom: 10px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 16px 18px;
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.8);
+      font-size: 18px;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      text-align: center;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+    
+    input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(18,103,255,0.12);
+    }
+    
+    input::placeholder {
+      color: var(--soft);
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 15px;
+    }
+    
+    button {
+      width: 100%;
+      height: 52px;
+      border: none;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #18c4bd, #c8ff5f);
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 18px 38px rgba(24,196,189,0.25);
+    }
+    
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 22px 44px rgba(24,196,189,0.3);
+    }
+    
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .message {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 900;
+      text-align: center;
+      display: none;
+    }
+    
+    .message.error {
+      display: block;
+      background: rgba(182,64,64,0.1);
+      color: var(--red);
+      border: 1px solid rgba(182,64,64,0.2);
+    }
+    
+    .success {
+      display: none;
+      text-align: center;
+      padding: 32px 20px;
+    }
+    
+    .success.show {
+      display: block;
+    }
+    
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, var(--green), #18c4bd);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      box-shadow: 0 18px 38px rgba(18,150,107,0.25);
+    }
+    
+    .success h2 {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+    
+    .success p {
+      color: var(--sub);
+      font-size: 14px;
+    }
+    
+    .footer {
+      margin-top: 28px;
+      text-align: center;
+      color: var(--soft);
+      font-size: 12px;
+    }
+    
+    .footer a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .loading {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="orb"></div>
+  
+  <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" stroke="url(#grad)" stroke-width="6"/>
+        <circle cx="50" cy="50" r="20" fill="url(#grad)"/>
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1267ff"/>
+            <stop offset="50%" stop-color="#18c4bd"/>
+            <stop offset="100%" stop-color="#c8ff5f"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      Axiqra
+    </div>
+    
+    <h1>设备授权</h1>
+    <p class="subtitle">请在终端查看授权码并输入</p>
+    
+    <div class="code-display" id="codeDisplay">
+      <div class="code-label">授权码</div>
+      <div class="code-value" id="displayCode">---</div>
+    </div>
+    
+    <form id="verifyForm">
+      <div class="input-group">
+        <label for="codeInput">输入授权码</label>
+        <input 
+          type="text" 
+          id="codeInput" 
+          placeholder="例如: ABC-123"
+          maxlength="9"
+          autocomplete="off"
+          spellcheck="false"
+        >
+      </div>
+      
+      <button type="submit" id="verifyBtn">验证授权</button>
+      
+      <div class="message" id="message"></div>
+    </form>
+    
+    <div class="success" id="success">
+      <div class="success-icon">✓</div>
+      <h2>授权成功</h2>
+      <p>请回到终端继续操作</p>
+    </div>
+    
+    <p class="footer">授权码有效期 10 分钟</p>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const device = urlParams.get('device');
+    
+    if (code) {
+      document.getElementById('displayCode').textContent = code;
+    }
+    
+    const form = document.getElementById('verifyForm');
+    const input = document.getElementById('codeInput');
+    const btn = document.getElementById('verifyBtn');
+    const message = document.getElementById('message');
+    const success = document.getElementById('success');
+    const codeDisplay = document.getElementById('codeDisplay');
+    
+    let verified = false;
+    
+    input.addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    });
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (verified) return;
+      
+      const inputCode = input.value.trim().toUpperCase();
+      
+      if (!inputCode) {
+        showError('请输入授权码');
+        return;
+      }
+      
+      if (inputCode !== code) {
+        showError('授权码不匹配，请检查后重试');
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = '验证中...';
+      btn.classList.add('loading');
+      message.className = 'message';
+      
+      try {
+        const res = await fetch('/api/auth/device/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            user_code: code,
+            device_code: device
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.code === 0) {
+          verified = true;
+          form.classList.add('hidden');
+          codeDisplay.classList.add('hidden');
+          success.classList.add('show');
+        } else {
+          showError(data.message || '验证失败，请重试');
+          btn.disabled = false;
+          btn.textContent = '验证授权';
+          btn.classList.remove('loading');
+        }
+      } catch (err) {
+        showError('网络错误，请检查网络后重试');
+        btn.disabled = false;
+        btn.textContent = '验证授权';
+        btn.classList.remove('loading');
+      }
+    });
+    
+    function showError(msg) {
+      message.textContent = msg;
+      message.className = 'message error';
+    }
+    
+    input.focus();
+  </script>
+</body>
+</html>

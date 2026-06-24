@@ -1,0 +1,36 @@
+{
+  "name": "@axiqra/connect",
+  "version": "1.0.0",
+  "description": "Axiqra Connect - 一键接入包",
+  "type": "module",
+  "main": "bin/axiqra-connect.js",
+  "bin": {
+    "axiqra": "./cli/scripts/axiqra-cli.mjs"
+  },
+  "scripts": {
+    "install:windows": "powershell -ExecutionPolicy Bypass -File ./bin/axiqra-connect.ps1",
+    "install:unix": "bash ./bin/axiqra-connect.sh",
+    "doctor": "node ./cli/scripts/axiqra-cli.mjs doctor",
+    "test": "node --test ./tests/*.test.mjs"
+  },
+  "keywords": [
+    "axiqra",
+    "connect",
+    "cli",
+    "mcp",
+    "ai-agent",
+    "engineering-memory"
+  ],
+  "author": "Axiqra Team",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^15.0.0"
+  },
+  "optionalDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

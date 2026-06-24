@@ -20,6 +20,9 @@ public interface FeedbackMapper extends BaseMapper<FeedbackEntity> {
     @Select("SELECT * FROM axiqra_feedback WHERE invocation_id = #{invocationId} AND is_deleted = FALSE LIMIT 1")
     FeedbackEntity selectByInvocationId(@Param("invocationId") Long invocationId);
 
+    @Select("SELECT * FROM axiqra_feedback WHERE idempotency_key = #{idempotencyKey} AND is_deleted = FALSE LIMIT 1")
+    FeedbackEntity selectByIdempotencyKey(@Param("idempotencyKey") String idempotencyKey);
+
     @Select("SELECT * FROM axiqra_feedback WHERE invocation_id IN " +
             "(SELECT id FROM axiqra_invocation WHERE target_type = 'solution' AND target_id = #{solutionId} AND is_deleted = FALSE) " +
             "AND is_deleted = FALSE ORDER BY gmt_create DESC")

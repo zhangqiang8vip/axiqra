@@ -34,4 +34,10 @@ public class FeedbackSubmitRequest {
 
     @Size(max = 1000, message = "边界说明不能超过 1000 字")
     private String boundaryNotes;
+
+    /**
+     * 幂等键，用于防止重复提交
+     * 客户端生成，建议格式: feedback_{timestamp}_{hash}
+     */
+    private String idempotencyKey;
 }

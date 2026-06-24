@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * Connect 会话创建请求
+ * 
+ * 对应 D09 文档第 9 节规定的接入会话必须记录的字段
  */
 @Data
 @NoArgsConstructor
@@ -31,4 +33,15 @@ public class ConnectSessionCreateRequest {
     private String riskLevel;
 
     private Boolean confirmationObtained;
+    
+    /**
+     * 工具能力声明 (supports_mcp, supports_cli, supports_local_cache 等)
+     * 对应 D09 文档第 13 节工具能力 Manifest
+     */
+    private String toolCapability;
+    
+    /**
+     * 授权范围 (search, read, submit, feedback 等)
+     */
+    private String authScope;
 }

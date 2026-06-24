@@ -36,4 +36,7 @@ public class FeedbackEntity extends BaseEntity {
     @Nullable
     @Column("tenant_id")
     private Long tenantId;
+    @Nullable
+    @Column("idempotency_key")
+    private String idempotencyKey;
 }

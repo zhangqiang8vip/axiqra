@@ -2,12 +2,15 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.audit.AuditPort;
 import com.axiqra.common.domain.dto.ConnectSessionCreateRequest;
+import com.axiqra.common.domain.enums.ConnectSessionEvent;
+import com.axiqra.common.domain.enums.ConnectSessionStatus;
 import com.axiqra.common.domain.vo.ConnectDoctorVO;
 import com.axiqra.common.domain.vo.ConnectSessionEventVO;
 import com.axiqra.common.domain.vo.ConnectSessionVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.port.ConnectSessionPort;
+import com.axiqra.core.domain.ConnectSessionStateMachine;
 import com.axiqra.core.service.ConnectService;
 import com.axiqra.core.service.QuotaService;
 import com.axiqra.core.service.RbacService;
@@ -55,7 +58,10 @@ public class ConnectServiceImpl implements ConnectService {
                 .createdAt(createdAt)
                 .expiresAt(expiresAt)
                 .doctor(doctor)
-                .history(ConnectSessionEventVO.createHistory("CHECKED", status, reason, createdAt))
+                .history(ConnectSessionEventVO.createHistory(ConnectSessionEvent.CREATE_CONNECT_SESSION.getCode(), status, reason, createdAt))
+                .toolCapability(request.getToolCapability())
+                .authScope(request.getAuthScope())
+                .lastSeenAt(createdAt)
                 .build();
 
         connectSessionPort.save(session);
@@ -137,14 +143,14 @@ public class ConnectServiceImpl implements ConnectService {
     private String doctorStatusToSessionStatus(String doctorStatus) {
         if (doctorStatus == null) {
             log.warn("unknown doctor status: null, defaulting to BLOCKED");
-            return "BLOCKED";
+            return ConnectSessionStatus.CREATED.getCode();
         }
         return switch (doctorStatus) {
-            case "PASS" -> "READY";
-            case "WARN" -> "DEGRADED";
+            case "PASS" -> ConnectSessionStatus.CONNECTED.getCode();
+            case "WARN" -> ConnectSessionStatus.DEGRADED.getCode();
             default -> {
-                log.warn("unexpected doctor status: {}, mapping to BLOCKED", doctorStatus);
-                yield "BLOCKED";
+                log.warn("unexpected doctor status: {}, mapping to CREATED", doctorStatus);
+                yield ConnectSessionStatus.CREATED.getCode();
             }
         };
     }

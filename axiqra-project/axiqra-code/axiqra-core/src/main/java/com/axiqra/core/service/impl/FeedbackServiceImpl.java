@@ -39,6 +39,16 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional
     public FeedbackDetailVO submitFeedback(Long userId, FeedbackSubmitRequest request) {
+        // 幂等性检查：如果提供了 idempotencyKey，查找已存在的记录
+        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
+            FeedbackEntity existing = feedbackMapper.selectByIdempotencyKey(request.getIdempotencyKey());
+            if (existing != null) {
+                log.info("幂等返回已有 Feedback: idempotencyKey={}, existingId={}", 
+                        request.getIdempotencyKey(), existing.getId());
+                return toDetailVO(existing);
+            }
+        }
+
         // 验证 Invocation 存在
         InvocationEntity invocation = invocationMapper.selectById(request.getInvocationId());
         if (invocation == null || invocation.isDeleted()) {
@@ -54,6 +64,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         entity.setEvidenceRefs(serializeEvidenceRefs(request.getEvidenceRefs()));
         entity.setContextDelta(request.getContextDelta());
         entity.setBoundaryNotes(request.getBoundaryNotes());
+        entity.setIdempotencyKey(request.getIdempotencyKey());
         entity.setStatus("accepted");
         entity.setGmtCreate(Instant.now());
         entity.setGmtModified(entity.getGmtCreate());

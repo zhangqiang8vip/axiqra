@@ -37,7 +37,7 @@
         <shardingsphere.version>5.5.3</shardingsphere.version>
         <resilience4j.version>2.3.0</resilience4j.version>
         <snakeyaml.version>2.6</snakeyaml.version>
-        <flyway.version>11.6.0</flyway.version>
+        <flyway.version>12.9.0</flyway.version>
         <!-- 测试 -->
         <testcontainers.version>1.20.6</testcontainers.version>
         <mockito.version>5.15.2</mockito.version>

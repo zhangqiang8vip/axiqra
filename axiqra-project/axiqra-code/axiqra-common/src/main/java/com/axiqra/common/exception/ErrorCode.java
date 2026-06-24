@@ -37,6 +37,7 @@ public enum ErrorCode {
     PARAM_MISSING(10002, "缺少必需参数", 400),
     PARAM_TYPE_MISMATCH(10003, "参数类型不匹配", 400),
     PARAM_VALIDATION_FAILED(10004, "参数校验失败", 400),
+    INVALID_PARAMETER(10005, "参数不合法", 400),
 
     // ==================== 认证授权错误（2xxxx） ====================
     UNAUTHORIZED(20001, "未登录或登录已过期", 401),
@@ -47,6 +48,12 @@ public enum ErrorCode {
     API_SIGNATURE_INVALID(20006, "API 签名无效", 401),
     API_SIGNATURE_EXPIRED(20007, "API 签名已过期", 401),
     API_NONCE_REUSED(20008, "Nonce 已使用（重放攻击）", 401),
+    
+    // OAuth Device Flow 错误码
+    AUTHORIZATION_PENDING(20009, "等待用户授权", 202),
+    AUTHORIZATION_EXPIRED(20010, "授权码已过期", 401),
+    AUTHORIZATION_FAILED(20011, "授权失败", 401),
+    DEVICE_CODE_INVALID(20012, "设备码无效", 401),
 
     // ==================== 资源不存在（3xxxx） ====================
     RESOURCE_NOT_FOUND(30001, "资源不存在", 404),

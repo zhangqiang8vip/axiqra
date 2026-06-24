@@ -30,7 +30,11 @@ public final class PublicEndpointPaths {
             "/solutions/public",
             "/solutions/public/*",
             "/search/public",
-            "/v1/tool-models/leaderboard"
+            "/v1/tool-models/leaderboard",
+            // OAuth Device Flow
+            "/auth/device/code",
+            "/auth/device/verify-page",
+            "/auth/device/confirm"
     };
 
     public static final String[] SPRING_PUBLIC_GET = {
@@ -80,6 +84,13 @@ public final class PublicEndpointPaths {
             "/search/public",
             "/api/search/public",
             "/v1/tool-models/leaderboard",
-            "/api/v1/tool-models/leaderboard"
+            "/api/v1/tool-models/leaderboard",
+            // OAuth Device Flow
+            "/auth/device/code",
+            "/auth/device/verify-page",
+            "/auth/device/confirm",
+            "/api/auth/device/code",
+            "/api/auth/device/verify-page",
+            "/api/auth/device/confirm"
     );
 }

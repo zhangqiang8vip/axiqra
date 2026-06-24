@@ -177,11 +177,12 @@ axiqra:
     password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
     driver-class-name: org.postgresql.Driver
 
-# Flyway：仅审计库（PostgreSQL），业务库（CockroachDB）保持外部 SQL 文件
+# Flyway：审计库（PostgreSQL）+ 业务库（CockroachDB）
 # 参考：https://flywaydb.org/documentation/configuration/
 axiqra-flyway:
   enabled: true
   baseline-on-migrate: true
   locations: classpath:db/audit
+  migration-locations: classpath:db/migration
   table: flyway_schema_history
   connect-on-startup: true

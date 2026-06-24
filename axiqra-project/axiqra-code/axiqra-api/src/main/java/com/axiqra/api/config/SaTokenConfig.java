@@ -38,32 +38,93 @@ public class SaTokenConfig implements WebMvcConfigurer {
         // Sa-Token 登录拦截器
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
                 .addPathPatterns("/**")
-                .excludePathPatterns(PublicEndpointPaths.AUTH_EXCLUDES);
+                .excludePathPatterns(
+                        "/internal/health",
+                        "/internal/health/verify",
+                        "/api/internal/health/**",
+                        "/actuator/health/**",
+                        "/actuator/info",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/doc.html",
+                        "/favicon.ico",
+                        "/auth/login",
+                        "/auth/register",
+                        "/auth/captcha",
+                        "/auth/device/code",
+                        "/auth/device/verify-page",
+                        "/auth/device/confirm",
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/captcha",
+                        "/api/auth/device/code",
+                        "/api/auth/device/verify-page",
+                        "/api/auth/device/confirm",
+                        "/public-cases/**",
+                        "/solutions/public/**",
+                        "/search/public/**",
+                        "/v1/tool-models/leaderboard"
+                );
 
         // Scope 权限校验拦截器
         registry.addInterceptor(scopeCheckInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        PublicEndpointPaths.AUTH_EXCLUDES
-                )
-                .excludePathPatterns(
+                        "/internal/health/**",
+                        "/api/internal/health/**",
+                        "/actuator/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/doc.html",
+                        "/favicon.ico",
                         "/auth/login",
                         "/auth/register",
+                        "/auth/captcha",
                         "/auth/logout",
-                        "/auth/me"
+                        "/auth/me",
+                        "/auth/device/**",
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/captcha",
+                        "/api/auth/logout",
+                        "/api/auth/me",
+                        "/api/auth/device/**",
+                        "/public-cases/**",
+                        "/solutions/public/**",
+                        "/search/public/**",
+                        "/v1/tool-models/leaderboard"
                 );
 
         // Workspace 角色校验拦截器
         registry.addInterceptor(workspaceRoleCheckInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        PublicEndpointPaths.AUTH_EXCLUDES
-                )
-                .excludePathPatterns(
+                        "/internal/health/**",
+                        "/api/internal/health/**",
+                        "/actuator/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/doc.html",
+                        "/favicon.ico",
                         "/auth/login",
                         "/auth/register",
+                        "/auth/captcha",
                         "/auth/logout",
-                        "/auth/me"
+                        "/auth/me",
+                        "/auth/device/**",
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/captcha",
+                        "/api/auth/logout",
+                        "/api/auth/me",
+                        "/api/auth/device/**",
+                        "/public-cases/**",
+                        "/solutions/public/**",
+                        "/search/public/**",
+                        "/v1/tool-models/leaderboard"
                 );
     }
 }

@@ -112,7 +112,50 @@ public class SearchServiceImpl implements SearchService {
                 .build();
     }
 
+    @Override
+    public SearchResponseVO searchPublic(SearchRequest request) {
+        if (request == null || request.getQuery() == null || request.getQuery().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "query 不能为空");
+        }
+
+        int limit = normalizeLimit(request.getLimit());
+        Integer minVerificationLevel = request.getMinVerificationLevel() != null
+                ? request.getMinVerificationLevel() : VerificationLevel.L1.getLevel();
+        if (minVerificationLevel < 0 || minVerificationLevel > VerificationLevel.L5.getLevel()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "minVerificationLevel 必须在 0 到 5 之间");
+        }
+        minVerificationLevel = Math.max(minVerificationLevel, VerificationLevel.L1.getLevel());
+
+        List<SolutionEntity> solutions = defaultIfNull(solutionMapper.searchVisibleSolutions(
+                request.getQuery().trim(),
+                null,
+                List.of(),
+                request.getDomain(),
+                request.getTechStack(),
+                minVerificationLevel,
+                limit
+        ));
+
+        List<SearchResultItemVO> items = solutions.stream()
+                .filter(Objects::nonNull)
+                .filter(this::isEligibleForSearch)
+                .filter(this::isPublicWebVisible)
+                .map(solution -> toSearchResult(solution, request))
+                .toList();
+
+        return SearchResponseVO.builder()
+                .query(request.getQuery().trim())
+                .totalHits(items.size())
+                .returnedHits(items.size())
+                .empty(items.isEmpty())
+                .candidateSeedCreated(false)
+                .emptyReason(items.isEmpty() ? "未找到公开可展示的 Solution" : null)
+                .items(items)
+                .build();
+    }
+
     private SearchResultItemVO toSearchResult(SolutionEntity solution, SearchRequest request) {
+        RiskLevel riskLevel = riskLevelOf(solution);
         return SearchResultItemVO.builder()
                 .solutionId(solution.getId())
                 .solutionCode(solution.getSolutionCode())
@@ -121,7 +164,7 @@ public class SearchServiceImpl implements SearchService {
                 .domain(solution.getDomain())
                 .techStack(solution.getTechStack())
                 .verificationLevel(solution.getVerificationLevel() != null ? "L" + solution.getVerificationLevel().getLevel() : null)
-                .riskLevel(solution.getRiskLevel() != null ? solution.getRiskLevel().getCode() : null)
+                .riskLevel(riskLevel != null ? riskLevel.getCode() : null)
                 .status(solution.getStatus() != null ? solution.getStatus().getCode() : null)
                 .visibilityScope(solution.getVisibilityScope() != null ? solution.getVisibilityScope().getCode() : null)
                 .workspaceId(solution.getWorkspaceId())
@@ -187,17 +230,26 @@ public class SearchServiceImpl implements SearchService {
         };
     }
 
+    private boolean isPublicWebVisible(SolutionEntity solution) {
+        if (solution.getVisibilityScope() != VisibilityScope.PUBLIC) {
+            return false;
+        }
+        RiskLevel riskLevel = riskLevelOf(solution);
+        return riskLevel == null || riskLevel.getLevel() < RiskLevel.R4.getLevel();
+    }
+
     private String buildSummary(SolutionEntity solution) {
         String verification = solution.getVerificationLevel() != null
                 ? "L" + solution.getVerificationLevel().getLevel() : "L?";
-        String risk = solution.getRiskLevel() != null ? solution.getRiskLevel().getCode() : "R?";
+        RiskLevel riskLevel = riskLevelOf(solution);
+        String risk = riskLevel != null ? riskLevel.getCode() : "R?";
         return verification + " / " + risk + " / " + (solution.getDomain() != null ? solution.getDomain() : "unknown-domain");
     }
 
     private String buildScoreReason(SolutionEntity solution) {
         SolutionStatus status = solution.getStatus();
         VerificationLevel verificationLevel = solution.getVerificationLevel();
-        RiskLevel riskLevel = solution.getRiskLevel();
+        RiskLevel riskLevel = riskLevelOf(solution);
         return "status=" + (status != null ? status.getCode() : "unknown")
                 + ", verification=" + (verificationLevel != null ? verificationLevel.getLevel() : "?")
                 + ", risk=" + (riskLevel != null ? riskLevel.getCode() : "?");
@@ -218,8 +270,9 @@ public class SearchServiceImpl implements SearchService {
         if (solution.getVerificationLevel() != null) {
             score += solution.getVerificationLevel().getLevel() * 5D;
         }
-        if (solution.getRiskLevel() != null) {
-            score += Math.max(0D, 10D - solution.getRiskLevel().getLevel() * 2D);
+        RiskLevel riskLevel = riskLevelOf(solution);
+        if (riskLevel != null) {
+            score += Math.max(0D, 10D - riskLevel.getLevel() * 2D);
         }
         if (request.getTechStack() != null && solution.getTechStack() != null
                 && solution.getTechStack().toLowerCase().contains(request.getTechStack().trim().toLowerCase())) {
@@ -241,6 +294,11 @@ public class SearchServiceImpl implements SearchService {
         }
         return limit;
     }
+
+    private RiskLevel riskLevelOf(SolutionEntity solution) {
+        return solution.getRiskLevel() != null ? RiskLevel.of(solution.getRiskLevel()) : null;
+    }
+
     private <T> List<T> defaultIfNull(List<T> items) {
         return items != null ? items : Collections.emptyList();
     }

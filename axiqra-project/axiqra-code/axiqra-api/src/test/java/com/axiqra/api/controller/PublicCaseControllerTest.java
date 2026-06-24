@@ -61,23 +61,23 @@ class PublicCaseControllerTest {
     @Test
     @DisplayName("读取 Public Case 详情应委托 service")
     void getDetailShouldDelegateToService() {
-        when(publicCaseService.getDetail(1L, 301L)).thenReturn(detail(301L));
+        when(publicCaseService.getPublicDetail(301L)).thenReturn(detail(301L));
 
         var result = controller.getDetail(301L);
 
         assertEquals("verified", result.getData().getStatus());
-        verify(publicCaseService).getDetail(1L, 301L);
+        verify(publicCaseService).getPublicDetail(301L);
     }
 
     @Test
     @DisplayName("公开列表应委托 service")
     void listShouldDelegateToService() {
-        when(publicCaseService.listPublicCases(1L, 5)).thenReturn(List.of(detail(301L)));
+        when(publicCaseService.listPublicCases(5)).thenReturn(List.of(detail(301L)));
 
         var result = controller.list(5);
 
         assertEquals(1, result.getData().size());
-        verify(publicCaseService).listPublicCases(1L, 5);
+        verify(publicCaseService).listPublicCases(5);
     }
 
     @Test

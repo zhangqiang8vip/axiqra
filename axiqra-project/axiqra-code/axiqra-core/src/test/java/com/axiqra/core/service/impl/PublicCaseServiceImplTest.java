@@ -155,6 +155,40 @@ class PublicCaseServiceImplTest {
         assertEquals("verified", result.get(0).getStatus());
     }
 
+    @Test
+    @DisplayName("匿名应可读取已脱敏且公开可搜索的 Public Case")
+    void shouldGetPublicDetailWithoutLogin() {
+        when(publicCaseMapper.selectActiveById(301L)).thenReturn(publicCaseEntity());
+
+        PublicCaseDetailVO result = publicCaseService.getPublicDetail(301L);
+
+        assertEquals(301L, result.getId());
+        assertEquals("verified", result.getStatus());
+    }
+
+    @Test
+    @DisplayName("匿名读取未完成脱敏的 Public Case 应按不存在处理")
+    void shouldHideUnredactedPublicDetailFromAnonymous() {
+        PublicCaseEntity entity = publicCaseEntity();
+        entity.setRedactionStatus("pending");
+        when(publicCaseMapper.selectActiveById(301L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class, () -> publicCaseService.getPublicDetail(301L));
+
+        assertEquals(ErrorCode.PUBLIC_CASE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("匿名公开列表不需要 public:read scope")
+    void shouldListPublicCasesWithoutLogin() {
+        when(publicCaseMapper.selectPubliclySearchable(5)).thenReturn(List.of(publicCaseEntity()));
+
+        List<PublicCaseDetailVO> result = publicCaseService.listPublicCases(5);
+
+        assertEquals(1, result.size());
+        assertEquals("verified", result.get(0).getStatus());
+    }
+
     private ProjectCaseEntity projectCaseEntity() {
         ProjectCaseEntity entity = new ProjectCaseEntity();
         entity.setId(101L);

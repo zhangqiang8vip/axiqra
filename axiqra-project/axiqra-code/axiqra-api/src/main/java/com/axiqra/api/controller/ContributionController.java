@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Tag(name = "Contribution", description = "贡献接口")
 @RestController
-@RequestMapping("/api/v1/contributions")
+@RequestMapping("/v1/contributions")
 @RequiredArgsConstructor
 @Validated
 public class ContributionController {

@@ -248,11 +248,17 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
     private Set<String> getUserScopes(Long userId) {
         // S1: 默认基础权限
         Set<String> defaultScopes = Set.of(
+                ScopeEnum.CONNECT_READ.getCode(),
+                ScopeEnum.CONNECT_WRITE.getCode(),
                 ScopeEnum.SEARCH_READ.getCode(),
                 ScopeEnum.SOLUTION_READ.getCode(),
+                ScopeEnum.SOLUTION_WRITE.getCode(),
                 ScopeEnum.TRACE_READ.getCode(),
                 ScopeEnum.TRACE_WRITE.getCode(),
+                ScopeEnum.TRACE_CONFIRM.getCode(),
                 ScopeEnum.CASE_READ.getCode(),
+                ScopeEnum.CASE_WRITE.getCode(),
+                ScopeEnum.FEEDBACK_READ.getCode(),
                 ScopeEnum.FEEDBACK_WRITE.getCode(),
                 ScopeEnum.PUBLIC_READ.getCode()
         );

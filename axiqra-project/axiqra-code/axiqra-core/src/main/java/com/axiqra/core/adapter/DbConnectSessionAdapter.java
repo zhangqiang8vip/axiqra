@@ -86,6 +86,7 @@ public class DbConnectSessionAdapter implements ConnectSessionPort {
         entity.setTenantId(normalizedTenantId());
         entity.setGmtCreate(session.getCreatedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC).toInstant() : session.getCreatedAt().toInstant());
         entity.setGmtModified(OffsetDateTime.now(ZoneOffset.UTC).toInstant());
+        entity.setVersion(0L);
         return entity;
     }
 

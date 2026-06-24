@@ -35,4 +35,12 @@ public class SearchController {
         log.info("执行 Search before act: userId={}, query={}", userId, request.getQuery());
         return ApiResponse.ok(result);
     }
+
+    @PostMapping("/public")
+    @Operation(summary = "匿名搜索公开可展示的 Solution")
+    public ApiResponse<SearchResponseVO> searchPublic(@Valid @RequestBody SearchRequest request) {
+        SearchResponseVO result = searchService.searchPublic(request);
+        log.info("执行 Public Search: query={}, hits={}", request.getQuery(), result.getReturnedHits());
+        return ApiResponse.ok(result);
+    }
 }

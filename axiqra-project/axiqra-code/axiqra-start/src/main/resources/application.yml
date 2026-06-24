@@ -8,6 +8,8 @@ spring:
     lazy-initialization: false
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  flyway:
+    enabled: false
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
@@ -66,10 +68,11 @@ management:
       application: ${spring.application.name}
       env: ${spring.profiles.active}
 
-knife4j:
-  enable: true
-  setting:
-    language: zh_cn
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
 
 sa-token:
   token-name: Authorization

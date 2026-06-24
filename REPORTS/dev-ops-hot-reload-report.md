@@ -1,5 +1,12 @@
 # Axiqra 开发运营评估报告
 
+> 说明：本文件为早期合并草稿，保留用于追溯。按“4 个独立任务分开提交”的要求，正式结果已拆分到：
+> `REPORTS/task-1-swagger-openapi-inventory.md`、
+> `REPORTS/task-2-hot-reload-options.md`、
+> `REPORTS/task-3-framework-first-review.md`、
+> `REPORTS/task-4-staged-development-plan.md`。
+> 新文件中的接口总数、路径和认证判断为本轮修正后的口径。
+
 > 分支: `feature/dev-ops-hot-reload` | 日期: 2026-06-23 | JDK 17 | Maven 3.9.9
 
 ---

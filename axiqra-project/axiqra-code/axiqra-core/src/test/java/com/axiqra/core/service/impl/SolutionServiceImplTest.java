@@ -1,5 +1,7 @@
 package com.axiqra.core.service.impl;
 
+import com.axiqra.common.domain.dto.SolutionCreateFromProjectCaseRequest;
+import com.axiqra.common.domain.entity.ProjectCaseEntity;
 import com.axiqra.common.domain.entity.SolutionEntity;
 import com.axiqra.common.domain.entity.SolutionVersionEntity;
 import com.axiqra.common.domain.enums.FeedbackType;
@@ -10,9 +12,11 @@ import com.axiqra.common.domain.enums.VisibilityScope;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
+import com.axiqra.core.mapper.ProjectCaseMapper;
 import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.mapper.SolutionVersionMapper;
 import com.axiqra.core.service.RbacService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,11 +26,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,10 +51,16 @@ class SolutionServiceImplTest {
     private SolutionVersionMapper solutionVersionMapper;
 
     @Mock
+    private ProjectCaseMapper projectCaseMapper;
+
+    @Mock
     private FeedbackMapper feedbackMapper;
 
     @Mock
     private RbacService rbacService;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private SolutionServiceImpl solutionService;
@@ -107,7 +124,7 @@ class SolutionServiceImplTest {
     @DisplayName("高风险 solution 非作者访问应抛 SOLUTION_QUARANTINED")
     void shouldRejectHighRiskSolutionForNonAuthor() {
         SolutionEntity solution = baseSolution();
-        solution.setRiskLevel(RiskLevel.R4);
+        solution.setRiskLevel(RiskLevel.R4.getLevel());
         solution.setAuthorId(2L);
         when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
 
@@ -121,7 +138,7 @@ class SolutionServiceImplTest {
     @DisplayName("高风险 solution 作者本人可查看")
     void shouldAllowAuthorToViewHighRiskSolution() {
         SolutionEntity solution = baseSolution();
-        solution.setRiskLevel(RiskLevel.R4);
+        solution.setRiskLevel(RiskLevel.R4.getLevel());
         solution.setAuthorId(1L);
         when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
         when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
@@ -230,6 +247,128 @@ class SolutionServiceImplTest {
         assertEquals(ErrorCode.PARAM_INVALID.getCode(), exZero.getCode());
     }
 
+    @Test
+    @DisplayName("公开详情应允许匿名读取 public 且 L1+ 的 solution")
+    void shouldReturnPublicDetail() {
+        SolutionEntity solution = baseSolution();
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of());
+
+        var result = solutionService.getPublicDetail(10L);
+
+        assertNotNull(result);
+        assertEquals("public", result.getVisibilityScope());
+        assertEquals("SOL-010", result.getSolutionCode());
+    }
+
+    @Test
+    @DisplayName("公开详情应隐藏 private solution")
+    void shouldHidePrivateSolutionFromPublicDetail() {
+        SolutionEntity solution = baseSolution();
+        solution.setVisibilityScope(VisibilityScope.PRIVATE);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getPublicDetail(10L));
+
+        assertEquals(ErrorCode.SOLUTION_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("公开详情应隐藏 R4 solution")
+    void shouldHideR4SolutionFromPublicDetail() {
+        SolutionEntity solution = baseSolution();
+        solution.setRiskLevel(RiskLevel.R4.getLevel());
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getPublicDetail(10L));
+
+        assertEquals(ErrorCode.SOLUTION_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("公开列表应只返回 public 且 L1+ 的 solution")
+    void shouldListPublicSolutions() {
+        SolutionEntity publicSolution = baseSolution();
+        SolutionEntity privateSolution = baseSolution();
+        privateSolution.setId(11L);
+        privateSolution.setSolutionCode("SOL-011");
+        privateSolution.setVisibilityScope(VisibilityScope.PRIVATE);
+        SolutionEntity lowVerification = baseSolution();
+        lowVerification.setId(12L);
+        lowVerification.setSolutionCode("SOL-012");
+        lowVerification.setVerificationLevel(VerificationLevel.L0);
+
+        when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(publicSolution, privateSolution, lowVerification));
+
+        var result = solutionService.listPublicSolutions("spring", null, null, 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+        assertEquals("SOL-010", result.get(0).getSolutionCode());
+        assertEquals("public", result.get(0).getVisibilityScope());
+    }
+
+    @Test
+    @DisplayName("个人 Project Case 可生成 workspace Solution")
+    void shouldCreateWorkspaceSolutionFromPersonalProjectCase() throws Exception {
+        ProjectCaseEntity projectCase = baseProjectCase();
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(null);
+        when(projectCaseMapper.selectActiveById(77L)).thenReturn(projectCase);
+        when(objectMapper.writeValueAsString(any())).thenReturn("[\"step\"]");
+        doAnswer(invocation -> {
+            SolutionEntity entity = invocation.getArgument(0);
+            entity.setId(10L);
+            return 1;
+        }).when(solutionMapper).insert(any(SolutionEntity.class));
+        doAnswer(invocation -> {
+            SolutionVersionEntity entity = invocation.getArgument(0);
+            entity.setId(100L);
+            return 1;
+        }).when(solutionVersionMapper).insert(any(SolutionVersionEntity.class));
+        when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of());
+
+        var result = solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                .projectCaseId(77L)
+                .title("AI Agent 接入失败排查方案")
+                .domain("backend")
+                .techStack("spring boot")
+                .steps(List.of("检查 token", "运行 doctor"))
+                .visibilityScope("workspace")
+                .build());
+
+        assertNotNull(result);
+        assertEquals("SOL-PC-77", result.getSolutionCode());
+        assertEquals("workspace", result.getVisibilityScope());
+        assertEquals("L1", result.getVerificationLevel());
+        verify(solutionMapper).insert(any(SolutionEntity.class));
+        verify(solutionVersionMapper).insert(any(SolutionVersionEntity.class));
+    }
+
+    @Test
+    @DisplayName("公开 Solution 需要 Project Case 具备公开 license")
+    void shouldRejectPublicSolutionWithoutPublicLicense() {
+        ProjectCaseEntity projectCase = baseProjectCase();
+        projectCase.setLicenseScope("proprietary");
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(null);
+        when(projectCaseMapper.selectActiveById(77L)).thenReturn(projectCase);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("AI Agent 接入失败排查方案")
+                        .visibilityScope("public")
+                        .build()));
+
+        assertEquals(ErrorCode.LICENSE_SCOPE_MISSING.getCode(), ex.getCode());
+    }
+
     private SolutionEntity baseSolution() {
         SolutionEntity solution = new SolutionEntity();
         solution.setId(10L);
@@ -237,9 +376,23 @@ class SolutionServiceImplTest {
         solution.setTitle("Solution Detail");
         solution.setWorkspaceId(100L);
         solution.setVerificationLevel(VerificationLevel.L2);
-        solution.setRiskLevel(RiskLevel.R1);
+        solution.setRiskLevel(RiskLevel.R1.getLevel());
         solution.setStatus(SolutionStatus.VERIFIED);
         solution.setVisibilityScope(VisibilityScope.PUBLIC);
         return solution;
+    }
+
+    private ProjectCaseEntity baseProjectCase() {
+        ProjectCaseEntity projectCase = new ProjectCaseEntity();
+        projectCase.setId(77L);
+        projectCase.setTraceId(66L);
+        projectCase.setWorkspaceId(100L);
+        projectCase.setProjectId(200L);
+        projectCase.setAuthorId(1L);
+        projectCase.setVisibilityScope("private");
+        projectCase.setLicenseScope("open_source");
+        projectCase.setRedactionStatus("complete");
+        projectCase.setStatus("private");
+        return projectCase;
     }
 }

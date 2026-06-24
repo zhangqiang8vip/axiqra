@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @Tag(name = "Invocation", description = "调用记录接口")
 @RestController
-@RequestMapping("/api/v1/invocations")
+@RequestMapping("/v1/invocations")
 @RequiredArgsConstructor
 @Validated
 public class InvocationController {

@@ -198,6 +198,53 @@ class SearchServiceImplTest {
         verify(candidateSeedService, never()).createOrReuseCandidateSeed(any(), any());
     }
 
+    @Test
+    @DisplayName("公开搜索不需要登录 scope 且只返回 public solution")
+    void shouldSearchPublicSolutionsWithoutScope() {
+        SearchRequest request = SearchRequest.builder()
+                .query("spring boot")
+                .workspaceId(100L)
+                .includeCandidateSeed(true)
+                .limit(5)
+                .build();
+        SolutionEntity publicSolution = solution(11L, "SOL-011", "Public Solution");
+        publicSolution.setVisibilityScope(VisibilityScope.PUBLIC);
+        SolutionEntity privateSolution = solution(12L, "SOL-012", "Private Solution");
+        privateSolution.setVisibilityScope(VisibilityScope.PRIVATE);
+        SolutionEntity r4Solution = solution(13L, "SOL-013", "R4 Solution");
+        r4Solution.setVisibilityScope(VisibilityScope.PUBLIC);
+        r4Solution.setRiskLevel(RiskLevel.R4.getLevel());
+        when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(publicSolution, privateSolution, r4Solution));
+
+        SearchResponseVO result = searchService.searchPublic(request);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.getItems().size());
+        assertEquals("SOL-011", result.getItems().get(0).getSolutionCode());
+        assertFalse(result.isCandidateSeedCreated());
+        verify(candidateSeedService, never()).createOrReuseCandidateSeed(any(), any());
+    }
+
+    @Test
+    @DisplayName("公开搜索无结果时不创建 Candidate Seed")
+    void shouldNotCreateCandidateSeedForPublicSearchEmptyResult() {
+        SearchRequest request = SearchRequest.builder()
+                .query("missing runbook")
+                .workspaceId(100L)
+                .includeCandidateSeed(true)
+                .build();
+        when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of());
+
+        SearchResponseVO result = searchService.searchPublic(request);
+
+        assertTrue(result.isEmpty());
+        assertFalse(result.isCandidateSeedCreated());
+        assertNull(result.getCandidateSeed());
+        verify(candidateSeedService, never()).createOrReuseCandidateSeed(any(), any());
+    }
+
     private MembershipEntity activeMembership(Long workspaceId) {
         MembershipEntity membership = new MembershipEntity();
         membership.setWorkspaceId(workspaceId);
@@ -213,7 +260,7 @@ class SearchServiceImplTest {
         solution.setTitle(title);
         solution.setWorkspaceId(100L);
         solution.setVerificationLevel(VerificationLevel.L3);
-        solution.setRiskLevel(RiskLevel.R1);
+        solution.setRiskLevel(RiskLevel.R1.getLevel());
         solution.setStatus(SolutionStatus.VERIFIED);
         solution.setVisibilityScope(VisibilityScope.WORKSPACE);
         solution.setDomain("backend");

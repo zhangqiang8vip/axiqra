@@ -32,7 +32,7 @@
         <mybatis-flex.version>1.11.7</mybatis-flex.version>
         <sa-token.version>1.42.0</sa-token.version>
         <hutool.version>5.8.30</hutool.version>
-        <knife4j.version>4.5.0</knife4j.version>
+        <springdoc-openapi.version>2.8.17</springdoc-openapi.version>
         <druid.version>1.2.28</druid.version>
         <shardingsphere.version>5.5.3</shardingsphere.version>
         <resilience4j.version>2.3.0</resilience4j.version>
@@ -93,11 +93,11 @@
                 <version>${sa-token.version}</version>
             </dependency>
 
-            <!-- Knife4j（API 文档） -->
+            <!-- Springdoc OpenAPI（API 文档，Spring Boot 3.5.x 使用 2.8.x 线） -->
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
-                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-                <version>${knife4j.version}</version>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc-openapi.version}</version>
             </dependency>
 
             <!-- Druid 连接池 -->

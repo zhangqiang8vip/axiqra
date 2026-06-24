@@ -91,4 +91,34 @@ class SearchControllerTest {
         assertFalse(result.getData().isEmpty());
         verify(searchService).searchBeforeAct(1L, request);
     }
+
+    @Test
+    @DisplayName("公开搜索应委托 searchPublic 且不读取登录态")
+    void searchPublicShouldDelegateWithoutLogin() {
+        SearchRequest request = SearchRequest.builder()
+                .query("spring boot")
+                .workspaceId(100L)
+                .limit(10)
+                .build();
+        SearchResponseVO response = SearchResponseVO.builder()
+                .query("spring boot")
+                .totalHits(1)
+                .returnedHits(1)
+                .empty(false)
+                .candidateSeedCreated(false)
+                .items(List.of(SearchResultItemVO.builder()
+                        .solutionId(100L)
+                        .title("Spring Boot Search")
+                        .visibilityScope("public")
+                        .build()))
+                .build();
+        when(searchService.searchPublic(request)).thenReturn(response);
+
+        var result = controller.searchPublic(request);
+
+        assertNotNull(result.getData());
+        assertEquals(1, result.getData().getTotalHits());
+        assertFalse(result.getData().isCandidateSeedCreated());
+        verify(searchService).searchPublic(request);
+    }
 }

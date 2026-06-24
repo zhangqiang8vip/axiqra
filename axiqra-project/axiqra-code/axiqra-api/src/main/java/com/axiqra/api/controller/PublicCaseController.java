@@ -44,18 +44,16 @@ public class PublicCaseController {
     @GetMapping("/{publicCaseId}")
     @Operation(summary = "获取 Public Case 详情")
     public ApiResponse<PublicCaseDetailVO> getDetail(@PathVariable Long publicCaseId) {
-        long userId = StpUtil.getLoginIdAsLong();
-        PublicCaseDetailVO result = publicCaseService.getDetail(userId, publicCaseId);
-        log.info("读取 Public Case 详情: publicCaseId={}, actorHash={}", publicCaseId, PrivacyUtils.pseudonymizeUserId(userId));
+        PublicCaseDetailVO result = publicCaseService.getPublicDetail(publicCaseId);
+        log.info("匿名读取 Public Case 详情: publicCaseId={}", publicCaseId);
         return ApiResponse.ok(result);
     }
 
     @GetMapping
     @Operation(summary = "列出公开可读的 Public Case")
     public ApiResponse<List<PublicCaseDetailVO>> list(@RequestParam(required = false) Integer limit) {
-        long userId = StpUtil.getLoginIdAsLong();
-        List<PublicCaseDetailVO> result = publicCaseService.listPublicCases(userId, limit);
-        log.info("列出 Public Case: limit={}, actorHash={}, count={}", limit, PrivacyUtils.pseudonymizeUserId(userId), result.size());
+        List<PublicCaseDetailVO> result = publicCaseService.listPublicCases(limit);
+        log.info("匿名列出 Public Case: limit={}, count={}", limit, result.size());
         return ApiResponse.ok(result);
     }
 

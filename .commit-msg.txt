@@ -1,9 +1,0 @@
-fix: resolve remaining API review issues from GitHub Actions
-
-- InvocationServiceImpl: use insert-first with unique-constraint catch
-  for idempotency, fixing check-then-insert race condition
-- All 5 controllers wrap responses in ApiResponse<>
-  (Feedback, Review, Contribution, ToolModel, Invocation)
-- 403 response body now includes ApiResponse.fail() instead of empty
-- Add boundary tests: empty list, zero counts, invalid request
-- Update controller/service tests to match new response patterns

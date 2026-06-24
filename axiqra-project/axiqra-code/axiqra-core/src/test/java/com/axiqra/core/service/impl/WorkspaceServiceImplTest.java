@@ -98,6 +98,28 @@ class WorkspaceServiceImplTest {
         }
 
         @Test
+        @DisplayName("同一用户可同时拥有和加入多个空间")
+        void shouldReturnMultipleSpacesForSameUser() {
+            WorkspaceEntity personal = createWorkspace(100L, "个人空间", WorkspaceType.PERSONAL, USER_ID);
+            WorkspaceEntity ownedTeam = createWorkspace(200L, "我的团队空间", WorkspaceType.TEAM, USER_ID);
+            WorkspaceEntity joinedTeam = createWorkspace(300L, "加入的团队空间", WorkspaceType.TEAM, OTHER_USER_ID);
+            when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(List.of(personal, ownedTeam));
+            MembershipEntity ownerMembership = createMembership(1L, USER_ID, personal.getId(), MemberRole.OWNER);
+            MembershipEntity adminMembership = createMembership(2L, USER_ID, joinedTeam.getId(), MemberRole.ADMIN);
+            when(rbacService.getMemberships(USER_ID)).thenReturn(List.of(ownerMembership, adminMembership));
+            when(workspaceMapper.selectByWorkspaceIds(List.of(personal.getId(), joinedTeam.getId())))
+                    .thenReturn(List.of(personal, joinedTeam));
+
+            PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(USER_ID);
+
+            assertEquals(3, result.getTotal());
+            assertEquals(List.of(100L, 200L, 300L),
+                    result.getRecords().stream().map(WorkspaceVO::getId).toList());
+            assertEquals(List.of("owner", "owner", "admin"),
+                    result.getRecords().stream().map(WorkspaceVO::getMyRole).toList());
+        }
+
+        @Test
         @DisplayName("memberships 为 null 时应返回 owner 空间且不抛异常")
         void shouldHandleNullMemberships() {
             when(workspaceMapper.selectByOwnerId(USER_ID)).thenReturn(List.of(

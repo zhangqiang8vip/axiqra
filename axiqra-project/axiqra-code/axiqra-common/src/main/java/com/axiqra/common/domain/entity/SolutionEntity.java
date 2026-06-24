@@ -1,7 +1,6 @@
 package com.axiqra.common.domain.entity;
 
 import com.axiqra.common.domain.enums.LicenseScope;
-import com.axiqra.common.domain.enums.RiskLevel;
 import com.axiqra.common.domain.enums.SolutionStatus;
 import com.axiqra.common.domain.enums.VerificationLevel;
 import com.axiqra.common.domain.enums.VisibilityScope;
@@ -35,7 +34,7 @@ public class SolutionEntity extends BaseEntity {
     @Nullable
     private String techStack;
     private VerificationLevel verificationLevel;
-    private RiskLevel riskLevel;
+    private Integer riskLevel;
     private SolutionStatus status;
     private VisibilityScope visibilityScope;
     @Nullable

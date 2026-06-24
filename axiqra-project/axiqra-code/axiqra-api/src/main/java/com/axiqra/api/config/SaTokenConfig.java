@@ -38,24 +38,15 @@ public class SaTokenConfig implements WebMvcConfigurer {
         // Sa-Token 登录拦截器
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
                 .addPathPatterns("/**")
-                .excludePathPatterns(
-                        "/internal/health",
-                        "/internal/health/verify",
-                        "/api/internal/health/**",
-                        "/actuator/health/**",
-                        "/actuator/info",
-                        "/auth/login",
-                        "/auth/register",
-                        "/auth/captcha"
-                );
+                .excludePathPatterns(PublicEndpointPaths.AUTH_EXCLUDES);
 
         // Scope 权限校验拦截器
         registry.addInterceptor(scopeCheckInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/internal/health/**",
-                        "/api/internal/health/**",
-                        "/actuator/health/**",
+                        PublicEndpointPaths.AUTH_EXCLUDES
+                )
+                .excludePathPatterns(
                         "/auth/login",
                         "/auth/register",
                         "/auth/logout",
@@ -66,9 +57,9 @@ public class SaTokenConfig implements WebMvcConfigurer {
         registry.addInterceptor(workspaceRoleCheckInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/internal/health/**",
-                        "/api/internal/health/**",
-                        "/actuator/health/**",
+                        PublicEndpointPaths.AUTH_EXCLUDES
+                )
+                .excludePathPatterns(
                         "/auth/login",
                         "/auth/register",
                         "/auth/logout",

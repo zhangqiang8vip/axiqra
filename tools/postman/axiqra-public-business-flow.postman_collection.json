@@ -1,0 +1,1997 @@
+{
+  "info": {
+    "_postman_id": "e1f4b49a-6038-4ec4-a3a0-2a9825dfd0dd",
+    "name": "Axiqra 业务全流程测试",
+    "description": "从空库开始覆盖 Axiqra 本地 API：公开匿名读、匿名拦截、注册登录、用户、工作空间、Trace、Project Case、Connect、Invocation、Feedback、Review/Contribution 边界。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.variables.get('baseurl')) {",
+          "  throw new Error('baseurl 未设置：请在右上角选择 Axiqra 本地 API 环境，或把 baseurl 设置为 http://localhost:8080/api');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 基础连通与文档",
+      "item": [
+        {
+          "name": "初始化本轮测试变量",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = Date.now();",
+                  "pm.environment.set('runId', String(runId));",
+                  "pm.environment.set('registerUsername', 'axiqra_owner_' + runId);",
+                  "pm.environment.set('registerEmail', 'axiqra_owner_' + runId + '@example.test');",
+                  "pm.environment.set('memberUsername', 'axiqra_member_' + runId);",
+                  "pm.environment.set('memberEmail', 'axiqra_member_' + runId + '@example.test');",
+                  "pm.environment.set('workspaceName', 'Axiqra 全流程测试空间 ' + runId);",
+                  "pm.environment.set('updatedWorkspaceName', 'Axiqra 全流程测试空间已更新 ' + runId);",
+                  "pm.environment.unset('authToken');",
+                  "pm.environment.unset('memberAuthToken');",
+                  "pm.environment.unset('userId');",
+                  "pm.environment.unset('memberUserId');",
+                  "pm.environment.unset('workspaceId');",
+                  "pm.environment.unset('traceId');",
+                  "pm.environment.unset('projectCaseId');",
+                  "pm.environment.unset('connectSessionId');",
+                  "pm.environment.unset('invocationId');",
+                  "pm.environment.unset('feedbackId');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('健康状态为 UP', function () { pm.expect(body.status).to.eql('UP'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/internal/health"
+          }
+        },
+        {
+          "name": "健康检查 verify",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('返回 verify 结果', function () { pm.expect(body).to.be.an('object'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/internal/health/verify"
+          }
+        },
+        {
+          "name": "OpenAPI 文档公开访问",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('返回 OpenAPI 文档', function () { pm.expect(body.openapi).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/v3/api-docs"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 匿名公开业务流程（空库也应稳定）",
+      "item": [
+        {
+          "name": "公开案例列表",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('data 是数组', function () { pm.expect(body.data).to.be.an('array'); });",
+                  "if (Array.isArray(body.data) && body.data.length > 0) { const id = rawLong('id'); if (id) pm.environment.set('publicCaseId', id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/public-cases?limit=20"
+          }
+        },
+        {
+          "name": "公开案例详情（无数据时允许 404）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 200 或 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "if (pm.response.code === 200) { const body = pm.response.json(); pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); }); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/public-cases/{{publicCaseId}}"
+          }
+        },
+        {
+          "name": "公开方案列表",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('data 是数组', function () { pm.expect(body.data).to.be.an('array'); });",
+                  "if (Array.isArray(body.data) && body.data.length > 0) { const id = rawLong('solutionId') || rawLong('id'); if (id) { pm.environment.set('publicSolutionId', id); pm.environment.set('solutionId', id); } }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/solutions/public?query=mcp&limit=20&minVerificationLevel=0"
+          }
+        },
+        {
+          "name": "公开方案详情（无数据时允许 404）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 200 或 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "if (pm.response.code === 200) { const body = pm.response.json(); pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); }); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/solutions/public/{{publicSolutionId}}"
+          }
+        },
+        {
+          "name": "公开搜索（忽略 workspaceId 且不创建候选种子）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('不会创建候选种子', function () { pm.expect(body.data.candidateSeedCreated).to.eql(false); });",
+                  "pm.test('returnedHits 是数字', function () { pm.expect(body.data.returnedHits).to.be.a('number'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseurl}}/search/public",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mcp tool invocation\",\n  \"workspaceId\": 999999,\n  \"limit\": 10,\n  \"minVerificationLevel\": 0,\n  \"includeCandidateSeed\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "工具模型排行榜公开访问",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('data 是数组', function () { pm.expect(body.data).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/v1/tool-models/leaderboard?scopeType=global&limit=10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 匿名保护边界校验",
+      "item": [
+        {
+          "name": "匿名访问当前用户应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/users/me"
+          }
+        },
+        {
+          "name": "匿名访问工作空间应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/workspaces"
+          }
+        },
+        {
+          "name": "匿名访问 Trace 应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/traces/1"
+          }
+        },
+        {
+          "name": "匿名访问 Project Case 应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/project-cases/1"
+          }
+        },
+        {
+          "name": "匿名访问 before-act 搜索应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseurl}}/search/before-act",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mcp tool invocation\",\n  \"workspaceId\": 1,\n  \"limit\": 5,\n  \"includeCandidateSeed\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "匿名访问 Connect 配额应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/connect/quota"
+          }
+        },
+        {
+          "name": "匿名访问 Invocation 上报应返回 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 401', function () { pm.expect(pm.response.code).to.be.oneOf([401]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseurl}}/v1/invocations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"anonymous\",\n  \"resultType\": \"worked\",\n  \"toolType\": \"mcp\",\n  \"targetType\": \"solution\",\n  \"targetId\": 1,\n  \"workspaceId\": 1\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 认证与用户资料",
+      "item": [
+        {
+          "name": "注册主测试用户并保存 Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200 或 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('Token 存在', function () { pm.expect(body.data.token).to.be.a('string').and.not.empty; });",
+                  "pm.environment.set('authToken', body.data.token);",
+                  "const userId = rawLong('userId') || rawLong('id');",
+                  "pm.test('用户 ID 存在', function () { pm.expect(userId).to.be.a('string').and.not.empty; });",
+                  "pm.environment.set('userId', userId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseurl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{registerUsername}}\",\n  \"password\": \"{{registerPassword}}\",\n  \"email\": \"{{registerEmail}}\",\n  \"nickname\": \"Axiqra 主测试用户\"\n}"
+            }
+          }
+        },
+        {
+          "name": "获取当前登录用户 auth/me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('用户名一致', function () { pm.expect(body.data.username).to.eql(pm.environment.get('registerUsername')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/auth/me"
+          }
+        },
+        {
+          "name": "获取当前用户 users/me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('用户 ID 已返回', function () { pm.expect(rawLong('id') || rawLong('userId')).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/users/me"
+          }
+        },
+        {
+          "name": "更新用户资料",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('昵称已更新', function () { pm.expect(body.data.nickname).to.eql('Axiqra 全流程用户'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/auth/profile",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"Axiqra 全流程用户\",\n  \"email\": \"{{registerEmail}}\",\n  \"avatar\": \"https://example.com/avatar.png\"\n}"
+            }
+          }
+        },
+        {
+          "name": "查询指定用户公开资料",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('公开用户资料不为空', function () { pm.expect(body.data).to.be.an('object'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "登录主测试用户",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('登录返回 Token', function () { pm.expect(body.data.token).to.be.a('string').and.not.empty; });",
+                  "pm.environment.set('authToken', body.data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseurl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{registerUsername}}\",\n  \"password\": \"{{registerPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "获取导航菜单",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('导航 data 存在', function () { pm.expect(body.data).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/auth/nav"
+          }
+        },
+        {
+          "name": "检查默认 scope：trace:confirm",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('默认具备 trace:confirm', function () { pm.expect(body.data).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/policy/check?scope=trace:confirm"
+          }
+        },
+        {
+          "name": "检查默认 scope：connect:write",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('默认具备 connect:write', function () { pm.expect(body.data).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/policy/check?scope=connect:write"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 工作空间与成员造数",
+      "item": [
+        {
+          "name": "创建团队工作空间",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 201', function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "const workspaceId = rawLong('id') || rawLong('workspaceId');",
+                  "pm.test('工作空间 ID 存在', function () { pm.expect(workspaceId).to.be.a('string').and.not.empty; });",
+                  "pm.environment.set('workspaceId', workspaceId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workspaceType\": \"team\",\n  \"workspaceName\": \"{{workspaceName}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "我的工作空间列表",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('records 是数组', function () { pm.expect(body.data.records).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces"
+          }
+        },
+        {
+          "name": "工作空间详情",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('当前用户是 owner', function () { pm.expect(body.data.myRole).to.eql('owner'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}"
+          }
+        },
+        {
+          "name": "更新工作空间名称",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('名称已更新', function () { pm.expect(body.data.workspaceName).to.eql(pm.environment.get('updatedWorkspaceName')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workspaceName\": \"{{updatedWorkspaceName}}\",\n  \"workspaceType\": \"team\"\n}"
+            }
+          }
+        },
+        {
+          "name": "注册协作者用户",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200 或 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.environment.set('memberAuthToken', body.data.token);",
+                  "const memberUserId = rawLong('userId') || rawLong('id');",
+                  "pm.environment.set('memberUserId', memberUserId);",
+                  "pm.test('协作者用户 ID 存在', function () { pm.expect(memberUserId).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseurl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{memberUsername}}\",\n  \"password\": \"{{registerPassword}}\",\n  \"email\": \"{{memberEmail}}\",\n  \"nickname\": \"Axiqra 协作者\"\n}"
+            }
+          }
+        },
+        {
+          "name": "添加协作者为成员",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 201', function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.environment.set('memberId', rawLong('memberId') || rawLong('id'));",
+                  "pm.test('成员角色为 member', function () { pm.expect(String(body.data.role).toUpperCase()).to.eql('MEMBER'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}/members?userId={{memberUserId}}&role=member"
+          }
+        },
+        {
+          "name": "成员列表",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('成员列表不为空', function () { pm.expect(body.data.records.length).to.be.greaterThan(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}/members"
+          }
+        },
+        {
+          "name": "协作者可访问工作空间详情",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('协作者角色存在', function () { pm.expect(body.data.myRole).to.be.oneOf(['member', 'admin', 'owner']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{memberAuthToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}"
+          }
+        },
+        {
+          "name": "将协作者提升为 admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 204', function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}/members",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"{{memberId}}\",\n  \"role\": \"ADMIN\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Trace 与 Project Case 主链路",
+      "item": [
+        {
+          "name": "创建 Trace 草稿",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "const traceId = rawLong('id') || rawLong('traceId');",
+                  "pm.environment.set('traceId', traceId);",
+                  "pm.test('Trace 状态为 draft', function () { pm.expect(body.data.status).to.eql('draft'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/traces",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"projectId\": 1001,\n  \"taskGoal\": \"验证 Axiqra 从空库开始的业务链路\",\n  \"toolType\": \"mcp\",\n  \"contextSnapshot\": \"{\\\"source\\\":\\\"postman\\\",\\\"summary\\\":\\\"Postman 全流程测试上下文\\\"}\",\n  \"forwardSteps\": \"[\\\"注册用户\\\",\\\"创建工作空间\\\",\\\"创建 Trace\\\",\\\"创建 Project Case\\\"]\",\n  \"reversePath\": \"[\\\"删除测试工作空间\\\",\\\"清理测试成员\\\"]\",\n  \"decisions\": \"[{\\\"decision\\\":\\\"采用 R1 风险\\\",\\\"reason\\\":\\\"进入自动提交链路\\\"}]\",\n  \"rollbackPath\": \"[\\\"移除协作者\\\",\\\"退出登录\\\"]\",\n  \"outcome\": \"形成可追踪的工程记录\",\n  \"riskLevel\": \"R1\",\n  \"visibilityScope\": \"workspace\",\n  \"evolutionSuggestion\": \"补齐公开 Solution 的后台种子入口\",\n  \"idempotencyKey\": \"trace-{{runId}}\",\n  \"evidences\": [\n    {\n      \"uri\": \"postman://axiqra/full-flow/{{runId}}\",\n      \"hash\": \"sha256-demo-{{runId}}\",\n      \"type\": \"postman_run\",\n      \"sizeBytes\": 128\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "获取 Trace 详情",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('Trace ID 一致', function () { pm.expect(rawLong('id') || rawLong('traceId')).to.eql(pm.environment.get('traceId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/traces/{{traceId}}"
+          }
+        },
+        {
+          "name": "确认 Trace 执行结果",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('Trace 状态为 user_confirmed', function () { pm.expect(body.data.status).to.eql('user_confirmed'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/traces/{{traceId}}/confirm",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userConfirmation\": \"确认本次测试 Trace 可提交。\"\n}"
+            }
+          }
+        },
+        {
+          "name": "提交 Trace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('Trace 已提交', function () { pm.expect(body.data.status).to.be.oneOf(['submitted', 'needs_review']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/traces/{{traceId}}/submit"
+          }
+        },
+        {
+          "name": "从 Trace 创建 Project Case",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "const projectCaseId = rawLong('id') || rawLong('projectCaseId');",
+                  "pm.environment.set('projectCaseId', projectCaseId);",
+                  "pm.test('Project Case 状态为 private', function () { pm.expect(body.data.status).to.eql('private'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/project-cases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"traceId\": \"{{traceId}}\",\n  \"licenseScope\": \"open_source\",\n  \"redactionStatus\": \"complete\"\n}"
+            }
+          }
+        },
+        {
+          "name": "获取 Project Case 详情",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('Project Case ID 一致', function () { pm.expect(rawLong('id') || rawLong('projectCaseId')).to.eql(pm.environment.get('projectCaseId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/project-cases/{{projectCaseId}}"
+          }
+        },
+        {
+          "name": "发起发布申请（空库无 authorization 时预期失败）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 200 或 400 或 403 或 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400, 403, 404]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "if (pm.response.code === 200) { const id = rawLong('id') || rawLong('projectCaseId'); if (id) pm.environment.set('projectCaseId', id); pm.test('发布申请业务码为 0', function () { pm.expect(body.code).to.eql(0); }); } else { pm.test('失败时返回明确业务错误', function () { pm.expect(body.code).to.be.a('number'); }); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/project-cases/{{projectCaseId}}/publish-request?authorizationId={{authorizationId}}"
+          }
+        },
+        {
+          "name": "直接发布 Public Case（无授权或无 case:publish 时预期失败）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 200 或 400 或 403 或 404 或 409', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400, 403, 404, 409]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "if (pm.response.code === 200) { const id = rawLong('id') || rawLong('publicCaseId'); if (id) pm.environment.set('publicCaseId', id); } else { pm.test('失败时返回明确业务错误', function () { pm.expect(body.code).to.be.a('number'); }); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/public-cases/publish/{{projectCaseId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Connect、Invocation 与 Feedback",
+      "item": [
+        {
+          "name": "查询配额",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('配额 data 存在', function () { pm.expect(body.data).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/connect/quota"
+          }
+        },
+        {
+          "name": "检查限流窗口",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('限流 data 存在', function () { pm.expect(body.data).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/connect/rate-limit"
+          }
+        },
+        {
+          "name": "执行 Connect doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('doctor 检查项为 8 项', function () { pm.expect(body.data.totalChecks).to.eql(8); });",
+                  "pm.test('doctor 状态非 FAIL', function () { pm.expect(body.data.status).to.be.oneOf(['PASS', 'WARN']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/connect/doctor?channel=mcp&toolType=mcp&workspaceId={{workspaceId}}"
+          }
+        },
+        {
+          "name": "创建 Connect 会话",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 201', function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.environment.set('connectSessionId', body.data.sessionId);",
+                  "pm.test('会话状态可用', function () { pm.expect(body.data.status).to.be.oneOf(['READY', 'DEGRADED', 'BLOCKED']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/connect/sessions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"mcp\",\n  \"toolType\": \"mcp\",\n  \"targetType\": \"project_case\",\n  \"targetId\": \"{{projectCaseId}}\",\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"riskLevel\": \"R1\",\n  \"confirmationObtained\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Connect 会话列表",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('会话列表是数组', function () { pm.expect(body.data).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/connect/sessions"
+          }
+        },
+        {
+          "name": "Connect 会话详情",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('会话 ID 一致', function () { pm.expect(body.data.sessionId).to.eql(pm.environment.get('connectSessionId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/connect/sessions/{{connectSessionId}}"
+          }
+        },
+        {
+          "name": "上报 Invocation 并联动反馈",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "const invocationId = rawLong('id') || rawLong('invocationId');",
+                  "pm.environment.set('invocationId', invocationId);",
+                  "const targetId = rawLong('targetId');",
+                  "if (targetId) pm.environment.set('solutionId', targetId);",
+                  "pm.test('Invocation ID 存在', function () { pm.expect(invocationId).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/invocations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"invocation-{{runId}}\",\n  \"resultType\": \"worked\",\n  \"toolType\": \"mcp\",\n  \"targetType\": \"solution\",\n  \"targetId\": 1,\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"invocationCode\": \"POSTMAN_FULL_FLOW_{{runId}}\",\n  \"riskLevel\": 1,\n  \"requiredConfirmation\": 1,\n  \"confirmationObtained\": 1,\n  \"feedbackContent\": \"Postman 全流程联动反馈：方案有效。\",\n  \"evidenceRefs\": [\n    \"postman://evidence/{{runId}}\"\n  ],\n  \"contextDelta\": \"从空库创建测试链路后上报\",\n  \"boundaryNotes\": \"用于验证 Invocation 与 Feedback 写入\"\n}"
+            }
+          }
+        },
+        {
+          "name": "获取 Invocation 详情",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('Invocation ID 一致', function () { pm.expect(rawLong('id') || rawLong('invocationId')).to.eql(pm.environment.get('invocationId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/invocations/{{invocationId}}"
+          }
+        },
+        {
+          "name": "再次提交 Feedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "",
+                  "function rawLong(field) {",
+                  "  const raw = pm.response.text();",
+                  "  const re = new RegExp('\"' + field + '\"\\s*:\\s*\"?([0-9]+)\"?');",
+                  "  const match = raw.match(re);",
+                  "  return match ? match[1] : undefined;",
+                  "}",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.environment.set('feedbackId', rawLong('id') || rawLong('feedbackId'));",
+                  "pm.test('Feedback 状态 accepted', function () { pm.expect(body.data.status).to.eql('accepted'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/feedbacks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invocationId\": \"{{invocationId}}\",\n  \"feedbackType\": \"partial\",\n  \"feedbackContent\": \"补充反馈：部分有效，需要更多样本。\",\n  \"evidenceRefs\": [\n    \"postman://feedback/{{runId}}\"\n  ],\n  \"contextDelta\": \"补充验证反馈接口\",\n  \"boundaryNotes\": \"不依赖真实 solution 表\"\n}"
+            }
+          }
+        },
+        {
+          "name": "按 Solution 查询 Feedback 列表",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('反馈列表是数组', function () { pm.expect(body.data).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/feedbacks?targetType=solution&targetId={{solutionId}}"
+          }
+        },
+        {
+          "name": "Feedback 统计",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('统计 totalCount 存在', function () { pm.expect(body.data.totalCount).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/feedbacks/solutions/{{solutionId}}/stats"
+          }
+        },
+        {
+          "name": "Invocation 反馈统计",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('统计 totalCount 存在', function () { pm.expect(body.data.totalCount).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/invocations/solutions/{{solutionId}}/feedback-stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 搜索、策略、审核与贡献边界",
+      "item": [
+        {
+          "name": "登录态 before-act 搜索",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('returnedHits 是数字', function () { pm.expect(body.data.returnedHits).to.be.a('number'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/search/before-act",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mcp tool invocation\",\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"limit\": 10,\n  \"minVerificationLevel\": 0,\n  \"includeCandidateSeed\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "策略评估 read workspace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('策略决策存在', function () { pm.expect(body.data.decision).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/policy/evaluate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": 1,\n  \"subjectType\": \"user\",\n  \"objectType\": \"workspace\",\n  \"objectId\": \"{{workspaceId}}\",\n  \"action\": \"read\",\n  \"context\": {\n    \"workspaceId\": \"{{workspaceId}}\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "高权限 enforce 默认应拒绝",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 403', function () { pm.expect(pm.response.code).to.be.oneOf([403]); });",
+                  "const body = pm.response.json(); pm.test('缺少 admin:all 被拒绝', function () { pm.expect(body.code).to.be.oneOf([20004, 20005]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/policy/enforce",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": 1,\n  \"subjectType\": \"user\",\n  \"objectType\": \"workspace\",\n  \"objectId\": \"{{workspaceId}}\",\n  \"action\": \"delete\",\n  \"context\": {\n    \"workspaceId\": \"{{workspaceId}}\",\n    \"riskLevel\": \"R1\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "待审核队列默认应无权限",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 403', function () { pm.expect(pm.response.code).to.be.oneOf([403]); });",
+                  "const body = pm.response.json(); pm.test('返回权限错误', function () { pm.expect(body.code).to.be.oneOf([20004, 20005]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/reviews/pending?queue=HUMAN&limit=10"
+          }
+        },
+        {
+          "name": "贡献汇总默认应无权限",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 403', function () { pm.expect(pm.response.code).to.be.oneOf([403]); });",
+                  "const body = pm.response.json(); pm.test('返回权限错误', function () { pm.expect(body.code).to.be.oneOf([20004, 20005]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/v1/contributions/users/{{userId}}/summary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 收尾与清理",
+      "item": [
+        {
+          "name": "协作者访问被移除前仍可访问",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 200', function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "const body = pm.response.json();",
+                  "pm.test('业务码为 0', function () { pm.expect(body.code).to.eql(0); });",
+                  "pm.test('包含 requestId', function () { pm.expect(body.requestId).to.be.ok; });",
+                  "pm.test('协作者仍是成员', function () { pm.expect(body.data.myRole).to.be.oneOf(['member', 'admin']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{memberAuthToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}"
+          }
+        },
+        {
+          "name": "移除协作者成员",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 204', function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}/members/{{memberId}}"
+          }
+        },
+        {
+          "name": "协作者被移除后访问应失败",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('不是 500', function () { pm.expect(pm.response.code).to.not.eql(500); });",
+                  "pm.test('状态码为 403 或 404', function () { pm.expect(pm.response.code).to.be.oneOf([403, 404]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{memberAuthToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/workspaces/{{workspaceId}}"
+          }
+        },
+        {
+          "name": "主用户退出登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('状态码为 204', function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{authToken}}"
+              }
+            ],
+            "url": "{{baseurl}}/auth/logout"
+          }
+        }
+      ]
+    }
+  ]
+}

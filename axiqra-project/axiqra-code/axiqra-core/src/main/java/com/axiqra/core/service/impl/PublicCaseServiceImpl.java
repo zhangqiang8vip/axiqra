@@ -127,6 +127,18 @@ public class PublicCaseServiceImpl implements PublicCaseService {
     }
 
     @Override
+    public PublicCaseDetailVO getPublicDetail(Long publicCaseId) {
+        if (publicCaseId == null || publicCaseId <= 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "publicCaseId 不能为空且必须大于 0");
+        }
+        PublicCaseEntity entity = publicCaseMapper.selectActiveById(publicCaseId);
+        if (entity == null || !isPubliclyReadable(entity)) {
+            throw new BizException(ErrorCode.PUBLIC_CASE_NOT_FOUND);
+        }
+        return toDetailVO(entity);
+    }
+
+    @Override
     public List<PublicCaseDetailVO> listPublicCases(Long userId, Integer limit) {
         if (userId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
@@ -144,6 +156,19 @@ public class PublicCaseServiceImpl implements PublicCaseService {
                 .toList();
     }
 
+    @Override
+    public List<PublicCaseDetailVO> listPublicCases(Integer limit) {
+        int normalizedLimit = normalizeLimit(limit);
+        List<PublicCaseEntity> entities = publicCaseMapper.selectPubliclySearchable(normalizedLimit);
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream()
+                .filter(this::isPubliclyReadable)
+                .map(this::toDetailVO)
+                .toList();
+    }
+
     private boolean canReadPublicCase(Long userId, PublicCaseEntity entity) {
         if (userId.equals(entity.getAuthorId())) {
             return true;
@@ -152,6 +177,14 @@ public class PublicCaseServiceImpl implements PublicCaseService {
             return false;
         }
         return entity.getStatus() != null && entity.getStatus().isPubliclySearchable();
+    }
+
+    private boolean isPubliclyReadable(PublicCaseEntity entity) {
+        return entity != null
+                && !entity.isDeleted()
+                && REDACTION_COMPLETE.equalsIgnoreCase(entity.getRedactionStatus())
+                && entity.getStatus() != null
+                && entity.getStatus().isPubliclySearchable();
     }
 
     private int normalizeLimit(Integer limit) {

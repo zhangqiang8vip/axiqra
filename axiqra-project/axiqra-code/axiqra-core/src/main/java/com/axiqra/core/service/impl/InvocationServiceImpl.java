@@ -17,6 +17,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 /**
  * Invocation Service 实现
  *
@@ -56,6 +58,9 @@ public class InvocationServiceImpl implements InvocationService {
         entity.setRequiredConfirmation(request.getRequiredConfirmation() != null ? request.getRequiredConfirmation() : 0);
         entity.setConfirmationObtained(request.getConfirmationObtained() != null ? request.getConfirmationObtained() : 0);
         entity.setResultType(request.getResultType());
+        entity.setGmtCreate(Instant.now());
+        entity.setGmtModified(entity.getGmtCreate());
+        entity.setVersion(0L);
 
         try {
             invocationMapper.insert(entity);

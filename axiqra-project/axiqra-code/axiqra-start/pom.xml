@@ -35,6 +35,14 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Spring Boot DevTools：本地开发热重启与 LiveReload，生产打包不传递 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- 端点安全（Actuator 端点认证） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

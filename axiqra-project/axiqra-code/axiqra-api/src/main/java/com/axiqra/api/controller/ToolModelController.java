@@ -22,7 +22,7 @@ import java.util.List;
  */
 @Tag(name = "ToolModel", description = "工具模型接口")
 @RestController
-@RequestMapping("/api/v1/tool-models")
+@RequestMapping("/v1/tool-models")
 @RequiredArgsConstructor
 @Validated
 public class ToolModelController {

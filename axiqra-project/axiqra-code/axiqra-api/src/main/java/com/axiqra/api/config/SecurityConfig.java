@@ -31,12 +31,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.GET,
-                                "/internal/health/**",
-                                "/api/internal/health/**",
-                                "/actuator/health/**",
-                                "/actuator/info"
-                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET, PublicEndpointPaths.SPRING_PUBLIC_GET).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/search/public").permitAll()
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/register",

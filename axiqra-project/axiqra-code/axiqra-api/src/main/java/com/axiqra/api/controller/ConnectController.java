@@ -89,7 +89,8 @@ public class ConnectController {
             java.util.Set.of("mcp", "cli", "api", "webhook", "plugin");
 
     private static final java.util.Set<String> ALLOWED_TOOL_TYPES =
-            java.util.Set.of("mcp", "database", "search", "storage", "compute", "integration", "messaging", "monitoring", "ai");
+            java.util.Set.of("mcp", "codex", "claude_code", "cursor", "gemini_cli", "custom",
+                    "database", "search", "storage", "compute", "integration", "messaging", "monitoring", "ai");
 
     @GetMapping("/sessions")
     @Operation(summary = "查询我的 Connect 会话列表")

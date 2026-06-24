@@ -28,7 +28,7 @@ import java.util.List;
  */
 @Tag(name = "Review", description = "审核接口")
 @RestController
-@RequestMapping("/api/v1/reviews")
+@RequestMapping("/v1/reviews")
 @RequiredArgsConstructor
 @Validated
 public class ReviewController {

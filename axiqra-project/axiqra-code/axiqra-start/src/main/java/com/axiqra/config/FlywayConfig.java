@@ -1,6 +1,7 @@
 package com.axiqra.config;
 
 import org.flywaydb.core.Flyway;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -38,14 +39,14 @@ public class FlywayConfig {
     /**
      * Flyway 实例，绑定到审计库 DataSource。
      *
-     * <p>注入点：{@code auditDatasource} 由 {@link AuditDataSourceConfig} 提供。
+     * <p>注入点：{@code auditDataSource} 由 {@link DataSourceConfig} 提供。
      * Spring Boot 自动检测所有 {@link DataSource} Bean，Flyway 默认选取首个。
      * 此处通过方法参数显式注入审计库 DataSource，确保 Flyway 操作正确的数据库。
      */
     @Bean(initMethod = "migrate")
-    public Flyway auditFlyway(DataSource auditDatasource) {
+    public Flyway auditFlyway(@Qualifier("auditDataSource") DataSource auditDataSource) {
         return Flyway.configure()
-                .dataSource(auditDatasource)
+                .dataSource(auditDataSource)
                 .locations(locations)
                 .baselineOnMigrate(baselineOnMigrate)
                 .table(table)

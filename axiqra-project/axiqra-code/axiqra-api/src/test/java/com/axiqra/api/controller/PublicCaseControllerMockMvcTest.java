@@ -77,7 +77,7 @@ class PublicCaseControllerMockMvcTest {
     @Test
     @DisplayName("GET /public-cases/{publicCaseId} 不存在时应走统一异常响应")
     void shouldReturnUnifiedNotFoundForDetail() throws Exception {
-        when(publicCaseService.getDetail(USER_ID, 301L))
+        when(publicCaseService.getPublicDetail(301L))
                 .thenThrow(new BizException(ErrorCode.PUBLIC_CASE_NOT_FOUND));
 
         mockMvc.perform(get("/public-cases/{publicCaseId}", 301L)
@@ -92,7 +92,7 @@ class PublicCaseControllerMockMvcTest {
     @Test
     @DisplayName("GET /public-cases 成功时应返回统一列表响应")
     void shouldListPublicCasesWithUnifiedResponse() throws Exception {
-        when(publicCaseService.listPublicCases(USER_ID, 5)).thenReturn(List.of(detail(301L, "verified")));
+        when(publicCaseService.listPublicCases(5)).thenReturn(List.of(detail(301L, "verified")));
 
         mockMvc.perform(get("/public-cases")
                         .queryParam("limit", "5")

@@ -1,4 +1,5 @@
 logs/
+data/
 .env
 .env.local
 *.log
@@ -7,10 +8,21 @@ __pycache__/
 *.py[cod]
 .cursor/
 start.log
+.tmp/
 
 # Axiqra local Chinese docs — separate private repo
 # _docs/ contains the Axiqra local development docs private git submodule
 docs/_docs/
 # Compressed logo assets
 logo/*.zip
+
+# Local MinIO binary
+tools/minio/minio.exe
+tools/nssm/nssm.exe
+tools/nssm/nssm.zip
+tools/nssm/extract/
+
+# Local one-off helper scripts with machine-specific absolute paths
+tools/start-backend-temp.ps1
+tools/maven-install-all.ps1
 

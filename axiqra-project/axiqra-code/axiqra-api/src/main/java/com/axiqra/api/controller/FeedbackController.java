@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Tag(name = "Feedback", description = "反馈接口")
 @RestController
-@RequestMapping("/api/v1/feedbacks")
+@RequestMapping("/v1/feedbacks")
 @RequiredArgsConstructor
 public class FeedbackController {
 

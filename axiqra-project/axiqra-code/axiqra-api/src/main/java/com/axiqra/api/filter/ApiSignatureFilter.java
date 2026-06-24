@@ -1,8 +1,9 @@
 package com.axiqra.api.filter;
 
-import com.axiqra.common.response.ApiResponse;
+import com.axiqra.api.config.PublicEndpointPaths;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.port.KeyVaultPort;
+import com.axiqra.common.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +20,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -65,34 +65,12 @@ public class ApiSignatureFilter implements Filter {
     @Value("${security.api-signature.max-body-size:1048576}")
     private int maxBodySize;
 
+    @Value("${axiqra.feature.enable-api-signature:true}")
+    private boolean apiSignatureEnabled;
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final KeyVaultPort keyVaultPort;
-
-    // 公开接口白名单（路径匹配则跳过签名验证）
-    private static final Set<String> PUBLIC_PATH_PREFIXES = Set.of(
-            "/actuator/health",
-            "/actuator/info",
-            "/internal/health",
-            "/api/internal/health",
-            "/v3/api-docs",
-            "/swagger-ui",
-            "/doc.html",
-            "/favicon.ico",
-            // Web 认证入口：登录/注册不要求 API 签名
-            "/auth/login",
-            "/auth/register",
-            "/auth/captcha",
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/auth/captcha",
-            // 认证态接口由 Sa-Token 拦截器负责 401/403，跳过签名层
-            // /auth/me 未登录返回 401，/auth/logout 幂等返回成功
-            "/auth/me",
-            "/auth/logout",
-            "/api/auth/me",
-            "/api/auth/logout"
-    );
 
     public ApiSignatureFilter(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, KeyVaultPort keyVaultPort) {
         this.redisTemplate = redisTemplate;
@@ -107,6 +85,12 @@ public class ApiSignatureFilter implements Filter {
         HttpServletResponse response = (HttpServletResponse) resp;
 
         String path = request.getRequestURI();
+
+        // Allow local/cloud smoke tests to disable API signing via configuration.
+        if (!apiSignatureEnabled) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         // 公开接口跳过签名验证
         if (isPublicPath(path)) {
@@ -160,7 +144,7 @@ public class ApiSignatureFilter implements Filter {
     }
 
     private boolean isPublicPath(String path) {
-        for (String prefix : PUBLIC_PATH_PREFIXES) {
+        for (String prefix : PublicEndpointPaths.API_SIGNATURE_PUBLIC_PREFIXES) {
             if (path.equals(prefix) || path.startsWith(prefix + "/")) {
                 return true;
             }

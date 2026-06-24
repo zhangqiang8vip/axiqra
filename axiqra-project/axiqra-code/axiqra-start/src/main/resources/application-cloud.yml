@@ -1,40 +1,48 @@
 spring:
-  sql:
-    init:
-      mode: never
-  flyway:
-    enabled: false
   datasource:
-    type: org.springframework.jdbc.datasource.DriverManagerDataSource
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://127.0.0.1:1/axiqra?sslmode=disable&currentSchema=public
-    username: root
-    password: ${DB_PASSWORD:change_me_before_production}
     druid:
-      enabled: false
-      initial-size: 1
-      min-idle: 1
-      max-active: 2
+      enabled: true
+      driver-class-name: org.postgresql.Driver
+      url: ${COCKROACH_DB_URL}
+      username: ${COCKROACH_DB_USER}
+      password: ${COCKROACH_DB_PASSWORD}
+      initial-size: ${DB_POOL_INITIAL_SIZE:3}
+      min-idle: ${DB_POOL_MIN_IDLE:3}
+      max-active: ${DB_POOL_MAX_ACTIVE:10}
+      max-wait: 60000
       validation-query: SELECT 1
       test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
   data:
     redis:
-      host: localhost
-      port: 6379
-      password: ${REDIS_PASSWORD:change_me_before_production}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD}
       timeout: 5s
-      database: 0
+      database: ${REDIS_DATABASE:0}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
   rabbitmq:
-    host: localhost
+    host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_AMQP_PORT:5672}
-    username: ${RABBITMQ_DEFAULT_USER:axq_rabbit}
-    password: ${RABBITMQ_DEFAULT_PASS:change_me_before_production}
-    virtual-host: /
+    username: ${RABBITMQ_DEFAULT_USER:guest}
+    password: ${RABBITMQ_DEFAULT_PASS:guest}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
     connection-timeout: 5s
+  threads:
+    virtual:
+      enabled: false
+
+server:
+  port: ${SERVER_PORT:8080}
 
 management:
   server:
-    port: 9090
+    port: ${MANAGEMENT_SERVER_PORT:9090}
   endpoints:
     web:
       exposure:
@@ -47,11 +55,11 @@ management:
       show-details: always
   health:
     db:
-      enabled: false
+      enabled: ${MANAGEMENT_HEALTH_DB_ENABLED:true}
     redis:
-      enabled: true
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:true}
     rabbit:
-      enabled: true
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 
 springdoc:
   api-docs:
@@ -144,39 +152,43 @@ axiqra:
   tenant:
     id: 0
   audit-datasource:
-    enabled: false
-    url: jdbc:postgresql://localhost:5433/axiqra_audit_db
-    username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
-    password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
+    enabled: ${AUDIT_DB_ENABLED:true}
+    url: ${AUDIT_DB_URL}
+    username: ${AUDIT_APP_DB_USER}
+    password: ${AUDIT_APP_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   minio:
-    endpoint: http://localhost:9000
-    access-key: ${MINIO_ACCESS_KEY:change_me_before_production}
-    secret-key: ${MINIO_SECRET_KEY:change_me_before_production}
-    bucket: axiqra-evidence
-    secure: false
+    endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+    access-key: ${MINIO_ACCESS_KEY:}
+    secret-key: ${MINIO_SECRET_KEY:}
+    bucket: ${MINIO_BUCKET:axiqra-evidence}
+    secure: ${MINIO_SECURE:false}
   jwt:
-    secret: ${JWT_SECRET:change_me_before_production_use_256bit_key_here}
-    issuer: axiqra
-    expire-seconds: 7200
+    secret: ${JWT_SECRET}
+    issuer: ${JWT_ISSUER:axiqra}
+    expire-seconds: ${JWT_EXPIRE_SECONDS:7200}
   crypto:
-    field-encrypt-key: ${FIELD_ENCRYPT_KEY:change_me_before_production_32bytes}
+    field-encrypt-key: ${FIELD_ENCRYPT_KEY}
   feature:
-    enable-api-signature: true
-    enable-rate-limit: true
-    enable-minio: false
+    enable-api-signature: ${AXIQRA_ENABLE_API_SIGNATURE:false}
+    enable-rate-limit: ${AXIQRA_ENABLE_RATE_LIMIT:true}
+    enable-minio: ${AXIQRA_ENABLE_MINIO:false}
+  health:
+    probes:
+      postgres-host: ${AXIQRA_HEALTH_POSTGRES_HOST:}
+      postgres-port: ${AXIQRA_HEALTH_POSTGRES_PORT:5432}
+      minio-health-url: ${AXIQRA_HEALTH_MINIO_URL:http://127.0.0.1:9000/minio/health/live}
 
 logging:
+  file:
+    path: ${LOGGING_FILE_PATH:./logs/axiqra}
   level:
-    com.axiqra: DEBUG
+    com.axiqra: ${AXIQRA_LOG_LEVEL:INFO}
     org.springframework.jdbc: INFO
 
 alert:
   webhook:
-    enabled: false
+    enabled: ${ALERT_WEBHOOK_ENABLED:false}
     url: ${ALERT_WEBHOOK_URL:}
     allowed-hosts: ${ALERT_WEBHOOK_ALLOWED_HOSTS:}
-    timeout-ms: 5000
-
-axiqra-flyway:
-  enabled: false
+    timeout-ms: ${ALERT_WEBHOOK_TIMEOUT_MS:5000}

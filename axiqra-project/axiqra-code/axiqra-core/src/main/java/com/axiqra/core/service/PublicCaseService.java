@@ -14,4 +14,8 @@ public interface PublicCaseService {
     PublicCaseDetailVO getDetail(Long userId, Long publicCaseId);
 
     List<PublicCaseDetailVO> listPublicCases(Long userId, Integer limit);
+
+    PublicCaseDetailVO getPublicDetail(Long publicCaseId);
+
+    List<PublicCaseDetailVO> listPublicCases(Integer limit);
 }

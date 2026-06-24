@@ -20,6 +20,9 @@ public interface SolutionMapper extends BaseMapper<SolutionEntity> {
     @Select("SELECT * FROM axiqra_solution WHERE solution_code = #{solutionCode} AND is_deleted = FALSE LIMIT 1")
     SolutionEntity selectBySolutionCode(@Param("solutionCode") String solutionCode);
 
+    @Select("SELECT * FROM axiqra_solution WHERE source_case_id = #{sourceCaseId} AND is_deleted = FALSE ORDER BY id DESC LIMIT 1")
+    SolutionEntity selectBySourceCaseId(@Param("sourceCaseId") Long sourceCaseId);
+
     @Select("<script>" +
             "SELECT * FROM axiqra_solution WHERE is_deleted = FALSE " +
             "AND status IN ('candidate', 'reviewed', 'verified', 'stable', 'canonical') " +

@@ -9,4 +9,6 @@ import com.axiqra.common.domain.vo.SearchResponseVO;
 public interface SearchService {
 
     SearchResponseVO searchBeforeAct(Long userId, SearchRequest request);
+
+    SearchResponseVO searchPublic(SearchRequest request);
 }

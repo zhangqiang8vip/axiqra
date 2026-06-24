@@ -34,7 +34,117 @@ spring:
     virtual:
       enabled: false
 
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    rabbit:
+      enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+sa-token:
+  token-name: Authorization
+  timeout: 2592000
+  active-timeout: -1
+  is-concurrent: false
+  is-share: false
+  is-log: false
+  token-style: uuid
+  is-read-cookie: false
+  is-read-header: true
+  is-read-body: false
+
+security:
+  algorithm:
+    api-signature: HMAC-SHA256
+    field-encryption: AES-256-GCM
+    password-hash: BCRYPT
+    jwt-signature: HS256
+    digest: SHA-256
+  api-signature:
+    app-id-header: X-Axiqra-App-Id
+    timestamp-header: X-Axiqra-Timestamp
+    signature-header: X-Axiqra-Signature
+    nonce-header: X-Axiqra-Nonce
+    clock-skew-seconds: 300
+    max-body-size: 1048576
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+      - http://localhost:8080
+      - https://www.axiqra.com
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - '*'
+    exposed-headers:
+      - X-Trace-Id
+      - Authorization
+
+mybatis-flex:
+  configuration:
+    map-underscore-to-camel-case: true
+    call-setters-on-nulls: true
+    cache-enabled: false
+    jdbc-type-for-null: 'NULL'
+  global-config:
+    print-banner: false
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+
 axiqra:
+  quota:
+    daily-limit: 2000
+    ttl-hours: 48
+  rate-limit:
+    per-minute: 100
+    window-seconds: 60
+  tenant:
+    id: 0
   audit-datasource:
     enabled: true
     url: jdbc:postgresql://localhost:5433/axiqra_audit_db
@@ -58,18 +168,6 @@ axiqra:
     enable-rate-limit: true
     enable-minio: false
 
-management:
-  endpoint:
-    health:
-      show-details: always
-  health:
-    db:
-      enabled: true
-    redis:
-      enabled: true
-    rabbit:
-      enabled: true
-
 logging:
   level:
     com.axiqra: DEBUG
@@ -79,6 +177,5 @@ alert:
   webhook:
     enabled: false
     url: ${ALERT_WEBHOOK_URL:}
-    # Comma-separated exact domain allowlist. Required when webhook is enabled; IP literals are rejected.
     allowed-hosts: ${ALERT_WEBHOOK_ALLOWED_HOSTS:}
     timeout-ms: 5000

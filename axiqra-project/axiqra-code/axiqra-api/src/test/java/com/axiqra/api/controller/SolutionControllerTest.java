@@ -1,6 +1,8 @@
 package com.axiqra.api.controller;
 
 import com.axiqra.api.handler.GlobalExceptionHandler;
+import com.axiqra.common.domain.dto.SolutionCreateFromProjectCaseRequest;
+import com.axiqra.common.domain.vo.SearchResultItemVO;
 import com.axiqra.common.domain.vo.SolutionDetailVO;
 import com.axiqra.common.domain.vo.SolutionFeedbackStatsVO;
 import com.axiqra.common.domain.vo.SolutionVersionVO;
@@ -96,5 +98,65 @@ class SolutionControllerTest {
         assertNotNull(response.getBody());
         assertEquals(ErrorCode.FORBIDDEN.getCode(), response.getBody().getCode());
         assertEquals("无权访问该 Solution", response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("从 Project Case 生成 Solution 应委托 service")
+    void createFromProjectCaseShouldDelegateToService() {
+        SolutionCreateFromProjectCaseRequest request = SolutionCreateFromProjectCaseRequest.builder()
+                .projectCaseId(77L)
+                .title("AI Agent 接入失败排查方案")
+                .visibilityScope("workspace")
+                .build();
+        SolutionDetailVO detail = SolutionDetailVO.builder()
+                .id(10L)
+                .solutionCode("SOL-PC-77")
+                .title("AI Agent 接入失败排查方案")
+                .visibilityScope("workspace")
+                .build();
+        when(solutionService.createFromProjectCase(1L, request)).thenReturn(detail);
+
+        var result = controller.createFromProjectCase(request);
+
+        assertNotNull(result.getData());
+        assertEquals("SOL-PC-77", result.getData().getSolutionCode());
+        verify(solutionService).createFromProjectCase(1L, request);
+    }
+
+    @Test
+    @DisplayName("公开 Solution 详情应委托 public service")
+    void getPublicDetailShouldDelegateToService() {
+        SolutionDetailVO detail = SolutionDetailVO.builder()
+                .id(10L)
+                .solutionCode("SOL-001")
+                .title("Search Fusion")
+                .status("verified")
+                .visibilityScope("public")
+                .build();
+        when(solutionService.getPublicDetail(10L)).thenReturn(detail);
+
+        var result = controller.getPublicDetail(10L);
+
+        assertNotNull(result.getData());
+        assertEquals("public", result.getData().getVisibilityScope());
+        verify(solutionService).getPublicDetail(10L);
+    }
+
+    @Test
+    @DisplayName("公开 Solution 列表应委托 public service")
+    void listPublicSolutionsShouldDelegateToService() {
+        when(solutionService.listPublicSolutions("spring", "backend", "boot", 1, 5))
+                .thenReturn(List.of(SearchResultItemVO.builder()
+                        .solutionId(10L)
+                        .solutionCode("SOL-001")
+                        .title("Search Fusion")
+                        .visibilityScope("public")
+                        .build()));
+
+        var result = controller.listPublicSolutions("spring", "backend", "boot", 1, 5);
+
+        assertEquals(1, result.getData().size());
+        assertEquals("SOL-001", result.getData().get(0).getSolutionCode());
+        verify(solutionService).listPublicSolutions("spring", "backend", "boot", 1, 5);
     }
 }

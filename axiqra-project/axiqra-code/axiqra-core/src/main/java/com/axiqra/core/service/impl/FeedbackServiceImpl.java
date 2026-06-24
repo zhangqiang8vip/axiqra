@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,6 +55,9 @@ public class FeedbackServiceImpl implements FeedbackService {
         entity.setContextDelta(request.getContextDelta());
         entity.setBoundaryNotes(request.getBoundaryNotes());
         entity.setStatus("accepted");
+        entity.setGmtCreate(Instant.now());
+        entity.setGmtModified(entity.getGmtCreate());
+        entity.setVersion(0L);
 
         feedbackMapper.insert(entity);
         log.info("Feedback 提交成功: id={}, invocationId={}, type={}", entity.getId(), request.getInvocationId(), request.getFeedbackType());

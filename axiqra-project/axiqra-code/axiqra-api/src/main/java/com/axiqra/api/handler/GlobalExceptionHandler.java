@@ -1,5 +1,6 @@
 package com.axiqra.api.handler;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import com.axiqra.api.filter.TraceIdFilter;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
@@ -139,6 +140,17 @@ public class GlobalExceptionHandler {
                 ex.getCode(), ex.getMessage(), getTraceId(), ex);
         ApiResponse<Void> resp = ApiResponse.fail(ex.getCode(), ex.getMessage(), getTraceId());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
+    }
+
+    @ExceptionHandler(NotLoginException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotLoginException(NotLoginException ex) {
+        log.warn("【认证异常】message={}, traceId={}", ex.getMessage(), getTraceId());
+        ApiResponse<Void> resp = ApiResponse.fail(
+                ErrorCode.UNAUTHORIZED.getCode(),
+                ErrorCode.UNAUTHORIZED.getMessage(),
+                getTraceId()
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(resp);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

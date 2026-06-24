@@ -31,8 +31,24 @@ public interface FeedbackMapper extends BaseMapper<FeedbackEntity> {
             "AND is_deleted = FALSE GROUP BY feedback_type")
     List<FeedbackStatRow> selectFeedbackStatsBySolutionId(@Param("solutionId") Long solutionId);
 
-    interface FeedbackStatRow {
-        String getFeedbackType();
-        Long getCount();
+    class FeedbackStatRow {
+        private String feedbackType;
+        private Long count;
+
+        public String getFeedbackType() {
+            return feedbackType;
+        }
+
+        public void setFeedbackType(String feedbackType) {
+            this.feedbackType = feedbackType;
+        }
+
+        public Long getCount() {
+            return count;
+        }
+
+        public void setCount(Long count) {
+            this.count = count;
+        }
     }
 }

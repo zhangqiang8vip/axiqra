@@ -32,8 +32,15 @@ class PolicyEngineAdapterTest {
     @DisplayName("默认 scope 应支持标准 code")
     void shouldAllowDefaultCanonicalScopes() {
         assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.SEARCH_READ.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.CONNECT_READ.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.CONNECT_WRITE.getCode()));
         assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.SOLUTION_READ.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.SOLUTION_WRITE.getCode()));
         assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.TRACE_WRITE.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.TRACE_CONFIRM.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.CASE_WRITE.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.FEEDBACK_READ.getCode()));
+        assertTrue(policyEngineAdapter.hasScope(USER_ID, ScopeEnum.FEEDBACK_WRITE.getCode()));
     }
 
     @Test

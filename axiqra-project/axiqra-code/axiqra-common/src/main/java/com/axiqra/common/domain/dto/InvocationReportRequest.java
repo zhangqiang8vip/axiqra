@@ -10,6 +10,8 @@ import java.util.List;
 
 /**
  * Invocation 调用结果上报请求
+ * 
+ * 对应 D06 文档 §15 规定的调用记录字段
  *
  * @author Axiqra Team
  * @date 2026-06-11
@@ -52,4 +54,39 @@ public class InvocationReportRequest {
     private String contextDelta;
 
     private String boundaryNotes;
+    
+    // ========== D06 §15 规定的补充字段 ==========
+    
+    /** 调用者类型: ai_tool / human / system */
+    private String callerType;
+    
+    /** 任务目标 */
+    private String taskGoal;
+    
+    /** 错误签名或报错信息 */
+    private String errorSignature;
+    
+    /** 技术栈 */
+    private String techStack;
+    
+    /** 运行环境 */
+    private String environment;
+    
+    /** 上下文哈希 (用于去重和关联) */
+    private String contextHash;
+    
+    /** 适配分 (搜索时计算) */
+    private Double fitScore;
+    
+    /** 返回结果数量 */
+    private Integer returnedResultsCount;
+    
+    /** 已尝试过的路径 (JSON 数组) */
+    private String priorAttempts;
+    
+    /** 问题类型: build / deploy / performance / security / permission 等 */
+    private String problemType;
+    
+    /** 用户意图: fix / learn / compare / validate / rollback */
+    private String userIntent;
 }

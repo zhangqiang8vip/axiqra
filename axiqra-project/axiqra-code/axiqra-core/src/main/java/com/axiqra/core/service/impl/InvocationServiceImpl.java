@@ -58,6 +58,19 @@ public class InvocationServiceImpl implements InvocationService {
         entity.setRequiredConfirmation(request.getRequiredConfirmation() != null ? request.getRequiredConfirmation() : 0);
         entity.setConfirmationObtained(request.getConfirmationObtained() != null ? request.getConfirmationObtained() : 0);
         entity.setResultType(request.getResultType());
+        // D06 §15 / D12 新增字段
+        entity.setCallerType(request.getCallerType());
+        entity.setInvocationStatus("invoked");
+        entity.setTaskGoal(request.getTaskGoal());
+        entity.setErrorSignature(request.getErrorSignature());
+        entity.setTechStack(request.getTechStack());
+        entity.setEnvironment(request.getEnvironment());
+        entity.setContextHash(request.getContextHash());
+        entity.setFitScore(request.getFitScore());
+        entity.setReturnedResultsCount(request.getReturnedResultsCount());
+        entity.setPriorAttempts(request.getPriorAttempts());
+        entity.setProblemType(request.getProblemType());
+        entity.setUserIntent(request.getUserIntent());
         entity.setGmtCreate(Instant.now());
         entity.setGmtModified(entity.getGmtCreate());
         entity.setVersion(0L);
@@ -154,6 +167,19 @@ public class InvocationServiceImpl implements InvocationService {
                 .resultType(entity.getResultType())
                 .gmtCreate(entity.getGmtCreate())
                 .gmtModified(entity.getGmtModified())
+                // D06 §15 新增字段
+                .callerType(entity.getCallerType())
+                .invocationStatus(entity.getInvocationStatus())
+                .taskGoal(entity.getTaskGoal())
+                .errorSignature(entity.getErrorSignature())
+                .techStack(entity.getTechStack())
+                .environment(entity.getEnvironment())
+                .contextHash(entity.getContextHash())
+                .fitScore(entity.getFitScore())
+                .returnedResultsCount(entity.getReturnedResultsCount())
+                .priorAttempts(entity.getPriorAttempts())
+                .problemType(entity.getProblemType())
+                .userIntent(entity.getUserIntent())
                 .build();
     }
 }

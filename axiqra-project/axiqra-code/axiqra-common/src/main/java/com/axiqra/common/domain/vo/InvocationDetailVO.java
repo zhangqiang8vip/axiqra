@@ -9,6 +9,8 @@ import java.time.Instant;
 
 /**
  * Invocation 详情 VO
+ * 
+ * 对应 D06 文档 §15 规定的调用记录字段
  *
  * @author Axiqra Team
  * @date 2026-06-11
@@ -48,4 +50,42 @@ public class InvocationDetailVO {
     private Instant gmtCreate;
 
     private Instant gmtModified;
+    
+    // ========== D06 §15 规定的补充字段 ==========
+    
+    /** 调用者类型: ai_tool / human / system */
+    private String callerType;
+    
+    /** 调用状态: invoked / completed / failed / cancelled */
+    private String invocationStatus;
+    
+    /** 任务目标 */
+    private String taskGoal;
+    
+    /** 错误签名或报错信息 */
+    private String errorSignature;
+    
+    /** 技术栈 */
+    private String techStack;
+    
+    /** 运行环境 */
+    private String environment;
+    
+    /** 上下文哈希 */
+    private String contextHash;
+    
+    /** 适配分 */
+    private Double fitScore;
+    
+    /** 返回结果数量 */
+    private Integer returnedResultsCount;
+    
+    /** 已尝试过的路径 */
+    private String priorAttempts;
+    
+    /** 问题类型 */
+    private String problemType;
+    
+    /** 用户意图 */
+    private String userIntent;
 }

@@ -13,6 +13,8 @@ import org.springframework.lang.Nullable;
 
 /**
  * Solution 表 axiqra_solution
+ * 
+ * 对应 D06/D12 文档规定的 Solution 字段
  *
  * @author Axiqra Team
  * @date 2026-06-06
@@ -46,4 +48,41 @@ public class SolutionEntity extends BaseEntity {
     private Long sourceCaseId;
     @Column("is_deleted")
     private boolean isDeleted = false;
+    
+    // ========== D06 §15 / D12 §3/§11 规定的补充字段 ==========
+    
+    /** 错误签名，用于精确匹配报错信息 */
+    @Nullable
+    @Column("error_signature")
+    private String errorSignature;
+    
+    /** 运行环境 (OS、运行时、数据库、云环境等) */
+    @Nullable
+    @Column("environment")
+    private String environment;
+    
+    /** 问题类型: build / deploy / performance / security / permission 等 */
+    @Nullable
+    @Column("problem_type")
+    private String problemType;
+    
+    /** 证据数量 */
+    @Nullable
+    @Column("evidence_count")
+    private Integer evidenceCount;
+    
+    /** 失败路径描述 */
+    @Nullable
+    @Column("failure_paths")
+    private String failurePaths;
+    
+    /** 适用条件描述 */
+    @Nullable
+    @Column("applicability")
+    private String applicability;
+    
+    /** 不适用边界描述 */
+    @Nullable
+    @Column("inapplicability")
+    private String inapplicability;
 }

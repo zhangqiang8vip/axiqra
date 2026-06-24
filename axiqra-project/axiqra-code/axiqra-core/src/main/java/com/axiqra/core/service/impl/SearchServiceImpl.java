@@ -156,6 +156,10 @@ public class SearchServiceImpl implements SearchService {
 
     private SearchResultItemVO toSearchResult(SolutionEntity solution, SearchRequest request) {
         RiskLevel riskLevel = riskLevelOf(solution);
+        String riskLevelCode = riskLevel != null ? riskLevel.getCode() : null;
+        String verificationCode = solution.getVerificationLevel() != null ? "L" + solution.getVerificationLevel().getLevel() : null;
+        double score = calculateScore(solution, request);
+        
         return SearchResultItemVO.builder()
                 .solutionId(solution.getId())
                 .solutionCode(solution.getSolutionCode())
@@ -163,14 +167,132 @@ public class SearchServiceImpl implements SearchService {
                 .summary(buildSummary(solution))
                 .domain(solution.getDomain())
                 .techStack(solution.getTechStack())
-                .verificationLevel(solution.getVerificationLevel() != null ? "L" + solution.getVerificationLevel().getLevel() : null)
-                .riskLevel(riskLevel != null ? riskLevel.getCode() : null)
+                .verificationLevel(verificationCode)
+                .riskLevel(riskLevelCode)
                 .status(solution.getStatus() != null ? solution.getStatus().getCode() : null)
                 .visibilityScope(solution.getVisibilityScope() != null ? solution.getVisibilityScope().getCode() : null)
                 .workspaceId(solution.getWorkspaceId())
-                .score(calculateScore(solution, request))
+                .score(score)
                 .scoreReason(buildScoreReason(solution))
+                // D12 §7/§14 新增字段
+                .resultType("Solution")
+                .matchedTerms(buildMatchedTerms(solution, request))
+                .fitReason(buildFitReason(solution, request))
+                .cautionReason(buildCautionReason(solution, riskLevel))
+                .evidenceSummary(buildEvidenceSummary(solution))
+                .verificationExplanation(buildVerificationExplanation(solution))
+                .riskExplanation(buildRiskExplanation(riskLevel))
+                .spaceSource(determineSpaceSource(solution))
+                .recommendedNextAction(determineRecommendedAction(riskLevel, solution))
+                .failurePaths(solution.getFailurePaths())
                 .build();
+    }
+    
+    private String buildMatchedTerms(SolutionEntity solution, SearchRequest request) {
+        StringBuilder matched = new StringBuilder();
+        if (request.getQuery() != null) {
+            matched.append("query:").append(request.getQuery());
+        }
+        if (request.getTechStack() != null && solution.getTechStack() != null 
+                && solution.getTechStack().toLowerCase().contains(request.getTechStack().toLowerCase())) {
+            matched.append(", techStack:").append(request.getTechStack());
+        }
+        if (request.getErrorSignature() != null) {
+            matched.append(", error:").append(request.getErrorSignature());
+        }
+        return matched.length() > 0 ? matched.toString() : null;
+    }
+    
+    private String buildFitReason(SolutionEntity solution, SearchRequest request) {
+        StringBuilder reason = new StringBuilder();
+        if (solution.getVerificationLevel() != null) {
+            reason.append("验证等级 L").append(solution.getVerificationLevel().getLevel());
+        }
+        if (solution.getStatus() != null) {
+            reason.append(", 状态 ").append(solution.getStatus().getCode());
+        }
+        if (request.getTechStack() != null && solution.getTechStack() != null 
+                && solution.getTechStack().toLowerCase().contains(request.getTechStack().toLowerCase())) {
+            reason.append(", 技术栈匹配");
+        }
+        return reason.toString();
+    }
+    
+    private String buildCautionReason(SolutionEntity solution, RiskLevel riskLevel) {
+        if (riskLevel == null) {
+            return null;
+        }
+        StringBuilder caution = new StringBuilder();
+        if (riskLevel.getLevel() >= RiskLevel.R3.getLevel()) {
+            caution.append("高风险操作，需要人工确认");
+        }
+        if (solution.getVerificationLevel() != null && solution.getVerificationLevel().getLevel() < VerificationLevel.L3.getLevel()) {
+            if (caution.length() > 0) caution.append("; ");
+            caution.append("验证等级较低，需谨慎参考");
+        }
+        return caution.length() > 0 ? caution.toString() : null;
+    }
+    
+    private String buildEvidenceSummary(SolutionEntity solution) {
+        if (solution.getEvidenceCount() != null && solution.getEvidenceCount() > 0) {
+            return "包含 " + solution.getEvidenceCount() + " 个证据";
+        }
+        return null;
+    }
+    
+    private String buildVerificationExplanation(SolutionEntity solution) {
+        if (solution.getVerificationLevel() == null) {
+            return "未验证";
+        }
+        return switch (solution.getVerificationLevel()) {
+            case L0 -> "未验证草稿";
+            case L1 -> "用户确认有效";
+            case L2 -> "有客观证据验证";
+            case L3 -> "可复现验证 / 多次有效";
+            case L4 -> "多上下文稳定验证";
+            case L5 -> "跨上下文长期稳定验证";
+        };
+    }
+    
+    private String buildRiskExplanation(RiskLevel riskLevel) {
+        if (riskLevel == null) {
+            return "风险等级未知";
+        }
+        return switch (riskLevel) {
+            case R0 -> "无风险，可放心使用";
+            case R1 -> "低风险，局部配置或容易回滚的修改";
+            case R2 -> "中风险，影响服务行为，需确认";
+            case R3 -> "高风险，涉及生产/数据/安全，需人工确认";
+            case R4 -> "极高风险，可能造成重大影响，禁止自动执行";
+        };
+    }
+    
+    private String determineSpaceSource(SolutionEntity solution) {
+        if (solution.getWorkspaceId() == null) {
+            return "public";
+        }
+        VisibilityScope visibilityScope = solution.getVisibilityScope();
+        if (visibilityScope == null) {
+            return "unknown";
+        }
+        return switch (visibilityScope) {
+            case PRIVATE -> "project";
+            case WORKSPACE -> "team";
+            case ENTERPRISE -> "enterprise";
+            case PUBLIC -> "public";
+        };
+    }
+    
+    private String determineRecommendedAction(RiskLevel riskLevel, SolutionEntity solution) {
+        if (solution.getVerificationLevel() != null && solution.getVerificationLevel().getLevel() >= VerificationLevel.L3.getLevel()) {
+            if (riskLevel == null || riskLevel.getLevel() <= RiskLevel.R1.getLevel()) {
+                return "execute";
+            }
+            if (riskLevel.getLevel() <= RiskLevel.R2.getLevel()) {
+                return "confirm";
+            }
+        }
+        return "learn";
     }
 
     private CandidateSeedVO toCandidateSeed(CandidateSeedEntity entity) {
@@ -257,6 +379,8 @@ public class SearchServiceImpl implements SearchService {
 
     private double calculateScore(SolutionEntity solution, SearchRequest request) {
         double score = 0.0D;
+        
+        // D12 §13 排序因素: status 权重
         if (solution.getStatus() != null) {
             score += switch (solution.getStatus()) {
                 case CANONICAL -> 60D;
@@ -267,21 +391,58 @@ public class SearchServiceImpl implements SearchService {
                 case DRAFT, DEPRECATED -> 0D;
             };
         }
+        
+        // D12 §13: verification_level 权重
         if (solution.getVerificationLevel() != null) {
             score += solution.getVerificationLevel().getLevel() * 5D;
         }
+        
+        // D12 §13: risk_penalty
         RiskLevel riskLevel = riskLevelOf(solution);
         if (riskLevel != null) {
             score += Math.max(0D, 10D - riskLevel.getLevel() * 2D);
         }
+        
+        // D12 §13: tech_stack_match
         if (request.getTechStack() != null && solution.getTechStack() != null
                 && solution.getTechStack().toLowerCase().contains(request.getTechStack().trim().toLowerCase())) {
             score += 8D;
         }
+        
+        // D12 §13: domain match
         if (request.getDomain() != null && solution.getDomain() != null
                 && solution.getDomain().equalsIgnoreCase(request.getDomain().trim())) {
             score += 5D;
         }
+        
+        // D12 §13: error_signature 精确匹配加权
+        if (request.getErrorSignature() != null && solution.getErrorSignature() != null
+                && solution.getErrorSignature().toLowerCase().contains(request.getErrorSignature().toLowerCase())) {
+            score += 15D; // 精确错误匹配大幅加权
+        }
+        
+        // D12 §13: problem_type 匹配
+        if (request.getProblemType() != null && solution.getProblemType() != null
+                && solution.getProblemType().equalsIgnoreCase(request.getProblemType())) {
+            score += 6D;
+        }
+        
+        // D12 §13: environment 匹配
+        if (request.getEnvironment() != null && solution.getEnvironment() != null
+                && solution.getEnvironment().toLowerCase().contains(request.getEnvironment().toLowerCase())) {
+            score += 4D;
+        }
+        
+        // D12 §13: recency_score (最近更新时间越近越高)
+        if (solution.getGmtModified() != null) {
+            long daysSinceModified = java.time.Duration.between(solution.getGmtModified(), java.time.Instant.now()).toDays();
+            if (daysSinceModified <= 30) {
+                score += 3D; // 30天内更新
+            } else if (daysSinceModified <= 90) {
+                score += 1D; // 90天内更新
+            }
+        }
+        
         return score;
     }
 

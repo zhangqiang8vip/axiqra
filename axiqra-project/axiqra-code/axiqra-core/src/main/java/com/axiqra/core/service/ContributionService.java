@@ -1,43 +1,51 @@
 package com.axiqra.core.service;
 
-import com.axiqra.common.domain.vo.ContributionSummaryVO;
+import com.axiqra.common.domain.entity.ContributionLedgerEntity;
+import com.axiqra.common.domain.vo.ContributionRankingVO;
+import com.axiqra.common.domain.vo.UserContributionVO;
 
 import java.util.List;
 
 /**
- * Contribution Service 接口
- *
- * @author Axiqra Team
- * @date 2026-06-11
+ * Contribution 积分服务接口
  */
 public interface ContributionService {
 
     /**
-     * 获取用户贡献汇总
+     * 计算并记录贡献积分
      *
-     * @param actorId 贡献者 ID
-     * @return 贡献汇总
+     * @param userId 用户 ID
+     * @param workspaceId 工作空间 ID
+     * @param contributionType 贡献类型
+     * @param referenceId 关联 ID（如 solutionId、reviewId 等）
+     * @param points 积分
      */
-    ContributionSummaryVO getContributionSummary(Long actorId);
+    void recordContribution(Long userId, Long workspaceId, String contributionType, Long referenceId, int points);
 
     /**
-     * 获取用户贡献记录
+     * 获取用户贡献统计
      *
-     * @param actorId 贡献者 ID
-     * @param limit   数量限制
+     * @param userId 用户 ID
+     * @param workspaceId 工作空间 ID（可选，null 表示全局）
+     * @return 用户贡献统计
+     */
+    UserContributionVO getUserContribution(Long userId, Long workspaceId);
+
+    /**
+     * 获取贡献排行榜
+     *
+     * @param workspaceId 工作空间 ID（可选，null 表示全局）
+     * @param limit 返回数量
+     * @return 排行榜
+     */
+    List<ContributionRankingVO> getContributionRankings(Long workspaceId, int limit);
+
+    /**
+     * 获取用户最近贡献记录
+     *
+     * @param userId 用户 ID
+     * @param limit 返回数量
      * @return 贡献记录列表
      */
-    List<ContributionSummaryVO.ContributionRecord> getContributionRecords(Long actorId, int limit);
-
-    /**
-     * 记录贡献事件
-     *
-     * @param actorId    贡献者 ID
-     * @param eventType  事件类型
-     * @param objectType 对象类型
-     * @param objectId   对象 ID
-     * @param points     积分
-     * @param evidenceRefs 证据引用
-     */
-    void recordContribution(Long actorId, String eventType, String objectType, Long objectId, int points, String evidenceRefs);
+    List<ContributionLedgerEntity> getRecentContributions(Long userId, int limit);
 }

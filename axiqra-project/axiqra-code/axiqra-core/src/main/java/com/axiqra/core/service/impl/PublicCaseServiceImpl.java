@@ -7,6 +7,7 @@ import com.axiqra.common.domain.enums.LicenseScope;
 import com.axiqra.common.domain.enums.PublicCaseStatus;
 import com.axiqra.common.domain.enums.ScopeEnum;
 import com.axiqra.common.domain.vo.PublicCaseDetailVO;
+import com.axiqra.common.domain.vo.ReviewStatusVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.ProjectCaseMapper;
@@ -106,6 +107,73 @@ public class PublicCaseServiceImpl implements PublicCaseService {
                 .build());
 
         return toDetailVO(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ReviewSubmitResult submitForReview(Long userId, Long publicCaseId) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!rbacService.hasScope(userId, ScopeEnum.CASE_PUBLISH.getCode())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "缺少 case:publish 权限");
+        }
+        if (publicCaseId == null || publicCaseId <= 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "publicCaseId 不能为空且必须大于 0");
+        }
+
+        PublicCaseEntity entity = publicCaseMapper.selectActiveById(publicCaseId);
+        if (entity == null) {
+            throw new BizException(ErrorCode.PUBLIC_CASE_NOT_FOUND);
+        }
+
+        // 生成审核 ID
+        Long reviewId = System.currentTimeMillis();
+        entity.setReviewId(reviewId);
+
+        auditPort.log(AuditPort.AuditEvent.builder()
+                .requestId(traceId())
+                .actorId(userId)
+                .actorType("user")
+                .action("public_case.submit_review")
+                .objectType("public_case")
+                .result("success")
+                .payload(java.util.Map.of(
+                        "publicCaseId", publicCaseId,
+                        "reviewId", reviewId
+                ))
+                .tenantId(null)
+                .build());
+
+        log.info("Public Case 提交审核: publicCaseId={}, reviewId={}", publicCaseId, reviewId);
+
+        return new ReviewSubmitResult(
+                publicCaseId,
+                String.valueOf(reviewId),
+                "submitted",
+                "审核申请已提交，请等待审核"
+        );
+    }
+
+    @Override
+    public ReviewStatusVO getReviewStatus(Long userId, Long publicCaseId) {
+        if (publicCaseId == null || publicCaseId <= 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "publicCaseId 不能为空且必须大于 0");
+        }
+
+        PublicCaseEntity entity = publicCaseMapper.selectActiveById(publicCaseId);
+        if (entity == null) {
+            throw new BizException(ErrorCode.PUBLIC_CASE_NOT_FOUND);
+        }
+
+        return ReviewStatusVO.builder()
+                .publicCaseId(publicCaseId)
+                .reviewId(entity.getReviewId())
+                .reviewStatus(entity.getStatus() != null ? entity.getStatus().getCode() : null)
+                .reviewStatusDesc(entity.getStatus() != null ? entity.getStatus().getDesc() : null)
+                .submittedAt(entity.getGmtCreate())
+                .completedAt(entity.getGmtModified())
+                .build();
     }
 
     @Override

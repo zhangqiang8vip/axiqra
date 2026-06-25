@@ -1,97 +1,102 @@
 package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.entity.ContributionLedgerEntity;
-import com.axiqra.common.domain.vo.ContributionSummaryVO;
-import com.axiqra.core.mapper.ContributionLedgerMapper;
+import com.axiqra.common.domain.vo.ContributionRankingVO;
+import com.axiqra.common.domain.vo.ContributionRecordVO;
+import com.axiqra.common.domain.vo.UserContributionVO;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
+import com.axiqra.core.mapper.UserMapper;
+import com.axiqra.core.service.ContributionLedgerService;
 import com.axiqra.core.service.ContributionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Contribution Service 实现
+ * Contribution 积分服务实现
  *
  * @author Axiqra Team
- * @date 2026-06-11
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ContributionServiceImpl implements ContributionService {
 
-    private final ContributionLedgerMapper contributionLedgerMapper;
+    private final ContributionLedgerService contributionLedgerService;
 
     @Override
-    public ContributionSummaryVO getContributionSummary(Long actorId) {
-        if (actorId == null || actorId <= 0) {
-            throw new IllegalArgumentException("actorId must be positive");
+    public void recordContribution(Long userId, Long workspaceId, String contributionType, Long referenceId, int points) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
         }
-        Integer totalPoints = contributionLedgerMapper.sumPointsByActorId(actorId);
+        if (contributionType == null || contributionType.isBlank()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "贡献类型不能为空");
+        }
 
-        // 按事件类型精确计数，不依赖记录条数上限
-        int traceCount = contributionLedgerMapper.countByActorIdAndEventType(actorId, "trace_created");
-        int solutionCount = contributionLedgerMapper.countByActorIdAndEventType(actorId, "solution_published");
-        int caseCount = contributionLedgerMapper.countByActorIdAndEventType(actorId, "case_published");
+        ContributionLedgerService.ContributionRecordRequest request =
+                new ContributionLedgerService.ContributionRecordRequest(
+                        contributionType,
+                        referenceId,
+                        "contribution",
+                        points > 0 ? points : 0,
+                        null
+                );
+        contributionLedgerService.recordContribution(userId, request);
+        log.info("记录贡献积分: userId={}, type={}, points={}", userId, contributionType, points);
+    }
 
-        // recentRecords 仅用于展示最新动态，上限固定为 10
-        List<ContributionLedgerEntity> records = contributionLedgerMapper.selectByActorId(actorId, 10);
+    @Override
+    public UserContributionVO getUserContribution(Long userId, Long workspaceId) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
 
-        return ContributionSummaryVO.builder()
-                .actorId(actorId)
-                .totalPoints(totalPoints != null ? totalPoints : 0)
-                .traceCount(traceCount)
-                .solutionCount(solutionCount)
-                .caseCount(caseCount)
-                .recentRecords(toRecordList(records))
+        var stats = contributionLedgerService.getUserStats(userId);
+        return UserContributionVO.builder()
+                .userId(userId)
+                .totalPoints(stats.getTotalPoints())
+                .monthlyPoints(stats.getMonthlyPoints())
+                .weeklyPoints(stats.getWeeklyPoints())
+                .rank(stats.getRank())
+                .contributionCount(stats.getContributionCount())
+                .contributionByType(stats.getContributionByType())
                 .build();
     }
 
     @Override
-    public List<ContributionSummaryVO.ContributionRecord> getContributionRecords(Long actorId, int limit) {
-        if (limit <= 0) {
-            throw new IllegalArgumentException("limit must be positive");
-        }
-        List<ContributionLedgerEntity> records = contributionLedgerMapper.selectByActorId(actorId, limit);
-        return toRecordList(records);
+    public List<ContributionRankingVO> getContributionRankings(Long workspaceId, int limit) {
+        var rankingItems = contributionLedgerService.getLeaderboardWithUsers(limit > 0 ? limit : 20);
+        int[] index = {0};
+        return rankingItems.stream()
+                .map(item -> ContributionRankingVO.builder()
+                        .rank(++index[0])
+                        .userId(item.userId())
+                        .username("User-" + item.userId())
+                        .totalPoints(item.totalPoints())
+                        .contributionCount((long) item.contributionCount())
+                        .build())
+                .toList();
     }
 
     @Override
-    @Transactional
-    public void recordContribution(Long actorId, String eventType, String objectType, Long objectId, int points, String evidenceRefs) {
-        ContributionLedgerEntity entity = new ContributionLedgerEntity();
-        entity.setActorId(actorId);
-        entity.setEventType(eventType);
-        entity.setObjectType(objectType);
-        entity.setObjectId(objectId);
-        entity.setPoints(points);
-        entity.setEvidenceRefs(evidenceRefs);
-        entity.setStatus("recorded");
-
-        contributionLedgerMapper.insert(entity);
-        log.info("贡献记录: actorId={}, eventType={}, points={}", actorId, eventType, points);
+    public List<ContributionLedgerEntity> getRecentContributions(Long userId, int limit) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        var records = contributionLedgerService.getUserContributions(userId, limit > 0 ? limit : 10);
+        return records.stream()
+                .map(this::toEntity)
+                .toList();
     }
 
-    private List<ContributionSummaryVO.ContributionRecord> toRecordList(List<ContributionLedgerEntity> entities) {
-        if (entities == null || entities.isEmpty()) {
-            return List.of();
-        }
-        List<ContributionSummaryVO.ContributionRecord> list = new ArrayList<>();
-        for (ContributionLedgerEntity entity : entities) {
-            list.add(ContributionSummaryVO.ContributionRecord.builder()
-                    .id(entity.getId())
-                    .eventType(entity.getEventType())
-                    .objectType(entity.getObjectType())
-                    .objectId(entity.getObjectId())
-                    .points(entity.getPoints())
-                    .status(entity.getStatus())
-                    .evidenceRefs(entity.getEvidenceRefs())
-                    .gmtCreate(entity.getGmtCreate())
-                    .build());
-        }
-        return list;
+    private ContributionLedgerEntity toEntity(ContributionRecordVO record) {
+        ContributionLedgerEntity entity = new ContributionLedgerEntity();
+        entity.setActorId(record.getUserId());
+        entity.setEventType(record.getContributionType());
+        entity.setPoints(record.getPoints());
+        return entity;
     }
 }

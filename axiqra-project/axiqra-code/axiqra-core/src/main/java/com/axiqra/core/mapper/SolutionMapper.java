@@ -2,11 +2,14 @@ package com.axiqra.core.mapper;
 
 import com.axiqra.common.domain.entity.SolutionEntity;
 import com.mybatisflex.core.BaseMapper;
+import com.mybatisflex.core.query.QueryWrapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Solution Mapper
@@ -25,7 +28,7 @@ public interface SolutionMapper extends BaseMapper<SolutionEntity> {
 
     @Select("<script>" +
             "SELECT * FROM axiqra_solution WHERE is_deleted = FALSE " +
-            "AND status IN ('candidate', 'reviewed', 'verified', 'stable', 'canonical') " +
+            "AND status IN ('candidate', 'needs_review', 'reviewed', 'verified', 'stable', 'canonical') " +
             "<if test='workspaceId != null'> AND workspace_id = #{workspaceId} </if>" +
             "<if test='visibleWorkspaceIds != null and visibleWorkspaceIds.size() &gt; 0'>" +
             " AND (visibility_scope = 'public' OR workspace_id IN " +
@@ -42,7 +45,7 @@ public interface SolutionMapper extends BaseMapper<SolutionEntity> {
             "<if test='domain != null and domain.trim().length() &gt; 0'> AND LOWER(COALESCE(domain, '')) = LOWER(#{domain}) </if>" +
             "<if test='techStack != null and techStack.trim().length() &gt; 0'> AND LOWER(COALESCE(tech_stack, '')) LIKE CONCAT('%', LOWER(#{techStack}), '%') </if>" +
             " ORDER BY " +
-            " CASE status WHEN 'canonical' THEN 6 WHEN 'stable' THEN 5 WHEN 'verified' THEN 4 WHEN 'reviewed' THEN 3 WHEN 'candidate' THEN 2 ELSE 1 END DESC," +
+            " CASE status WHEN 'canonical' THEN 6 WHEN 'stable' THEN 5 WHEN 'verified' THEN 4 WHEN 'reviewed' THEN 3 WHEN 'needs_review' THEN 2 WHEN 'candidate' THEN 1 ELSE 0 END DESC," +
             " verification_level DESC, gmt_modified DESC LIMIT #{limit}" +
             "</script>")
     List<SolutionEntity> searchVisibleSolutions(@Param("query") String query,
@@ -52,4 +55,14 @@ public interface SolutionMapper extends BaseMapper<SolutionEntity> {
                                                 @Param("techStack") String techStack,
                                                 @Param("minVerificationLevel") Integer minVerificationLevel,
                                                 @Param("limit") int limit);
+
+    default List<SolutionEntity> selectBatchIds(Set<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        QueryWrapper qw = QueryWrapper.create()
+                .where("id IN (" + ids.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")")
+                .and("is_deleted = FALSE");
+        return selectListByQuery(qw);
+    }
 }

@@ -2,6 +2,7 @@ package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.dto.TraceConfirmRequest;
 import com.axiqra.common.domain.dto.TraceCreateRequest;
+import com.axiqra.common.domain.dto.TracePathDTO;
 import com.axiqra.common.domain.entity.EngineeringTraceEntity;
 import com.axiqra.common.domain.entity.TraceEvidenceRefEntity;
 import com.axiqra.common.domain.enums.IndexStatus;
@@ -267,6 +268,7 @@ public class TraceServiceImpl implements TraceService {
                 .reviewId(trace.getReviewId())
                 .solutionId(trace.getSolutionId())
                 .evolutionSuggestion(trace.getEvolutionSuggestion())
+                .evidencePath(trace.getEvidencePath())
                 .gmtCreate(trace.getGmtCreate())
                 .gmtModified(trace.getGmtModified())
                 .evidences(evidenceViews)
@@ -283,5 +285,43 @@ public class TraceServiceImpl implements TraceService {
 
     private <T> List<T> defaultIfNull(List<T> items) {
         return items != null ? items : Collections.emptyList();
+    }
+
+    @Override
+    public void recordTracePath(Long invocationId, TracePathDTO tracePath) {
+        log.debug("Recording trace path for invocation: {}, path: {}", invocationId, tracePath);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void submitEvidence(Long userId, Long traceId, List<String> evidenceRefs) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        if (traceId == null || traceId <= 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "traceId 不能为空且必须大于 0");
+        }
+        if (evidenceRefs == null || evidenceRefs.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "evidenceRefs 不能为空");
+        }
+
+        EngineeringTraceEntity trace = engineeringTraceMapper.selectActiveById(traceId);
+        if (trace == null) {
+            throw new BizException(ErrorCode.TRACE_NOT_FOUND);
+        }
+        if (!userId.equals(trace.getAuthorId()) && !rbacService.isAdmin(userId, trace.getWorkspaceId())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权提交该 Trace 的证据");
+        }
+
+        // 将证据引用序列化为 JSON 存储到 evidencePath 字段
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String evidencePathJson = objectMapper.writeValueAsString(evidenceRefs);
+            trace.setEvidencePath(evidencePathJson);
+            engineeringTraceMapper.update(trace);
+            log.info("提交 Trace 证据: traceId={}, evidenceCount={}", traceId, evidenceRefs.size());
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "证据序列化失败: " + e.getMessage());
+        }
     }
 }

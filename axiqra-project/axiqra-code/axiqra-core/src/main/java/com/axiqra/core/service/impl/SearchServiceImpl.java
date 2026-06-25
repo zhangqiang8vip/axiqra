@@ -18,18 +18,18 @@ import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.service.CandidateSeedService;
 import com.axiqra.core.service.RbacService;
 import com.axiqra.core.service.SearchService;
+import com.axiqra.core.service.VectorSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
- * Search 服务实现
+ * Search 服务实现 - 支持向量搜索的混合召回
  */
 @Slf4j
 @Service
@@ -39,6 +39,10 @@ public class SearchServiceImpl implements SearchService {
     private final SolutionMapper solutionMapper;
     private final CandidateSeedService candidateSeedService;
     private final RbacService rbacService;
+    private final VectorSearchService vectorSearchService;
+
+    private static final double VECTOR_WEIGHT_DEFAULT = 0.6;
+    private static final double KEYWORD_WEIGHT_DEFAULT = 0.4;
 
     @Override
     @Transactional
@@ -61,7 +65,7 @@ public class SearchServiceImpl implements SearchService {
         }
 
         List<Long> visibleWorkspaceIds = resolveVisibleWorkspaceIds(userId);
-        List<SolutionEntity> solutions = defaultIfNull(solutionMapper.searchVisibleSolutions(
+        List<SolutionEntity> keywordResults = defaultIfNull(solutionMapper.searchVisibleSolutions(
                 request.getQuery().trim(),
                 request.getWorkspaceId(),
                 visibleWorkspaceIds,
@@ -71,25 +75,64 @@ public class SearchServiceImpl implements SearchService {
                 limit
         ));
 
-        List<SearchResultItemVO> items = solutions.stream()
-                .filter(Objects::nonNull)
-                .filter(this::isEligibleForSearch)
-                .filter(solution -> canViewSolution(userId, solution, visibleWorkspaceIds))
-                .map(solution -> toSearchResult(solution, request))
-                .toList();
+        int keywordHits = keywordResults.size();
+        List<VectorSearchService.VectorSearchResult> vectorResults = Collections.emptyList();
+        int vectorHits = 0;
+        int hybridHits = 0;
+
+        // 向量搜索
+        boolean enableVectorSearch = request.getEnableVectorSearch() != null 
+                ? request.getEnableVectorSearch() : true;
+        double vectorWeight = request.getVectorSearchWeight() != null 
+                ? request.getVectorSearchWeight() : VECTOR_WEIGHT_DEFAULT;
+        double keywordWeight = KEYWORD_WEIGHT_DEFAULT;
+
+        if (enableVectorSearch) {
+            try {
+                vectorResults = vectorSearchService.searchByVector(request.getQuery().trim(), limit);
+                vectorHits = vectorResults.size();
+                log.debug("Vector search returned {} results for query: {}", vectorHits, request.getQuery());
+            } catch (Exception e) {
+                log.warn("Vector search failed, falling back to keyword search only: {}", e.getMessage());
+                enableVectorSearch = false;
+            }
+        }
+
+        // 合并结果
+        List<SearchResultItemVO> items;
+        if (enableVectorSearch && !vectorResults.isEmpty()) {
+            // 混合搜索
+            items = mergeAndRankResults(keywordResults, vectorResults, request, keywordWeight, vectorWeight, limit);
+            hybridHits = items.size();
+        } else {
+            // 仅关键词搜索
+            items = keywordResults.stream()
+                    .filter(Objects::nonNull)
+                    .filter(this::isEligibleForSearch)
+                    .filter(solution -> canViewSolution(userId, solution, visibleWorkspaceIds))
+                    .map(solution -> toSearchResult(solution, request, "keyword"))
+                    .toList();
+        }
+
+        log.info("Search completed: userId={}, query={}, keywordHits={}, vectorHits={}, hybridHits={}",
+                userId, request.getQuery(), keywordHits, vectorHits, hybridHits);
 
         if (!items.isEmpty()) {
-            log.info("Search 命中结果: userId={}, query={}, hits={}", userId, request.getQuery(), items.size());
             return SearchResponseVO.builder()
                     .query(request.getQuery().trim())
                     .totalHits(items.size())
                     .returnedHits(items.size())
                     .empty(false)
                     .candidateSeedCreated(false)
+                    .vectorSearchEnabled(enableVectorSearch)
+                    .keywordSearchHits(keywordHits)
+                    .vectorSearchHits(vectorHits)
+                    .hybridSearchHits(hybridHits)
                     .items(items)
                     .build();
         }
 
+        // 无结果时创建 Candidate Seed
         CandidateSeedVO candidateSeed = null;
         boolean created = false;
         if (Boolean.TRUE.equals(request.getIncludeCandidateSeed()) && request.getWorkspaceId() != null) {
@@ -98,7 +141,7 @@ public class SearchServiceImpl implements SearchService {
             created = seedResult.created();
         }
 
-        log.info("Search 无结果: userId={}, query={}, workspaceId={}, candidateSeedCreated={}",
+        log.info("Search no results: userId={}, query={}, workspaceId={}, candidateSeedCreated={}",
                 userId, request.getQuery(), request.getWorkspaceId(), created);
         return SearchResponseVO.builder()
                 .query(request.getQuery().trim())
@@ -107,9 +150,82 @@ public class SearchServiceImpl implements SearchService {
                 .empty(true)
                 .candidateSeedCreated(created)
                 .emptyReason("未找到可执行的 Solution，已返回空结果")
+                .vectorSearchEnabled(enableVectorSearch)
+                .keywordSearchHits(keywordHits)
+                .vectorSearchHits(vectorHits)
                 .candidateSeed(candidateSeed)
                 .items(List.of())
                 .build();
+    }
+
+    /**
+     * 合并关键词和向量搜索结果，并进行混合排序
+     */
+    private List<SearchResultItemVO> mergeAndRankResults(
+            List<SolutionEntity> keywordResults,
+            List<VectorSearchService.VectorSearchResult> vectorResults,
+            SearchRequest request,
+            double keywordWeight,
+            double vectorWeight,
+            int limit) {
+
+        // 构建向量结果的 map
+        Map<Long, VectorSearchService.VectorSearchResult> vectorResultMap = vectorResults.stream()
+                .collect(Collectors.toMap(VectorSearchService.VectorSearchResult::solutionId, Function.identity()));
+
+        // 获取向量命中结果的完整实体
+        Set<Long> vectorSolutionIds = vectorResultMap.keySet();
+        List<SolutionEntity> vectorSolutions = solutionMapper.selectBatchIds(vectorSolutionIds)
+                .stream()
+                .filter(Objects::nonNull)
+                .filter(this::isEligibleForSearch)
+                .toList();
+
+        // 合并结果
+        Map<Long, SolutionEntity> allSolutions = new LinkedHashMap<>();
+        
+        // 先添加关键词结果
+        for (SolutionEntity solution : keywordResults) {
+            if (solution != null && isEligibleForSearch(solution)) {
+                allSolutions.put(solution.getId(), solution);
+            }
+        }
+        
+        // 添加向量结果
+        for (SolutionEntity solution : vectorSolutions) {
+            allSolutions.putIfAbsent(solution.getId(), solution);
+        }
+
+        // 计算最终分数并排序
+        return allSolutions.values().stream()
+                .map(solution -> {
+                    double vectorSimilarity = 0.0;
+                    double keywordScore = 1.0;
+                    String matchSource = "keyword";
+
+                    // 检查是否有向量匹配
+                    VectorSearchService.VectorSearchResult vectorResult = vectorResultMap.get(solution.getId());
+                    if (vectorResult != null) {
+                        vectorSimilarity = vectorResult.vectorSimilarity();
+                        matchSource = "hybrid";
+                    }
+
+                    // 计算最终分数
+                    double finalScore = keywordWeight * keywordScore + vectorWeight * vectorSimilarity;
+                    
+                    // 构建搜索结果
+                    SearchResultItemVO item = toSearchResult(solution, request, matchSource);
+                    item.setVectorSimilarity(vectorSimilarity);
+                    item.setVectorMatched(vectorResult != null);
+                    item.setScore(finalScore);
+                    
+                    return item;
+                })
+                .sorted((a, b) -> Double.compare(
+                        b.getScore() != null ? b.getScore() : 0,
+                        a.getScore() != null ? a.getScore() : 0))
+                .limit(limit)
+                .toList();
     }
 
     @Override
@@ -140,7 +256,7 @@ public class SearchServiceImpl implements SearchService {
                 .filter(Objects::nonNull)
                 .filter(this::isEligibleForSearch)
                 .filter(this::isPublicWebVisible)
-                .map(solution -> toSearchResult(solution, request))
+                .map(solution -> toSearchResult(solution, request, "keyword"))
                 .toList();
 
         return SearchResponseVO.builder()
@@ -154,7 +270,7 @@ public class SearchServiceImpl implements SearchService {
                 .build();
     }
 
-    private SearchResultItemVO toSearchResult(SolutionEntity solution, SearchRequest request) {
+    private SearchResultItemVO toSearchResult(SolutionEntity solution, SearchRequest request, String matchSource) {
         RiskLevel riskLevel = riskLevelOf(solution);
         String riskLevelCode = riskLevel != null ? riskLevel.getCode() : null;
         String verificationCode = solution.getVerificationLevel() != null ? "L" + solution.getVerificationLevel().getLevel() : null;
@@ -174,6 +290,7 @@ public class SearchServiceImpl implements SearchService {
                 .workspaceId(solution.getWorkspaceId())
                 .score(score)
                 .scoreReason(buildScoreReason(solution))
+                .matchSource(matchSource)
                 // D12 §7/§14 新增字段
                 .resultType("Solution")
                 .matchedTerms(buildMatchedTerms(solution, request))
@@ -387,8 +504,9 @@ public class SearchServiceImpl implements SearchService {
                 case STABLE -> 50D;
                 case VERIFIED -> 40D;
                 case REVIEWED -> 30D;
+                case NEEDS_REVIEW -> 25D;
                 case CANDIDATE -> 20D;
-                case DRAFT, DEPRECATED -> 0D;
+                case REJECTED, QUARANTINED, ARCHIVED, DRAFT, DEPRECATED -> 0D;
             };
         }
         

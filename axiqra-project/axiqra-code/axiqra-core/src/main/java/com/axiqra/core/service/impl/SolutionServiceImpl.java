@@ -368,8 +368,9 @@ public class SolutionServiceImpl implements SolutionService {
                 case STABLE -> 50D;
                 case VERIFIED -> 40D;
                 case REVIEWED -> 30D;
+                case NEEDS_REVIEW -> 25D;
                 case CANDIDATE -> 20D;
-                case DRAFT, DEPRECATED -> 0D;
+                case REJECTED, QUARANTINED, ARCHIVED, DRAFT, DEPRECATED -> 0D;
             };
         }
         if (solution.getVerificationLevel() != null) {
@@ -447,5 +448,122 @@ public class SolutionServiceImpl implements SolutionService {
 
     private <T> List<T> defaultIfNull(List<T> items) {
         return items != null ? items : Collections.emptyList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transitionToNeedsReview(Long userId, Long solutionId) {
+        if (!rbacService.hasScope(userId, ScopeEnum.SOLUTION_WRITE.getCode())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "缺少 solution:write 权限");
+        }
+
+        SolutionEntity solution = solutionMapper.selectActiveById(solutionId);
+        if (solution == null) {
+            throw new BizException(ErrorCode.SOLUTION_NOT_FOUND);
+        }
+
+        if (solution.getStatus() != SolutionStatus.DRAFT && solution.getStatus() != SolutionStatus.CANDIDATE) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID,
+                    "只有 DRAFT 或 CANDIDATE 状态可以提交审核，当前状态: " + solution.getStatus().getCode());
+        }
+
+        solution.setStatus(SolutionStatus.NEEDS_REVIEW);
+        int rows = solutionMapper.update(solution);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID, "乐观锁冲突");
+        }
+
+        log.info("Solution 提交审核: solutionId={}, userId={}", solutionId, userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transitionAfterReviewApproved(Long solutionId, Long reviewerId) {
+        SolutionEntity solution = solutionMapper.selectActiveById(solutionId);
+        if (solution == null) {
+            throw new BizException(ErrorCode.SOLUTION_NOT_FOUND);
+        }
+
+        if (solution.getStatus() != SolutionStatus.NEEDS_REVIEW) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID,
+                    "只有 NEEDS_REVIEW 状态可以审核，当前状态: " + solution.getStatus().getCode());
+        }
+
+        solution.setStatus(SolutionStatus.REVIEWED);
+        int rows = solutionMapper.update(solution);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID, "乐观锁冲突");
+        }
+
+        log.info("Solution 审核通过: solutionId={}, reviewerId={}", solutionId, reviewerId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transitionAfterReviewRejected(Long solutionId, Long reviewerId, String reasonCode) {
+        SolutionEntity solution = solutionMapper.selectActiveById(solutionId);
+        if (solution == null) {
+            throw new BizException(ErrorCode.SOLUTION_NOT_FOUND);
+        }
+
+        if (solution.getStatus() != SolutionStatus.NEEDS_REVIEW) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID,
+                    "只有 NEEDS_REVIEW 状态可以审核，当前状态: " + solution.getStatus().getCode());
+        }
+
+        solution.setStatus(SolutionStatus.REJECTED);
+        int rows = solutionMapper.update(solution);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID, "乐观锁冲突");
+        }
+
+        log.info("Solution 审核拒绝: solutionId={}, reviewerId={}, reasonCode={}", solutionId, reviewerId, reasonCode);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transitionToQuarantined(Long solutionId, Long reviewerId, String reasonCode) {
+        SolutionEntity solution = solutionMapper.selectActiveById(solutionId);
+        if (solution == null) {
+            throw new BizException(ErrorCode.SOLUTION_NOT_FOUND);
+        }
+
+        if (solution.getStatus().isQuarantined() || solution.getStatus().isDeprecated()) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID, "已是隔离或废弃状态");
+        }
+
+        solution.setStatus(SolutionStatus.QUARANTINED);
+        int rows = solutionMapper.update(solution);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID, "乐观锁冲突");
+        }
+
+        log.info("Solution 已隔离: solutionId={}, reviewerId={}, reasonCode={}", solutionId, reviewerId, reasonCode);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transitionToArchived(Long solutionId, Long userId) {
+        if (!rbacService.hasScope(userId, ScopeEnum.SOLUTION_MAINTAIN.getCode())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "缺少 solution:maintain 权限");
+        }
+
+        SolutionEntity solution = solutionMapper.selectActiveById(solutionId);
+        if (solution == null) {
+            throw new BizException(ErrorCode.SOLUTION_NOT_FOUND);
+        }
+
+        if (!solution.getStatus().isDeprecated()) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID,
+                    "只有 DEPRECATED 状态可以归档，当前状态: " + solution.getStatus().getCode());
+        }
+
+        solution.setStatus(SolutionStatus.ARCHIVED);
+        int rows = solutionMapper.update(solution);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.STATUS_TRANSITION_INVALID, "乐观锁冲突");
+        }
+
+        log.info("Solution 已归档: solutionId={}, userId={}", solutionId, userId);
     }
 }

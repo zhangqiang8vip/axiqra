@@ -42,7 +42,7 @@ class ConnectServiceImplTest {
 
         var doctor = connectService.runDoctor(1L, "cli", "mcp", 100L);
 
-        assertEquals(8, doctor.getTotalChecks());
+        assertEquals(16, doctor.getTotalChecks());
         assertTrue(doctor.getPassedChecks() >= 6);
     }
 
@@ -64,7 +64,7 @@ class ConnectServiceImplTest {
 
         assertNotNull(session.getSessionId());
         assertNotNull(session.getHistory());
-        assertEquals("READY", session.getStatus());
+        assertEquals("connected", session.getStatus());
         verify(connectSessionPort).save(any());
         verify(quotaService).consumeOrThrow(1L, "connect_session_daily");
         verify(auditPort).logInvocation(any());

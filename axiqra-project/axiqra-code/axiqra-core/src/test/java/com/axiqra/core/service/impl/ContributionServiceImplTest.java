@@ -1,144 +1,218 @@
 package com.axiqra.core.service.impl;
 
-import com.axiqra.common.domain.entity.ContributionLedgerEntity;
-import com.axiqra.common.domain.vo.ContributionSummaryVO;
-import com.axiqra.core.mapper.ContributionLedgerMapper;
+import com.axiqra.common.domain.vo.ContributionRecordVO;
+import com.axiqra.common.domain.vo.ContributionStatsVO;
+import com.axiqra.common.domain.vo.UserContributionVO;
+import com.axiqra.common.exception.BizException;
+import com.axiqra.common.exception.ErrorCode;
+import com.axiqra.core.service.ContributionLedgerService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ContributionServiceImpl 单元测试")
 class ContributionServiceImplTest {
 
     @Mock
-    private ContributionLedgerMapper contributionLedgerMapper;
+    private ContributionLedgerService contributionLedgerService;
 
-    @InjectMocks
     private ContributionServiceImpl contributionService;
 
-    @Test
-    @DisplayName("getContributionSummary 应汇总用户贡献")
-    void shouldReturnContributionSummary() {
-        when(contributionLedgerMapper.sumPointsByActorId(1L)).thenReturn(25);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "trace_created")).thenReturn(1);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "solution_published")).thenReturn(0);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "case_published")).thenReturn(0);
-        when(contributionLedgerMapper.selectByActorId(1L, 10))
-                .thenReturn(List.of(ledgerEntity(1L, "trace_created", 10)));
-
-        ContributionSummaryVO result = contributionService.getContributionSummary(1L);
-
-        assertNotNull(result);
-        assertEquals(1L, result.getActorId());
-        assertEquals(25, result.getTotalPoints());
-        assertEquals(1, result.getTraceCount());
-        assertEquals(0, result.getSolutionCount());
-        assertEquals(0, result.getCaseCount());
+    @BeforeEach
+    void setUp() {
+        contributionService = new ContributionServiceImpl(contributionLedgerService);
     }
 
-    @Test
-    @DisplayName("getContributionSummary 无记录时返回零值")
-    void shouldReturnZeroWhenNoRecords() {
-        when(contributionLedgerMapper.sumPointsByActorId(1L)).thenReturn(null);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "trace_created")).thenReturn(0);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "solution_published")).thenReturn(0);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "case_published")).thenReturn(0);
-        when(contributionLedgerMapper.selectByActorId(1L, 10)).thenReturn(List.of());
+    @Nested
+    @DisplayName("recordContribution")
+    class RecordContributionTests {
 
-        ContributionSummaryVO result = contributionService.getContributionSummary(1L);
+        @Test
+        @DisplayName("userId 为空时应抛出异常")
+        void shouldThrowWhenUserIdNull() {
+            BizException ex = assertThrows(BizException.class,
+                    () -> contributionService.recordContribution(null, 1L, "solution_create", 100L, 10));
 
-        assertEquals(0, result.getTotalPoints());
-        assertEquals(0, result.getTraceCount());
+            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("contributionType 为空时应抛出异常")
+        void shouldThrowWhenContributionTypeNull() {
+            BizException ex = assertThrows(BizException.class,
+                    () -> contributionService.recordContribution(1L, 1L, null, 100L, 10));
+
+            assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+            assertTrue(ex.getMessage().contains("贡献类型"));
+        }
+
+        @Test
+        @DisplayName("contributionType 为空字符串时应抛出异常")
+        void shouldThrowWhenContributionTypeBlank() {
+            BizException ex = assertThrows(BizException.class,
+                    () -> contributionService.recordContribution(1L, 1L, "   ", 100L, 10));
+
+            assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("有效请求应记录贡献")
+        void shouldRecordContribution() {
+            contributionService.recordContribution(1L, 1L, "solution_create", 100L, 10);
+
+            verify(contributionLedgerService).recordContribution(
+                    eq(1L),
+                    argThat(request ->
+                            request.contributionType().equals("solution_create") &&
+                            request.targetId().equals(100L) &&
+                            request.points() == 10
+                    )
+            );
+        }
+
+        @Test
+        @DisplayName("负数积分应被替换为 0")
+        void shouldReplaceNegativePointsWithZero() {
+            contributionService.recordContribution(1L, 1L, "solution_create", 100L, -10);
+
+            verify(contributionLedgerService).recordContribution(
+                    eq(1L),
+                    argThat(request -> request.points() == 0)
+            );
+        }
     }
 
-    @Test
-    @DisplayName("getContributionRecords 应返回分页记录")
-    void shouldReturnContributionRecords() {
-        ContributionLedgerEntity entity = ledgerEntity(5L, "solution_published", 50);
-        when(contributionLedgerMapper.selectByActorId(1L, 20))
-                .thenReturn(List.of(entity));
+    @Nested
+    @DisplayName("getUserContribution")
+    class GetUserContributionTests {
 
-        List<ContributionSummaryVO.ContributionRecord> result =
-                contributionService.getContributionRecords(1L, 20);
+        @Test
+        @DisplayName("userId 为空时应抛出异常")
+        void shouldThrowWhenUserIdNull() {
+            BizException ex = assertThrows(BizException.class,
+                    () -> contributionService.getUserContribution(null, 1L));
 
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("solution_published", result.get(0).getEventType());
-        assertEquals(50, result.get(0).getPoints());
+            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("应返回用户贡献信息")
+        void shouldReturnUserContribution() {
+            ContributionStatsVO mockStats = ContributionStatsVO.builder()
+                    .userId(1L)
+                    .totalPoints(100)
+                    .monthlyPoints(50)
+                    .weeklyPoints(20)
+                    .rank(5)
+                    .contributionCount(10)
+                    .contributionByType(Map.of("solution_create", 50L, "trace_submit", 50L))
+                    .generatedAt(System.currentTimeMillis())
+                    .build();
+
+            when(contributionLedgerService.getUserStats(1L)).thenReturn(mockStats);
+
+            UserContributionVO result = contributionService.getUserContribution(1L, 1L);
+
+            assertNotNull(result);
+            assertEquals(1L, result.getUserId());
+            assertEquals(100, result.getTotalPoints());
+            assertEquals(50, result.getMonthlyPoints());
+            assertEquals(20, result.getWeeklyPoints());
+            assertEquals(5, result.getRank());
+            assertEquals(10, result.getContributionCount());
+        }
     }
 
-    @Test
-    @DisplayName("recordContribution 应插入贡献记录")
-    void shouldRecordContribution() {
-        ArgumentCaptor<ContributionLedgerEntity> captor =
-                ArgumentCaptor.forClass(ContributionLedgerEntity.class);
+    @Nested
+    @DisplayName("getContributionRankings")
+    class GetContributionRankingsTests {
 
-        contributionService.recordContribution(1L, "trace_created", "trace", 77L, 10, "ref-1");
+        @Test
+        @DisplayName("应返回排行榜")
+        void shouldReturnRankings() {
+            List<ContributionLedgerService.ContributionRankingItem> mockItems = List.of(
+                    new ContributionLedgerService.ContributionRankingItem(1L, 100L, 5),
+                    new ContributionLedgerService.ContributionRankingItem(2L, 80L, 4),
+                    new ContributionLedgerService.ContributionRankingItem(3L, 60L, 3)
+            );
 
-        verify(contributionLedgerMapper).insert(captor.capture());
-        assertEquals(1L, captor.getValue().getActorId());
-        assertEquals("trace_created", captor.getValue().getEventType());
-        assertEquals(10, captor.getValue().getPoints());
-        assertEquals("ref-1", captor.getValue().getEvidenceRefs());
-        assertEquals("recorded", captor.getValue().getStatus());
+            when(contributionLedgerService.getLeaderboardWithUsers(20)).thenReturn(mockItems);
+
+            var result = contributionService.getContributionRankings(1L, 20);
+
+            assertNotNull(result);
+            assertEquals(3, result.size());
+            assertEquals(1, result.get(0).getRank());
+            assertEquals(1L, result.get(0).getUserId());
+            assertEquals(100, result.get(0).getTotalPoints());
+        }
+
+        @Test
+        @DisplayName("limit 为 0 时应使用默认值 20")
+        void shouldUseDefaultLimitWhenZero() {
+            when(contributionLedgerService.getLeaderboardWithUsers(20)).thenReturn(List.of());
+
+            contributionService.getContributionRankings(1L, 0);
+
+            verify(contributionLedgerService).getLeaderboardWithUsers(20);
+        }
     }
 
-    @Test
-    @DisplayName("贡献类型统计应通过精确计数查询")
-    void shouldCountEventTypesPrecisely() {
-        when(contributionLedgerMapper.sumPointsByActorId(1L)).thenReturn(130);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "trace_created")).thenReturn(2);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "solution_published")).thenReturn(1);
-        when(contributionLedgerMapper.countByActorIdAndEventType(1L, "case_published")).thenReturn(3);
-        when(contributionLedgerMapper.selectByActorId(1L, 10)).thenReturn(List.of());
+    @Nested
+    @DisplayName("getRecentContributions")
+    class GetRecentContributionsTests {
 
-        ContributionSummaryVO result = contributionService.getContributionSummary(1L);
+        @Test
+        @DisplayName("userId 为空时应抛出异常")
+        void shouldThrowWhenUserIdNull() {
+            BizException ex = assertThrows(BizException.class,
+                    () -> contributionService.getRecentContributions(null, 10));
 
-        assertEquals(2, result.getTraceCount());
-        assertEquals(1, result.getSolutionCount());
-        assertEquals(3, result.getCaseCount());
-        assertEquals(130, result.getTotalPoints());
-    }
+            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+        }
 
-    @Test
-    @DisplayName("getContributionSummary actorId <= 0 应抛出 IllegalArgumentException")
-    void shouldThrowWhenActorIdNonPositive() {
-        assertThrows(IllegalArgumentException.class,
-                () -> contributionService.getContributionSummary(0L));
-        assertThrows(IllegalArgumentException.class,
-                () -> contributionService.getContributionSummary(-1L));
-    }
+        @Test
+        @DisplayName("应返回最近的贡献记录")
+        void shouldReturnRecentContributions() {
+            List<ContributionRecordVO> mockRecords = List.of(
+                    ContributionRecordVO.builder()
+                            .contributionId("C-1")
+                            .userId(1L)
+                            .contributionType("solution_create")
+                            .points(10)
+                            .contributedAt(Instant.now())
+                            .build()
+            );
 
-    @Test
-    @DisplayName("getContributionRecords limit <= 0 应抛出 IllegalArgumentException")
-    void shouldThrowWhenLimitNonPositive() {
-        assertThrows(IllegalArgumentException.class,
-                () -> contributionService.getContributionRecords(1L, 0));
-    }
+            when(contributionLedgerService.getUserContributions(1L, 10)).thenReturn(mockRecords);
 
-    private ContributionLedgerEntity ledgerEntity(Long id, String eventType, int points) {
-        ContributionLedgerEntity entity = new ContributionLedgerEntity();
-        entity.setId(id);
-        entity.setActorId(1L);
-        entity.setEventType(eventType);
-        entity.setObjectType("trace");
-        entity.setObjectId(77L);
-        entity.setPoints(points);
-        entity.setStatus("recorded");
-        return entity;
+            var result = contributionService.getRecentContributions(1L, 10);
+
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertEquals("C-1", result.get(0).getActorId());
+        }
+
+        @Test
+        @DisplayName("limit 为 0 时应使用默认值 10")
+        void shouldUseDefaultLimitWhenZero() {
+            when(contributionLedgerService.getUserContributions(1L, 10)).thenReturn(List.of());
+
+            contributionService.getRecentContributions(1L, 0);
+
+            verify(contributionLedgerService).getUserContributions(1L, 10);
+        }
     }
 }

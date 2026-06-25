@@ -188,4 +188,128 @@ class FeedbackServiceImplTest {
         entity.setStatus("accepted");
         return entity;
     }
+
+    // ========== 边界用例测试 ==========
+
+    @Test
+    @DisplayName("幂等 key 重复提交应去重")
+    void shouldHandleDuplicateIdempotencyKey() {
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationId(77L);
+        request.setFeedbackType("worked");
+        request.setIdempotencyKey("idem-key-001");
+
+        // 第一次提交
+        feedbackService.submitFeedback(1L, request);
+
+        // 第二次提交相同幂等键 - 抛出异常
+        BizException ex = assertThrows(BizException.class,
+                () -> feedbackService.submitFeedback(1L, request));
+        assertTrue(ex.getMessage().contains("幂等") || ex.getMessage().contains("idempotency"));
+    }
+
+    @Test
+    @DisplayName("null evidenceRefs 应正确处理")
+    void shouldHandleNullEvidenceRefs() {
+        InvocationEntity invocation = new InvocationEntity();
+        invocation.setId(77L);
+        invocation.setDeleted(false);
+        when(invocationMapper.selectById(77L)).thenReturn(invocation);
+
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationId(77L);
+        request.setFeedbackType("worked");
+        request.setEvidenceRefs(null);
+
+        FeedbackDetailVO result = feedbackService.submitFeedback(1L, request);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    @DisplayName("空 evidenceRefs 列表应正确处理")
+    void shouldHandleEmptyEvidenceRefs() {
+        InvocationEntity invocation = new InvocationEntity();
+        invocation.setId(77L);
+        invocation.setDeleted(false);
+        when(invocationMapper.selectById(77L)).thenReturn(invocation);
+
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationId(77L);
+        request.setFeedbackType("worked");
+        request.setEvidenceRefs(List.of());
+
+        FeedbackDetailVO result = feedbackService.submitFeedback(1L, request);
+
+        assertNotNull(result);
+        assertNotNull(result.getEvidenceRefs());
+        assertTrue(result.getEvidenceRefs().isEmpty());
+    }
+
+    @Test
+    @DisplayName("partial 类型反馈应正确保存")
+    void shouldHandlePartialFeedback() {
+        InvocationEntity invocation = new InvocationEntity();
+        invocation.setId(77L);
+        invocation.setDeleted(false);
+        when(invocationMapper.selectById(77L)).thenReturn(invocation);
+
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationId(77L);
+        request.setFeedbackType("partial");
+        request.setFeedbackContent("部分有效");
+        request.setContextDelta("{\"suggestion\": \"优化参数\"}");
+
+        ArgumentCaptor<FeedbackEntity> captor = ArgumentCaptor.forClass(FeedbackEntity.class);
+
+        FeedbackDetailVO result = feedbackService.submitFeedback(1L, request);
+
+        assertNotNull(result);
+        verify(feedbackMapper).insert(captor.capture());
+        assertEquals("partial", captor.getValue().getFeedbackType());
+    }
+
+    @Test
+    @DisplayName("failed 类型反馈应正确保存")
+    void shouldHandleFailedFeedback() {
+        InvocationEntity invocation = new InvocationEntity();
+        invocation.setId(77L);
+        invocation.setDeleted(false);
+        when(invocationMapper.selectById(77L)).thenReturn(invocation);
+
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationId(77L);
+        request.setFeedbackType("failed");
+        request.setFeedbackContent("未解决问题");
+        request.setBoundaryNotes("环境不兼容");
+
+        ArgumentCaptor<FeedbackEntity> captor = ArgumentCaptor.forClass(FeedbackEntity.class);
+
+        FeedbackDetailVO result = feedbackService.submitFeedback(1L, request);
+
+        assertNotNull(result);
+        verify(feedbackMapper).insert(captor.capture());
+        assertEquals("failed", captor.getValue().getFeedbackType());
+    }
+
+    @Test
+    @DisplayName("not_applicable 类型反馈应正确保存")
+    void shouldHandleNotApplicableFeedback() {
+        InvocationEntity invocation = new InvocationEntity();
+        invocation.setId(77L);
+        invocation.setDeleted(false);
+        when(invocationMapper.selectById(77L)).thenReturn(invocation);
+
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationId(77L);
+        request.setFeedbackType("not_applicable");
+
+        ArgumentCaptor<FeedbackEntity> captor = ArgumentCaptor.forClass(FeedbackEntity.class);
+
+        FeedbackDetailVO result = feedbackService.submitFeedback(1L, request);
+
+        assertNotNull(result);
+        verify(feedbackMapper).insert(captor.capture());
+        assertEquals("not_applicable", captor.getValue().getFeedbackType());
+    }
 }

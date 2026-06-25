@@ -71,6 +71,16 @@ public class InvocationServiceImpl implements InvocationService {
         entity.setPriorAttempts(request.getPriorAttempts());
         entity.setProblemType(request.getProblemType());
         entity.setUserIntent(request.getUserIntent());
+        // 工具模型归因字段
+        entity.setToolName(request.getToolName());
+        entity.setToolVendor(request.getToolVendor());
+        entity.setToolVersion(request.getToolVersion());
+        entity.setClientChannel(request.getClientChannel());
+        entity.setModelProvider(request.getModelProvider());
+        entity.setModelName(request.getModelName());
+        entity.setModelVersion(request.getModelVersion());
+        entity.setModelSource(request.getModelSource());
+        entity.setModelConfidence(request.getModelConfidence());
         entity.setGmtCreate(Instant.now());
         entity.setGmtModified(entity.getGmtCreate());
         entity.setVersion(0L);
@@ -180,6 +190,16 @@ public class InvocationServiceImpl implements InvocationService {
                 .priorAttempts(entity.getPriorAttempts())
                 .problemType(entity.getProblemType())
                 .userIntent(entity.getUserIntent())
+                // 工具模型归因字段
+                .toolName(entity.getToolName())
+                .toolVendor(entity.getToolVendor())
+                .toolVersion(entity.getToolVersion())
+                .clientChannel(entity.getClientChannel())
+                .modelProvider(entity.getModelProvider())
+                .modelName(entity.getModelName())
+                .modelVersion(entity.getModelVersion())
+                .modelSource(entity.getModelSource())
+                .modelConfidence(entity.getModelConfidence())
                 .build();
     }
 }

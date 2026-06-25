@@ -23,4 +23,7 @@ public interface InvocationMapper extends BaseMapper<InvocationEntity> {
 
     @Select("SELECT * FROM axiqra_invocation WHERE id = #{id} AND is_deleted = FALSE LIMIT 1")
     InvocationEntity selectById(@Param("id") Long id);
+
+    @Select("SELECT * FROM axiqra_invocation WHERE id = #{id} AND is_deleted = FALSE LIMIT 1")
+    InvocationEntity selectActiveById(@Param("id") Long id);
 }

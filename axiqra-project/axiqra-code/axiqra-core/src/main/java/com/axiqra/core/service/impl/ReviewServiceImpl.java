@@ -8,6 +8,7 @@ import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.ReviewMapper;
 import com.axiqra.core.service.ReviewService;
+import com.axiqra.core.service.SolutionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import java.util.List;
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
+    private final SolutionService solutionService;
 
     @Override
     public List<ReviewDetailVO> getPendingReviews(Long userId, String queue, int limit) {
@@ -40,6 +42,12 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional
     public ReviewDetailVO approve(Long reviewerId, Long reviewId, String reasonCode, String notes) {
         ReviewEntity entity = loadAndValidateAndTransition(reviewerId, reviewId, ReviewResult.APPROVED, reasonCode, notes);
+
+        // 同步更新 Solution 状态：NEEDS_REVIEW → REVIEWED
+        if ("solution".equals(entity.getObjectType()) && entity.getObjectId() != null) {
+            solutionService.transitionAfterReviewApproved(entity.getObjectId(), reviewerId);
+        }
+
         log.info("审核通过: reviewId={}, reviewerId={}", reviewId, reviewerId);
         return toDetailVO(entity);
     }
@@ -48,6 +56,12 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional
     public ReviewDetailVO reject(Long reviewerId, Long reviewId, String reasonCode, String notes) {
         ReviewEntity entity = loadAndValidateAndTransition(reviewerId, reviewId, ReviewResult.REJECTED, reasonCode, notes);
+
+        // 同步更新 Solution 状态：NEEDS_REVIEW → REJECTED
+        if ("solution".equals(entity.getObjectType()) && entity.getObjectId() != null) {
+            solutionService.transitionAfterReviewRejected(entity.getObjectId(), reviewerId, reasonCode);
+        }
+
         log.info("审核拒绝: reviewId={}, reviewerId={}, reasonCode={}", reviewId, reviewerId, reasonCode);
         return toDetailVO(entity);
     }
@@ -56,6 +70,12 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional
     public ReviewDetailVO quarantine(Long reviewerId, Long reviewId, String reasonCode, String notes) {
         ReviewEntity entity = loadAndValidateAndTransition(reviewerId, reviewId, ReviewResult.QUARANTINED, reasonCode, notes);
+
+        // 同步更新 Solution 状态：任意状态 → QUARANTINED
+        if ("solution".equals(entity.getObjectType()) && entity.getObjectId() != null) {
+            solutionService.transitionToQuarantined(entity.getObjectId(), reviewerId, reasonCode);
+        }
+
         log.info("内容隔离: reviewId={}, reviewerId={}", reviewId, reviewerId);
         return toDetailVO(entity);
     }

@@ -2,9 +2,11 @@ package com.axiqra.api.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.vo.PublicCaseDetailVO;
+import com.axiqra.common.domain.vo.ReviewStatusVO;
 import com.axiqra.common.response.ApiResponse;
 import com.axiqra.common.util.PrivacyUtils;
 import com.axiqra.core.service.PublicCaseService;
+import com.axiqra.core.service.PublicCaseService.ReviewSubmitResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +37,26 @@ public class PublicCaseController {
     public ApiResponse<PublicCaseDetailVO> publish(@PathVariable Long projectCaseId) {
         long userId = StpUtil.getLoginIdAsLong();
         PublicCaseDetailVO result = publicCaseService.publish(userId, projectCaseId);
-        // 隐私合规：控制器日志不直接记录用户标识，改为稳定脱敏摘要。
         log.info("发布 Public Case: sourceCaseId={}, publicCaseId={}, actorHash={}",
                 projectCaseId, result.getId(), PrivacyUtils.pseudonymizeUserId(userId));
+        return ApiResponse.ok(result);
+    }
+
+    @PostMapping("/{publicCaseId}/submit-review")
+    @Operation(summary = "提交 Public Case 审核")
+    public ApiResponse<ReviewSubmitResult> submitReview(@PathVariable Long publicCaseId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        ReviewSubmitResult result = publicCaseService.submitForReview(userId, publicCaseId);
+        log.info("提交 Public Case 审核: publicCaseId={}, reviewId={}, actorHash={}",
+                publicCaseId, result.reviewId(), PrivacyUtils.pseudonymizeUserId(userId));
+        return ApiResponse.ok(result);
+    }
+
+    @GetMapping("/{publicCaseId}/review-status")
+    @Operation(summary = "获取审核状态")
+    public ApiResponse<ReviewStatusVO> getReviewStatus(@PathVariable Long publicCaseId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        ReviewStatusVO result = publicCaseService.getReviewStatus(userId, publicCaseId);
         return ApiResponse.ok(result);
     }
 

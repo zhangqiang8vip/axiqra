@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * Trace 控制器
  */
@@ -69,4 +71,15 @@ public class TraceController {
         return ApiResponse.ok(result);
     }
 
+    @PostMapping("/{traceId}/evidence")
+    @Operation(summary = "提交证据路径 (Evidence Path)")
+    public ApiResponse<Void> submitEvidence(@PathVariable Long traceId,
+                                           @RequestBody EvidenceSubmitRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        traceService.submitEvidence(userId, traceId, request.evidenceRefs());
+        log.info("提交 Trace 证据: traceId={}, evidenceCount={}", traceId, request.evidenceRefs().size());
+        return ApiResponse.ok(null);
+    }
+
+    public record EvidenceSubmitRequest(List<String> evidenceRefs) {}
 }

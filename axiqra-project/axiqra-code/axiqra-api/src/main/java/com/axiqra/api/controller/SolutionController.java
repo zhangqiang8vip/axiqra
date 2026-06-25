@@ -72,4 +72,22 @@ public class SolutionController {
         log.info("匿名读取 Public Solution 详情: solutionId={}", solutionId);
         return ApiResponse.ok(result);
     }
+
+    @PostMapping("/{solutionId}/submit-for-review")
+    @Operation(summary = "提交 Solution 审核 (DRAFT/CANDIDATE → NEEDS_REVIEW)")
+    public ApiResponse<Void> submitForReview(@PathVariable Long solutionId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        solutionService.transitionToNeedsReview(userId, solutionId);
+        log.info("提交 Solution 审核: solutionId={}, userId={}", solutionId, userId);
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/{solutionId}/archive")
+    @Operation(summary = "归档 Solution (DEPRECATED → ARCHIVED)")
+    public ApiResponse<Void> archive(@PathVariable Long solutionId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        solutionService.transitionToArchived(solutionId, userId);
+        log.info("归档 Solution: solutionId={}, userId={}", solutionId, userId);
+        return ApiResponse.ok(null);
+    }
 }

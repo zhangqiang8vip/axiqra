@@ -188,7 +188,6 @@ class ContributionServiceImplTest {
         void shouldReturnRecentContributions() {
             List<ContributionRecordVO> mockRecords = List.of(
                     ContributionRecordVO.builder()
-                            .contributionId("C-1")
                             .userId(1L)
                             .contributionType("solution_create")
                             .points(10)
@@ -202,7 +201,7 @@ class ContributionServiceImplTest {
 
             assertNotNull(result);
             assertEquals(1, result.size());
-            assertEquals("C-1", result.get(0).getActorId());
+            assertEquals(1L, result.get(0).getActorId());
         }
 
         @Test

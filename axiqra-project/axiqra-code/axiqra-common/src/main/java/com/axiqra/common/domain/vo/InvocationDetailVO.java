@@ -88,4 +88,33 @@ public class InvocationDetailVO {
     
     /** 用户意图 */
     private String userIntent;
+
+    // ========== 工具模型归因字段 ==========
+
+    /** AI Agent 名称: cursor / claude-code / codex / codex-cli / windsurf / copilot / mimo / opencode 等 */
+    private String toolName;
+
+    /** AI Agent 提供商: Cursor / Anthropic / Microsoft / Windsurf 等 */
+    private String toolVendor;
+
+    /** AI Agent 版本 */
+    private String toolVersion;
+
+    /** 接入渠道: mcp / cli / api / sdk */
+    private String clientChannel;
+
+    /** 模型提供商 */
+    private String modelProvider;
+
+    /** 模型名称 */
+    private String modelName;
+
+    /** 模型版本 */
+    private String modelVersion;
+
+    /** 模型来源 */
+    private String modelSource;
+
+    /** 模型置信度 */
+    private String modelConfidence;
 }

@@ -30,6 +30,17 @@ public class SearchResultItemVO {
     private Double score;
     private String scoreReason;
     
+    // ========== 向量搜索相关字段 ==========
+    
+    /** 向量相似度分数 (0.0-1.0) */
+    private Double vectorSimilarity;
+    
+    /** 是否通过向量搜索命中 */
+    private Boolean vectorMatched;
+    
+    /** 命中来源: keyword / vector / hybrid */
+    private String matchSource;
+    
     // ========== D12 §7/§14 规定的补充字段 ==========
     
     /**

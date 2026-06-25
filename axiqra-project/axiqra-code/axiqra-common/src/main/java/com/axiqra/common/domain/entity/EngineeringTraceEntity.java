@@ -54,6 +54,12 @@ public class EngineeringTraceEntity extends BaseEntity {
     private Long solutionId;
     @Nullable
     private String evolutionSuggestion;
+    /**
+     * 证据路径 - 证据文件引用列表 (JSON array)
+     * 包含日志、diff、测试结果、截图等证据文件引用
+     */
+    @Nullable
+    private String evidencePath;
     @Column("is_deleted")
     private boolean isDeleted = false;
 }

@@ -102,4 +102,78 @@ public class InvocationEntity extends BaseEntity {
     @Nullable
     @Column("user_intent")
     private String userIntent;
+
+    // ========== 工具模型归因字段 (D06 §15 / D12) ==========
+
+    /** AI Agent 名称: cursor / claude-code / codex / codex-cli / windsurf / copilot / mimo / opencode 等 */
+    @Nullable
+    @Column("tool_name")
+    private String toolName;
+
+    /** AI Agent 提供商: Cursor / Anthropic / Microsoft / Windsurf 等 */
+    @Nullable
+    @Column("tool_vendor")
+    private String toolVendor;
+
+    /** AI Agent 版本 */
+    @Nullable
+    @Column("tool_version")
+    private String toolVersion;
+
+    /** 接入渠道: mcp / cli / api / sdk */
+    @Nullable
+    @Column("client_channel")
+    private String clientChannel;
+
+    /** 模型提供商: openai / anthropic / google / ollama / cohere / azure */
+    @Nullable
+    @Column("model_provider")
+    private String modelProvider;
+
+    /** 模型名称 */
+    @Nullable
+    @Column("model_name")
+    private String modelName;
+
+    /** 模型版本 */
+    @Nullable
+    @Column("model_version")
+    private String modelVersion;
+
+    /** 模型来源: auto_detect / user_reported / fallback */
+    @Nullable
+    @Column("model_source")
+    private String modelSource;
+
+    /** 模型置信度 */
+    @Nullable
+    @Column("model_confidence")
+    private String modelConfidence;
+
+    // ========== Engineering Trace 扩展字段 ==========
+
+    /** 正向路径 (JSON): 成功解决问题的步骤路径 */
+    @Nullable
+    @Column("forward_path")
+    private String forwardPath;
+
+    /** 决策路径 (JSON): 关键决策点和选择理由 */
+    @Nullable
+    @Column("decision_path")
+    private String decisionPath;
+
+    /** 回滚路径 (JSON): 失败时的回滚步骤 */
+    @Nullable
+    @Column("rollback_path")
+    private String rollbackPath;
+
+    /** 演化提示 (TEXT): 方案的演进方向和优化建议 */
+    @Nullable
+    @Column("evolution_hint")
+    private String evolutionHint;
+
+    /** 反向路径 (JSON): 从结果反向推导的过程 */
+    @Nullable
+    @Column("reverse_path")
+    private String reversePath;
 }

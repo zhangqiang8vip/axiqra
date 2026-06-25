@@ -24,4 +24,18 @@ public class SearchResponseVO {
     private String emptyReason;
     private CandidateSeedVO candidateSeed;
     private List<SearchResultItemVO> items;
+
+    // ========== 向量搜索相关字段 ==========
+
+    /** 是否使用了向量搜索 */
+    private Boolean vectorSearchEnabled;
+
+    /** 向量搜索命中的结果数 */
+    private Integer vectorSearchHits;
+
+    /** 关键词搜索命中的结果数 */
+    private Integer keywordSearchHits;
+
+    /** 混合搜索命中数 */
+    private Integer hybridSearchHits;
 }

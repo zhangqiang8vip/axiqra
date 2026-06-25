@@ -46,6 +46,20 @@ public class SearchRequest {
     @Default
     private Boolean includeCandidateSeed = Boolean.TRUE;
     
+    /**
+     * 是否启用向量搜索
+     * 默认为 true，禁用时仅使用关键词搜索
+     */
+    @Default
+    private Boolean enableVectorSearch = Boolean.TRUE;
+    
+    /**
+     * 向量搜索权重 (0.0-1.0)
+     * 默认 0.6，向量搜索占 60% 权重，关键词占 40%
+     */
+    @Default
+    private Double vectorSearchWeight = 0.6;
+    
     // ========== D12 §3/§11 规定的补充字段 ==========
     
     /**

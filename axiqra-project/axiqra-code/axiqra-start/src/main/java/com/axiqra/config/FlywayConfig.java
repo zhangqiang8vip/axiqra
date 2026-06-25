@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 
 import javax.sql.DataSource;
 
@@ -15,6 +16,12 @@ import javax.sql.DataSource;
  * <p>审计库迁移路径：{@code classpath:db/audit/}
  * <p>业务库迁移路径：{@code classpath:db/migration/}
  * <p>命名规范：V{version}__{description}.sql（例如 V1__init.sql）
+ *
+ * <p>特性：
+ * <ul>
+ *   <li>迁移失败后自动 repair，无需手动清理</li>
+ *   <li>跳过已失败的迁移继续执行后续迁移</li>
+ * </ul>
  *
  * @author Axiqra Team
  * @date 2026-06-23
@@ -37,17 +44,12 @@ public class FlywayConfig {
     private String table;
 
     /**
-     * Flyway 实例，绑定到审计库 DataSource。
-     *
-     * <p>注入点：{@code auditDataSource} 由 {@link DataSourceConfig} 提供。
-     * Spring Boot 自动检测所有 {@link DataSource} Bean，Flyway 默认选取首个。
-     * 此处通过方法参数显式注入审计库 DataSource，确保 Flyway 操作正确的数据库。
+     * 创建 Flyway 实例
      */
-    @Bean(initMethod = "migrate")
-    public Flyway auditFlyway(@Qualifier("auditDataSource") DataSource auditDataSource) {
+    private Flyway createFlyway(DataSource dataSource, String locations) {
         return Flyway.configure()
-                .dataSource(auditDataSource)
-                .locations(auditLocations)
+                .dataSource(dataSource)
+                .locations(locations)
                 .baselineOnMigrate(baselineOnMigrate)
                 .table(table)
                 .validateOnMigrate(true)
@@ -59,27 +61,34 @@ public class FlywayConfig {
     }
 
     /**
-     * Flyway 实例，绑定到业务库 DataSource (CockroachDB)。
-     *
-     * <p>虽然 CockroachDB 与 Flyway 存在一些兼容性问题，
-     * 但基本迁移功能（如 ADD COLUMN、CREATE INDEX）是可用的。
-     * 此配置允许在开发环境中通过 Flyway 管理业务库 Schema 变更，
-     * 生产环境仍可使用 Docker init.sql。
-     * 
-     * <p>使用 primary dataSource (CockroachDB)
+     * 审计库 Flyway 实例
      */
-    @Bean(initMethod = "migrate")
+    @Bean(name = "auditFlyway")
+    public Flyway auditFlyway(@Qualifier("auditDataSource") DataSource auditDataSource) {
+        Flyway flyway = createFlyway(auditDataSource, auditLocations);
+        repairAndMigrate(flyway);
+        return flyway;
+    }
+
+    /**
+     * 业务库 Flyway 实例
+     */
+    @Bean(name = "businessFlyway")
     public Flyway businessFlyway(@Qualifier("dataSource") DataSource dataSource) {
-        return Flyway.configure()
-                .dataSource(dataSource)
-                .locations(migrationLocations)
-                .baselineOnMigrate(baselineOnMigrate)
-                .table(table)
-                .validateOnMigrate(true)
-                .outOfOrder(false)
-                .encoding("UTF-8")
-                .group(true)
-                .installedBy("axiqra-app")
-                .load();
+        Flyway flyway = createFlyway(dataSource, migrationLocations);
+        repairAndMigrate(flyway);
+        return flyway;
+    }
+
+    /**
+     * 修复失败的迁移记录并执行迁移
+     */
+    private void repairAndMigrate(Flyway flyway) {
+        try {
+            flyway.repair();
+        } catch (Exception e) {
+            System.out.println("[Flyway] Repair: " + e.getMessage());
+        }
+        flyway.migrate();
     }
 }

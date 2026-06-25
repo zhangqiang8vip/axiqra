@@ -10,6 +10,10 @@ __pycache__/
 start.log
 .tmp/
 
+# Axiqra Skill memory (contains auth tokens, session data)
+axiqra-project/axiqra-connect/mcp/skill/memory/
+axiqra-project/axiqra-connect/cli/scripts/.axiqra/
+
 # Axiqra local Chinese docs — separate private repo
 # _docs/ contains the Axiqra local development docs private git submodule
 docs/_docs/

@@ -46,17 +46,59 @@ await mcp("axiqra.submit_trace", {
 });
 ```
 
-### 4. 提交反馈
+### 4. 提交调用结果（Invocation 上报）
 
-根据用户反馈提交评价：
+每次执行 Solution 后，必须上报调用结果：
 
 ```javascript
 await mcp("axiqra.submit_feedback", {
-  invocation_id: "从搜索结果获取的调用ID",
-  feedback_type: "worked" | "partial" | "failed" | "not_applicable",
-  evidence_refs: ["证明文件"]
+  // AI Agent 信息（tool_name 是 AI Agent，不是 Axiqra 客户端）
+  tool_name: "claude-code",    // AI Agent: cursor / claude-code / codex / windsurf / copilot / mimo / opencode
+  tool_vendor: "Anthropic",    // AI Agent 提供商: Cursor / Anthropic / Microsoft / Windsurf
+  tool_version: "1.0.0",     // AI Agent 版本
+  tool_type: "cli",           // 接入类型: mcp / cli / api / sdk
+
+  // 模型信息（AI Agent 调用的模型）
+  model_provider: "anthropic",
+  model_name: "claude-sonnet-4",
+  model_version: "2025-01",
+  model_source: "auto_detect",
+
+  // 调用结果
+  target_type: "solution",
+  target_id: "12345",
+  result_type: "worked",
+
+  // 上下文
+  task_goal: "修复 Redis 连接超时问题",
+  tech_stack: "Spring Boot 3.x + Redis 7",
+  environment: "production",
+  risk_level: 2,
+
+  // 反馈（可选）
+  feedback_type: "worked",
+  evidence_refs: ["测试日志路径"],
+  notes: "连接池配置生效"
 });
 ```
+
+**tool_name 是 AI Agent，不是 Axiqra 客户端！**
+
+| tool_name | 说明 |
+|-----------|------|
+| `cursor` | Cursor IDE |
+| `claude-code` | Claude Code CLI |
+| `codex` | OpenAI Codex |
+| `codex-cli` | OpenAI Codex CLI |
+| `windsurf` | Windsurf IDE |
+| `copilot` | GitHub Copilot |
+| `mimo` | Mimo AI |
+| `opencode` | opencode.ai |
+
+**为什么要上报工具和模型信息？**
+- 统计不同 AI Agent/模型组合的成功率
+- 排行榜展示哪些组合效果最好
+- 为后续优化提供数据支撑
 
 ## 风险处理
 

@@ -232,29 +232,152 @@ class AxiqraMCPServer {
   }
 
   /**
-   * 提交反馈
+   * 提交调用结果（Invocation 上报 + 可选反馈）
    */
   async submit_feedback(args) {
-    const { invocation_id, feedback_type, evidence_refs, notes, failure_reason, partial_details } = args;
-
-    const result = await this.apiRequest('POST', '/v1/feedbacks', {
+    const {
       invocation_id,
       feedback_type,
       evidence_refs,
       notes,
       failure_reason,
       partial_details,
-      workspace_id: WORKSPACE_ID
-    });
+      // Invocation 上报所需字段
+      request_id,
+      // AI Agent 信息（tool_name 实际是 AI Agent）
+      tool_name,      // AI Agent: cursor / claude-code / codex / windsurf / copilot / mimo / opencode
+      tool_vendor,    // AI Agent 提供商: Cursor / Anthropic / Microsoft / Windsurf
+      tool_version,   // AI Agent 版本
+      tool_type,      // 接入类型: mcp / cli / api / sdk（不再是 AI Agent 类型）
+      client_channel, // 接入渠道
+      // 模型信息
+      model_provider,
+      model_name,
+      model_version,
+      model_source,
+      // 目标信息
+      target_type,
+      target_id,
+      // 上下文
+      task_goal,
+      tech_stack,
+      environment,
+      risk_level,
+      result_type
+    } = args;
+
+    // 构建 Invocation 上报请求
+    const invocationPayload = {
+      requestId: request_id || `mcp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      // tool_name 实际是 AI Agent 名称
+      toolName: tool_name || this.detectToolName(),
+      toolVendor: tool_vendor || this.detectToolVendor(),
+      toolVersion: tool_version || this.getToolVersion(),
+      toolType: tool_type || 'mcp',
+      clientChannel: client_channel || 'mcp',
+      // 模型信息
+      modelProvider: model_provider || this.detectModelProvider(),
+      modelName: model_name || 'unknown',
+      modelVersion: model_version || 'unknown',
+      modelSource: model_source || 'auto_detect',
+      // 目标信息
+      targetType: target_type || 'solution',
+      targetId: target_id,
+      workspaceId: WORKSPACE_ID,
+      resultType: result_type || feedback_type,
+      feedbackContent: notes,
+      evidenceRefs: evidence_refs,
+      riskLevel: risk_level || 0,
+      taskGoal: task_goal,
+      techStack: tech_stack,
+      environment: environment
+    };
+
+    // 上报 Invocation
+    const invocationResult = await this.apiRequest('POST', '/v1/invocations', invocationPayload);
+
+    // 如果有额外反馈（partial_details 或 failure_reason），继续提交 Feedback
+    if (feedback_type === 'partial' || feedback_type === 'failed') {
+      const feedbackPayload = {
+        invocationId: invocationResult.data?.id || invocation_id,
+        feedbackType: feedback_type,
+        feedbackContent: notes || partial_details?.suggestion || failure_reason,
+        evidenceRefs: evidence_refs,
+        contextDelta: partial_details,
+        boundaryNotes: failure_reason
+      };
+
+      await this.apiRequest('POST', '/v1/feedbacks', feedbackPayload);
+    }
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(result, null, 2)
+          text: JSON.stringify({
+            invocation_id: invocationResult.data?.id,
+            feedback_type: feedback_type,
+            status: 'reported'
+          }, null, 2)
         }
       ]
     };
+  }
+
+  /**
+   * 检测 AI Agent 名称
+   */
+  detectToolName() {
+    const env = process.env;
+    // 常见 AI Agent
+    if (env.CURSOR_ID || env.CURSOR_TELEMETRY_ID) return 'cursor';
+    if (env.CLAUDE_CODE) return 'claude-code';
+    if (env.WINDSURF_API_KEY) return 'windsurf';
+    if (env.GITHUB_TOKEN && env.CLIENT_ID) return 'copilot';
+    if (env.OPENCODE_API_KEY) return 'opencode';
+    if (env.MIMO_API_KEY) return 'mimo';
+    // 从 User-Agent 或其他特征推断
+    if (process.env.USER_AGENT?.includes('Cursor')) return 'cursor';
+    if (process.env.USER_AGENT?.includes('Claude')) return 'claude-code';
+    return 'unknown';
+  }
+
+  /**
+   * 检测 AI Agent 提供商
+   */
+  detectToolVendor() {
+    const toolName = this.detectToolName();
+    const vendorMap = {
+      'cursor': 'Cursor',
+      'claude-code': 'Anthropic',
+      'windsurf': 'Windsurf',
+      'copilot': 'Microsoft',
+      'opencode': 'opencode.ai',
+      'mimo': 'Mimo AI',
+      'codex': 'OpenAI',
+      'codex-cli': 'OpenAI'
+    };
+    return vendorMap[toolName] || 'unknown';
+  }
+
+  /**
+   * 获取 AI Agent 版本
+   */
+  getToolVersion() {
+    return process.env.AXIQRA_AGENT_VERSION || process.env.npm_package_version || 'unknown';
+  }
+
+  /**
+   * 检测模型提供商
+   */
+  detectModelProvider() {
+    const env = process.env;
+    if (env.ANTHROPIC_API_KEY) return 'anthropic';
+    if (env.OPENAI_API_KEY) return 'openai';
+    if (env.GOOGLE_API_KEY) return 'google';
+    if (env.AZURE_OPENAI_KEY) return 'azure';
+    if (env.OLLAMA_BASE_URL) return 'ollama';
+    return 'unknown';
   }
 
   /**

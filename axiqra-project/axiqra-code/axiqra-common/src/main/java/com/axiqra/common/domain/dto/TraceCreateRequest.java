@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -80,7 +79,6 @@ public class TraceCreateRequest {
 
     @JsonAlias("evidence_refs")
     @Valid
-    @NotEmpty(message = "evidences 不能为空")
     private List<TraceEvidenceItem> evidences;
 
     @JsonSetter("evidence_refs")
@@ -179,8 +177,6 @@ public class TraceCreateRequest {
         private String type;
 
         @JsonAlias("size_bytes")
-        @NotNull(message = "sizeBytes 不能为空")
-        @Min(value = 0, message = "sizeBytes 不能小于 0")
         private Long sizeBytes;
     }
 }

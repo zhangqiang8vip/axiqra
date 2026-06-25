@@ -38,6 +38,8 @@
         <resilience4j.version>2.3.0</resilience4j.version>
         <snakeyaml.version>2.6</snakeyaml.version>
         <flyway.version>12.9.0</flyway.version>
+        <!-- MinIO 对象存储 -->
+        <minio.version>8.5.9</minio.version>
         <!-- 测试 -->
         <testcontainers.version>1.20.6</testcontainers.version>
         <mockito.version>5.15.2</mockito.version>
@@ -153,6 +155,13 @@
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-database-postgresql</artifactId>
                 <version>${flyway.version}</version>
+            </dependency>
+
+            <!-- MinIO 对象存储 -->
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
 
             <!-- 测试：TestContainers（容器化数据库测试） -->

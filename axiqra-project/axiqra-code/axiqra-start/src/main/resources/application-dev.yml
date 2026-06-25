@@ -167,6 +167,27 @@ axiqra:
     enable-api-signature: true
     enable-rate-limit: true
     enable-minio: false
+  # 向量搜索配置
+  embedding:
+    # 提供商: auto, ollama, openai, cohere
+    # auto 会根据 base-url 自动检测
+    # 推荐使用 ollama (免费本地模型)
+    provider: ${EMBEDDING_PROVIDER:auto}
+    api-key: ${OPENAI_API_KEY:}
+    # Ollama 默认地址 (免费)
+    base-url: ${EMBEDDING_BASE_URL:http://localhost:11434}
+    # Ollama 推荐模型: nomic-embed-text (768维, 免费)
+    # OpenAI 模型: text-embedding-3-small (1536维)
+    model: ${EMBEDDING_MODEL:nomic-embed-text}
+    # 向量维度 (Ollama nomic-embed-text = 768, OpenAI = 1536)
+    dimension: ${EMBEDDING_DIMENSION:768}
+    enabled: ${EMBEDDING_ENABLED:true}
+    # 向量搜索权重配置
+    search:
+      vector-weight: 0.6
+      keyword-weight: 0.4
+      min-similarity-threshold: 0.5
+      max-results: 50
 
 logging:
   level:

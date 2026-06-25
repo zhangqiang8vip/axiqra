@@ -196,14 +196,86 @@ export const MCP_TOOL_DEFINITIONS = [
   {
     name: 'axiqra.submit_feedback',
     command: 'submit-feedback',
-    description: '提交调用反馈',
+    description: '提交调用结果（Invocation 上报），包含工具和模型信息',
     next: 'feedback',
     inputSchema: {
       type: 'object',
       properties: {
+        // AI Agent 信息（tool_name 实际是 AI Agent 名称）
+        tool_name: {
+          type: 'string',
+          description: 'AI Agent 名称: cursor / claude-code / codex / windsurf / copilot / mimo / opencode 等'
+        },
+        tool_vendor: {
+          type: 'string',
+          description: 'AI Agent 提供商: Cursor / Anthropic / Microsoft / Windsurf 等'
+        },
+        tool_version: {
+          type: 'string',
+          description: 'AI Agent 版本'
+        },
+        tool_type: {
+          type: 'string',
+          description: '接入类型: mcp / cli / api / sdk'
+        },
+        client_channel: {
+          type: 'string',
+          description: '接入渠道（同 tool_type）'
+        },
+        model_provider: {
+          type: 'string',
+          enum: ['openai', 'anthropic', 'google', 'ollama', 'cohere', 'azure', 'unknown'],
+          description: '模型提供商'
+        },
+        model_name: {
+          type: 'string',
+          description: '模型名称，如 gpt-4o、claude-3-5-sonnet'
+        },
+        model_version: {
+          type: 'string',
+          description: '模型版本或日期'
+        },
+        model_source: {
+          type: 'string',
+          enum: ['auto_detect', 'user_reported', 'fallback'],
+          description: '模型来源'
+        },
+        // 目标信息
+        target_type: {
+          type: 'string',
+          description: '目标类型，如 solution'
+        },
+        target_id: {
+          type: 'string',
+          description: '目标ID'
+        },
+        // 调用结果
+        result_type: {
+          type: 'string',
+          enum: ['worked', 'partial', 'failed', 'not_applicable'],
+          description: '调用结果'
+        },
+        // 上下文信息
+        task_goal: {
+          type: 'string',
+          description: '任务目标'
+        },
+        tech_stack: {
+          type: 'string',
+          description: '技术栈'
+        },
+        environment: {
+          type: 'string',
+          description: '运行环境'
+        },
+        risk_level: {
+          type: 'integer',
+          description: '风险等级 0-4'
+        },
+        // 反馈信息
         invocation_id: {
           type: 'string',
-          description: '调用记录 ID'
+          description: '调用记录ID（可选，用于关联已有记录）'
         },
         feedback_type: {
           type: 'string',
@@ -221,19 +293,21 @@ export const MCP_TOOL_DEFINITIONS = [
         },
         failure_reason: {
           type: 'string',
-          description: '失败原因（feedback_type 为 failed 时必填）'
+          description: '失败原因'
         },
         partial_details: {
           type: 'object',
           description: '部分有效详情'
         }
       },
-      required: ['invocation_id', 'feedback_type']
+      required: ['tool_name', 'target_id', 'result_type']
     },
     outputSchema: {
       type: 'object',
       properties: {
-        feedback_id: { type: 'string' },
+        invocation_id: { type: 'string' },
+        feedback_type: { type: 'string' },
+        status: { type: 'string' },
         impact: {
           type: 'object',
           properties: {
@@ -357,13 +431,13 @@ export const ERROR_CODES = {
   
   // HTTP 状态码映射
   HTTP_STATUS_MAP: {
-    400: INVALID_REQUEST,
-    401: UNAUTHORIZED,
-    403: FORBIDDEN,
-    404: NOT_FOUND,
-    422: VALIDATION_FAILED,
-    429: RATE_LIMITED,
-    500: INTERNAL_ERROR
+    400: -32600, // INVALID_REQUEST
+    401: -32003, // UNAUTHORIZED
+    403: -32004, // FORBIDDEN
+    404: -32005, // NOT_FOUND
+    422: -32006, // VALIDATION_FAILED
+    429: -32002, // RATE_LIMITED
+    500: -32603  // INTERNAL_ERROR
   }
 };
 

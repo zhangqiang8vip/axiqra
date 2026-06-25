@@ -50,9 +50,45 @@ axiqra-project/
   .github/           GitHub workflows and scripts
   axiqra-website/    public landing page and waitlist API
   axiqra-infra/      local dev middleware
+  axiqra-code/       Java backend (Spring Boot)
+  axiqra-connect/    AI tool integrations (MCP, CLI)
 logo/                Axiqra logo assets
 docs/                English documentation
 i18n/                Chinese documentation
+```
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "AI Tools"
+        Cursor["Cursor IDE"]
+        ClaudeCode["Claude Code"]
+        Copilot["VS Code Copilot"]
+    end
+
+    subgraph "axiqra-connect"
+        MCP["MCP Server"]
+        CLI["CLI Tools"]
+    end
+
+    subgraph "axiqra-code"
+        API["REST API"]
+        Services["Business Services"]
+        DB[("CockroachDB")]
+        Cache[("Redis")]
+        Audit[("PostgreSQL")]
+    end
+
+    Cursor --> MCP
+    ClaudeCode --> MCP
+    Copilot --> CLI
+    MCP --> API
+    CLI --> API
+    API --> Services
+    Services --> DB
+    Services --> Cache
+    Services --> Audit
 ```
 
 ## Key Documentation
@@ -74,6 +110,39 @@ i18n/                Chinese documentation
 - [路线图](i18n/ROADMAP_zh.md)
 - [安全政策](i18n/SECURITY_zh.md)
 - [行为准则](i18n/CODE_OF_CONDUCT_zh.md)
+
+## API Documentation
+
+When the backend is running, access Swagger UI at:
+- http://localhost:8080/swagger-ui.html
+
+### Key Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /search/before-act` | Search solutions before acting |
+| `GET /solutions/{id}` | Get solution details |
+| `POST /traces` | Submit engineering trace |
+| `POST /v1/invocations` | Report AI tool invocation |
+| `POST /v1/feedbacks` | Submit feedback |
+| `GET /connect/doctor` | Connection diagnostics |
+
+## Running Tests
+
+### Java Backend
+
+```bash
+cd axiqra-project/axiqra-code
+./mvnw test
+```
+
+### MCP Server (Node.js)
+
+```bash
+cd axiqra-project/axiqra-connect
+npm install
+npm test
+```
 
 ## License
 

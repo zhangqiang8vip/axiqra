@@ -62,6 +62,15 @@ public class TraceController {
         return ApiResponse.ok(result);
     }
 
+    @GetMapping
+    @Operation(summary = "获取 Trace 列表")
+    public ApiResponse<List<TraceDetailVO>> list() {
+        long userId = StpUtil.getLoginIdAsLong();
+        List<TraceDetailVO> result = traceService.listByUser(userId);
+        log.info("读取 Trace 列表: count={}, actorHash={}", result.size(), PrivacyUtils.pseudonymizeUserId(userId));
+        return ApiResponse.ok(result);
+    }
+
     @GetMapping("/{traceId}")
     @Operation(summary = "获取 Trace 详情")
     public ApiResponse<TraceDetailVO> getDetail(@PathVariable Long traceId) {

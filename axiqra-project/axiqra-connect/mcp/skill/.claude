@@ -1,0 +1,43 @@
+# Axiqra Agent Rules
+
+## 概述
+
+Axiqra 是 AI 工程方案记忆基础设施。每次任务前搜索历史方案，有则复用，无则开发后沉淀。
+
+## 工作流程
+
+```
+任务开始 → 搜索历史方案 → 有则复用 / 无则开发 → 记录步骤 → 提交轨迹 → 反馈
+```
+
+## 搜索历史方案
+
+在执行任何工程任务前，先搜索 Axiqra：
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /search/before-act \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-search.json
+```
+
+## 记录开发步骤
+
+长时间任务随时记录：
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /traces/draft \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-draft.json
+```
+
+## 提交轨迹
+
+用户说"好了"时，询问 outcome 后提交：
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /traces/flush \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-trace.json
+```
+
+## 输出规则
+
+- 禁止贴原始 JSON、API 响应、错误堆栈
+- 必须告诉用户：使用了什么能力、简短结果、下一步

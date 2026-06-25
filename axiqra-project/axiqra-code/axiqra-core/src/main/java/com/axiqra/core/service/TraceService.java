@@ -21,6 +21,13 @@ public interface TraceService {
     TraceDetailVO getDetail(Long userId, Long traceId);
 
     /**
+     * 获取用户的所有 Trace 列表
+     * @param userId 用户ID
+     * @return Trace 列表
+     */
+    List<TraceDetailVO> listByUser(Long userId);
+
+    /**
      * 记录 Engineering Trace 路径
      */
     void recordTracePath(Long invocationId, TracePathDTO tracePath);

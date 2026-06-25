@@ -1,0 +1,35 @@
+{
+  "name": "axiqra-agent",
+  "version": "1.0.0",
+  "description": "Axiqra — AI 工程方案记忆基础设施",
+  "files": [
+    "SKILL.md",
+    ".cursorrules",
+    ".claude",
+    "API_REFERENCE.md",
+    "PLAYBOOKS.md",
+    "HOSTS.md",
+    "SAFETY.md",
+    "TROUBLESHOOTING.md",
+    "manifest.json",
+    "rules/",
+    "scripts/"
+  ],
+  "scripts": {
+    "install": "node scripts/install.js",
+    "update": "node scripts/update_skill.js",
+    "validate": "node scripts/validate_skill.js",
+    "cruise": "node scripts/cruise_tick.js"
+  },
+  "metadata": {
+    "runtime": {
+      "node": ">=16",
+      "platform": ["darwin", "linux", "win32"]
+    },
+    "permissions": [
+      "network:https://api.axiqra.com",
+      "network:https://oss.axiqra.com",
+      "fs:read-write:{SKILL_DIR}/memory/"
+    ]
+  }
+}

@@ -39,25 +39,28 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional
     public FeedbackDetailVO submitFeedback(Long userId, FeedbackSubmitRequest request) {
+        if (request == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "feedback request 不能为空");
+        }
         // 幂等性检查：如果提供了 idempotencyKey，查找已存在的记录
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
             FeedbackEntity existing = feedbackMapper.selectByIdempotencyKey(request.getIdempotencyKey());
             if (existing != null) {
-                log.info("幂等返回已有 Feedback: idempotencyKey={}, existingId={}", 
+                log.info("幂等返回已有 Feedback: idempotencyKey={}, existingId={}",
                         request.getIdempotencyKey(), existing.getId());
                 return toDetailVO(existing);
             }
         }
 
         // 验证 Invocation 存在
-        InvocationEntity invocation = invocationMapper.selectById(request.getInvocationId());
+        InvocationEntity invocation = resolveInvocation(request);
         if (invocation == null || invocation.isDeleted()) {
             throw new BizException(ErrorCode.INVOCATION_NOT_FOUND);
         }
 
         // 创建 Feedback
         FeedbackEntity entity = new FeedbackEntity();
-        entity.setInvocationId(request.getInvocationId());
+        entity.setInvocationId(invocation.getId());
         entity.setUserId(userId);
         entity.setFeedbackType(request.getFeedbackType());
         entity.setFeedbackContent(request.getFeedbackContent());
@@ -71,7 +74,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         entity.setVersion(0L);
 
         feedbackMapper.insert(entity);
-        log.info("Feedback 提交成功: id={}, invocationId={}, type={}", entity.getId(), request.getInvocationId(), request.getFeedbackType());
+        log.info("Feedback 提交成功: id={}, invocationId={}, type={}", entity.getId(), invocation.getId(), request.getFeedbackType());
 
         return toDetailVO(entity);
     }
@@ -93,6 +96,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         SolutionFeedbackStatsVO.SolutionFeedbackStatsVOBuilder builder = SolutionFeedbackStatsVO.builder();
         long total = 0;
 
+        if (stats == null || stats.isEmpty()) {
+            return builder.totalCount(0L)
+                    .workedCount(0L)
+                    .partialCount(0L)
+                    .failedCount(0L)
+                    .notApplicableCount(0L)
+                    .build();
+        }
+
         for (var row : stats) {
             String type = row.getFeedbackType();
             long count = row.getCount() != null ? row.getCount() : 0;
@@ -110,6 +122,16 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
 
         return builder.totalCount(total).build();
+    }
+
+    private InvocationEntity resolveInvocation(FeedbackSubmitRequest request) {
+        if (request.getInvocationId() != null) {
+            return invocationMapper.selectById(request.getInvocationId());
+        }
+        if (request.getInvocationCode() != null && !request.getInvocationCode().isBlank()) {
+            return invocationMapper.selectByInvocationCode(request.getInvocationCode());
+        }
+        throw new BizException(ErrorCode.PARAM_INVALID, "invocationId 或 invocationCode 不能为空");
     }
 
     private List<String> deserializeEvidenceRefs(String json) {

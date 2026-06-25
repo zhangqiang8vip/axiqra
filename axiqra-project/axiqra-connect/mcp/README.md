@@ -1,90 +1,73 @@
-# Axiqra Connect MCP Server
+# Axiqra MCP
 
-MCP Server 实现，用于让 AI 工具（如 Cursor、Claude Code）通过 MCP 协议调用 Axiqra。
+AI 工程方案记忆基础设施。自动搜索历史方案，有就复用，没有就开发后沉淀。
 
-## 功能
+## 一句话接入
 
-| 工具名称 | 功能 | 权限 | 说明 |
-|----------|------|------|------|
-| `axiqra.search_before_act` | 任务前搜索 | search:read | AI 执行前搜索历史方案 |
-| `axiqra.get_solution` | 获取 Solution | solution:read | 获取 AI 可执行视图 |
-| `axiqra.submit_trace` | 提交轨迹 | trace:write | 回传工程轨迹包 |
-| `axiqra.submit_feedback` | 提交反馈 | feedback:write | worked/failed/partial |
-| `axiqra.create_seed` | 创建 Seed | search:admin | 无命中时创建候选 |
-| `axiqra.doctor` | 接入诊断 | connect:write | 检测接入状态 |
+让 AI 读取以下 SKILL.md：
 
-## 安装
-
-### npm 安装
-
-```bash
-npm install -g @axiqra/mcp-server
+```
+https://oss.axiqra.com/skills/SKILL.md
 ```
 
-### npx 直接运行
+然后对 AI 说：
 
-```bash
-npx -y @axiqra/mcp-server
+> "请帮我接入 Axiqra"
+
+AI 会自动完成一切。
+
+## 工作原理
+
+```
+每次任务 → 搜索历史方案 → 复用 or 开发 → 沉淀新经验
 ```
 
-### 手动安装
+## 核心能力
 
-```bash
-git clone https://github.com/axiqra/mcp-server.git
-cd mcp-server
-npm install
-npm run build
-npm link
+| 能力 | 说明 |
+|------|------|
+| 搜索历史方案 | 任务前自动搜索相似经验 |
+| 草稿机制 | 长时间任务记录中间步骤 |
+| 知识闭环 | 开发完成后沉淀到方案库 |
+
+## MCP 工具
+
+| 工具 | 说明 |
+|------|------|
+| `axiqra.search_before_act` | 任务前搜索历史方案 |
+| `axiqra.get_solution` | 获取方案详情 |
+| `axiqra.get_public_case` | 获取公开案例 |
+| `axiqra.submit_trace` | 提交工程轨迹 |
+| `axiqra.submit_feedback` | 提交调用反馈 |
+| `axiqra.create_seed` | 创建候选 Seed |
+| `axiqra.doctor` | 接入诊断 |
+
+## 接入流程（AI 自动执行）
+
+```
+1. AI 从网上下载 SKILL.md 和 auth.js
+2. AI 运行 auth.js --start，发起授权
+3. AI 返回授权码给用户
+4. 用户在 Axiqra 网页输入授权码
+5. AI 运行 auth.js --wait 确认授权
+6. AI 注册 MCP 工具
+7. 完成！
 ```
 
-## 配置
+## MCP 配置
 
-### 环境变量
+### Cursor
 
-```bash
-# API 地址
-AXIQRA_API_URL=https://api.axiqra.com
-
-# API Key
-AXIQRA_API_KEY=your-api-key
-
-# 工作空间 ID
-AXIQRA_WORKSPACE_ID=ws-xxx
-
-# 日志级别
-AXIQRA_LOG_LEVEL=info
-```
-
-### Cursor 配置
-
-在 `~/.cursor/mcp.json` 或项目 `.mcp.json` 中添加：
+在 Cursor 设置中添加：
 
 ```json
 {
   "mcpServers": {
     "axiqra": {
-      "command": "npx",
-      "args": ["-y", "@axiqra/mcp-server"],
+      "command": "node",
+      "args": ["/path/to/axiqra-connect/mcp/server.mjs"],
       "env": {
-        "AXIQRA_API_KEY": "your-api-key",
-        "AXIQRA_API_URL": "https://api.axiqra.com"
-      }
-    }
-  }
-}
-```
-
-### Claude Code 配置
-
-在 `~/.claude.json` 中添加：
-
-```json
-{
-  "mcpServers": {
-    "axiqra": {
-      "command": "npx",
-      "args": ["-y", "@axiqra/mcp-server"],
-      "env": {
+        "AXIQRA_API_URL": "https://api.axiqra.com",
         "AXIQRA_API_KEY": "your-api-key"
       }
     }
@@ -92,157 +75,64 @@ AXIQRA_LOG_LEVEL=info
 }
 ```
 
-### VS Code Copilot 配置
+### Claude Code
 
-在 VS Code 设置中添加：
+在 `~/.claude/settings.json` 中添加规则：
 
 ```json
 {
-  "mcp": {
-    "servers": {
-      "axiqra": {
-        "command": "npx",
-        "args": ["-y", "@axiqra/mcp-server"],
-        "env": {
-          "AXIQRA_API_KEY": "your-api-key"
-        }
-      }
-    }
-  }
+  "rules": ["axiqra.md"]
 }
 ```
 
-## 使用示例
-
-### search_before_act
-
-```javascript
-// MCP 工具调用
-const result = await mcpServer.search_before_act({
-  task_goal: "修复 Redis 连接池耗尽问题",
-  tech_stack: "Spring Boot 3.x + Lettuce",
-  environment: "K8s + AWS RDS",
-  risk_hint: "production"
-});
-```
-
-### get_solution
-
-```javascript
-const solution = await mcpServer.get_solution({
-  solution_id: "SOL-xxx",
-  view_mode: "execution"
-});
-```
-
-### submit_trace
-
-```javascript
-const trace = await mcpServer.submit_trace({
-  trace_payload: {
-    task_goal: "...",
-    forward_path: [...],
-    decision_path: [...],
-    evidence_refs: [...]
-  },
-  idempotency_key: "unique-key"
-});
-```
-
-### submit_feedback
-
-```javascript
-const feedback = await mcpServer.submit_feedback({
-  invocation_id: "INV-xxx",
-  feedback_type: "worked",
-  evidence_refs: ["test-output.log"]
-});
-```
-
-## 开发
+## 本地开发模式
 
 ```bash
-# 安装依赖
-npm install
+# Windows
+set AXIQRA_API_URL=http://localhost:8080/api
+set AXIQRA_WEB_URL=http://localhost:5173
+node mcp/skill/scripts/auth.js --start
 
-# 开发模式
-npm run dev
-
-# 构建
-npm run build
-
-# 测试
-npm test
-
-# 类型检查
-npm run typecheck
+# Linux/Mac
+export AXIQRA_API_URL=http://localhost:8080/api
+export AXIQRA_WEB_URL=http://localhost:5173
+node mcp/skill/scripts/auth.js --start
 ```
 
-## 协议定义
+## 让其他 Agent 接入
 
-### 请求格式
+### 方法一：一句话接入（推荐）
+
+让其他 AI 说：
+
+```
+请帮我接入 Axiqra：https://oss.axiqra.com/skills/SKILL.md
+```
+
+### 方法二：手动配置 MCP Server
+
+在 IDE 中配置：
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "axiqra.search_before_act",
-    "arguments": {
-      "task_goal": "...",
-      "tech_stack": "..."
-    }
-  }
-}
-```
-
-### 响应格式
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "content": [
-      {
-        "type": "text",
-        "text": "..."
+  "mcpServers": {
+    "axiqra": {
+      "command": "node",
+      "args": ["/path/to/axiqra-connect/mcp/server.mjs"],
+      "env": {
+        "AXIQRA_API_URL": "http://localhost:8080/api",
+        "AXIQRA_WEB_URL": "http://localhost:5173"
       }
-    ]
-  }
-}
-```
-
-### 错误格式
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "error": {
-    "code": -32600,
-    "message": "Invalid Request",
-    "data": {
-      "request_id": "req-xxx",
-      "error_code": "QUOTA_EXCEEDED"
     }
   }
 }
 ```
 
-## 错误处理
+## 文档
 
-| 错误码 | HTTP 状态 | 说明 |
-|--------|-----------|------|
-| `-32600` | 400 | 请求格式错误 |
-| `-32601` | 404 | 工具不存在 |
-| `-32602` | 422 | 参数验证失败 |
-| `-32603` | 500 | 内部错误 |
-| `-32001` | 401 | 未认证 |
-| `-32002` | 429 | 配额超限 |
-| `-32003` | 429 | 限流中 |
-
-## 许可
-
-Apache License 2.0
+- [SKILL.md](https://oss.axiqra.com/skills/SKILL.md) - AI Agent 使用指南
+- [API_REFERENCE.md](./skill/API_REFERENCE.md) - API 接口文档
+- [PLAYBOOKS.md](./skill/PLAYBOOKS.md) - 业务流程
+- [HOSTS.md](./skill/HOSTS.md) - 宿主兼容性
+- [SAFETY.md](./skill/SAFETY.md) - 安全规则
+- [TROUBLESHOOTING.md](./skill/TROUBLESHOOTING.md) - 排障指南

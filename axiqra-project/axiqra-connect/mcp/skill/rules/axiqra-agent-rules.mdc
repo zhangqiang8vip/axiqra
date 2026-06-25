@@ -1,0 +1,105 @@
+---
+description: Axiqra Agent behavior rules - how to use Axiqra capabilities
+alwaysApply: true
+---
+
+# Axiqra Agent Rules
+
+## When Axiqra is Available
+
+When Axiqra is installed and connected, follow these rules:
+
+### Before Any Task
+
+1. **Always search first** — Before writing code or solving a problem, search Axiqra for similar solutions:
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /search/before-act \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-search.json
+```
+
+2. **If a solution is found** — Show the user a summary and ask if they want to use it
+3. **If no solution** — Proceed with development, then沉淀经验
+
+### During Long Tasks
+
+**Record steps with drafts** — For tasks that take multiple steps:
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /traces/draft \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-draft.json
+```
+
+Use step types:
+- `forward` — Did something that moved forward
+- `decision` — Made a key decision
+- `evidence` — Got user feedback, test results, logs, errors
+- `blocker` — Hit a blocking issue
+- `correction` — Corrected a previous mistake
+
+### After Task Completion
+
+1. **If user says "done", "ok", "works"** — Ask for outcome confirmation:
+   - `success` — Task completed successfully
+   - `failure` — Task failed
+   - `partial` — Partially completed
+
+2. **Flush the draft**:
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /traces/flush \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-trace.json
+```
+
+3. **Submit feedback** if using a historical solution:
+
+```bash
+node {AXIQRA_SKILL_DIR}/scripts/rest_request.js POST /v1/feedbacks \
+  --file {AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/request-feedback.json
+```
+
+### Output Rules
+
+**Never paste to user:**
+- Raw JSON from scripts
+- API responses
+- Error stacks
+- Long UUIDs
+
+**Always tell user:**
+- What Axiqra capability was used
+- Brief result summary (1-3 key points)
+- Next suggested action
+
+## Quick Command Reference
+
+| User Says | Agent Action |
+|-----------|-------------|
+| "Search history" | POST /search/before-act |
+| "Record this" | POST /traces/draft |
+| "Done, submit" | Ask outcome → POST /traces/flush |
+| "It worked" | POST /v1/feedbacks (worked) |
+| "Show drafts" | GET /traces/draft/current |
+| "Check Axiqra" | POST /connect/doctor |
+
+## Session Isolation
+
+- Create `{AXIQRA_SKILL_DIR}/memory/sessions/{SESSION_ID}/` for each conversation
+- Write request payloads to session files, not inline
+- Reuse SESSION_ID within the same conversation
+
+## Error Handling
+
+| Error | Action |
+|--------|--------|
+| Draft write fails | Log error, continue main flow |
+| Flush fails | Keep draft for retry |
+| Search fails | Proceed without Axiqra |
+| Feedback fails | Log error, continue |
+
+## Key Principles
+
+1. **Search before doing** — Check Axiqra first
+2. **Record during work** — Don't lose valuable steps
+3. **Close the loop** — Flush drafts and submit feedback
+4. **Keep it concise** — Brief summaries for users, detailed data in files

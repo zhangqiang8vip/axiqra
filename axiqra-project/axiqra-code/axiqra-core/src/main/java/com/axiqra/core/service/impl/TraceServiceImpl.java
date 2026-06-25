@@ -167,6 +167,24 @@ public class TraceServiceImpl implements TraceService {
         return toDetailVO(trace, traceEvidenceRefMapper.selectByTraceId(trace.getId()));
     }
 
+    @Override
+    public List<TraceDetailVO> listByUser(Long userId) {
+        if (userId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!rbacService.hasScope(userId, ScopeEnum.TRACE_READ.getCode())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "缺少 trace:read 权限");
+        }
+        // 查询用户创建的 Trace
+        List<EngineeringTraceEntity> traces = engineeringTraceMapper.selectByAuthorId(userId);
+        if (traces == null || traces.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return traces.stream()
+                .map(trace -> toDetailVO(trace, traceEvidenceRefMapper.selectByTraceId(trace.getId())))
+                .toList();
+    }
+
     private EngineeringTraceEntity requireEditableTrace(Long userId, Long traceId, String requiredScope) {
         if (userId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);

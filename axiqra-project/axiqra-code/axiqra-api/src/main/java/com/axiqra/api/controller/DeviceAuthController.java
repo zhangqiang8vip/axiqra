@@ -34,7 +34,8 @@ public class DeviceAuthController {
     private static final String CODE_PREFIX = "auth:device:";
     private static final int CODE_EXPIRE_SECONDS = 600;
     private static final int POLLING_INTERVAL_SECONDS = 2;
-    
+    private static final String DEFAULT_WEB_URL = "http://localhost:5173";
+
     private static final SecureRandom RANDOM = new SecureRandom();
 
     @SaIgnore
@@ -43,19 +44,21 @@ public class DeviceAuthController {
     public ApiResponse<Map<String, Object>> getDeviceCode() {
         String deviceCode = generateRandomString(16);
         String userCode = generateUserCode();
-        
+
         String key = CODE_PREFIX + deviceCode;
         Map<String, String> codeData = new HashMap<>();
         codeData.put("user_code", userCode);
         codeData.put("status", "pending");
-        
+
         redisTemplate.opsForHash().putAll(key, codeData);
         redisTemplate.expire(key, CODE_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
         Map<String, Object> result = new HashMap<>();
         result.put("device_code", deviceCode);
         result.put("user_code", userCode);
-        result.put("verification_url", "/static/device-verify.html?code=" + userCode + "&device=" + deviceCode);
+        // 构建完整验证 URL（包含协议、主机、端口）
+        String verificationUrl = buildFullVerificationUrl(userCode, deviceCode);
+        result.put("verification_url", verificationUrl);
         result.put("interval", POLLING_INTERVAL_SECONDS);
         result.put("expires_in", CODE_EXPIRE_SECONDS);
 
@@ -68,7 +71,7 @@ public class DeviceAuthController {
     @Operation(summary = "轮询获取访问令牌")
     public ApiResponse<Map<String, Object>> pollToken(@RequestParam String deviceCode) {
         String key = CODE_PREFIX + deviceCode;
-        
+
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             return ApiResponse.fail(ErrorCode.AUTHORIZATION_EXPIRED.getCode(), "设备码无效或已过期");
         }
@@ -79,21 +82,21 @@ public class DeviceAuthController {
         if (!"authorized".equals(status)) {
             return ApiResponse.fail(ErrorCode.AUTHORIZATION_PENDING.getCode(), "等待用户授权...");
         }
-        
+
         if (userIdStr == null) {
             return ApiResponse.fail(ErrorCode.AUTHORIZATION_PENDING.getCode(), "授权处理中...");
         }
-        
+
         Long userId = Long.parseLong(userIdStr);
         UserEntity user = userService.getById(userId);
         if (user == null) {
             return ApiResponse.fail(ErrorCode.USER_NOT_FOUND.getCode(), "用户不存在");
         }
-        
+
         StpUtil.login(userId);
         String token = StpUtil.getTokenValue();
         redisTemplate.delete(key);
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("access_token", token);
         result.put("token_type", "Bearer");
@@ -103,7 +106,7 @@ public class DeviceAuthController {
                 "username", user.getUsername(),
                 "nickname", user.getNickname() != null ? user.getNickname() : user.getUsername()
         ));
-        
+
         log.info("设备授权成功: userId={}", userId);
         return ApiResponse.ok(result);
     }
@@ -112,43 +115,43 @@ public class DeviceAuthController {
     @GetMapping("/verify-page")
     @Operation(summary = "验证页面")
     public String getVerifyPage() {
-        return "redirect:/static/device-verify.html";
+        return "redirect:" + DEFAULT_WEB_URL + "/auth/device";
     }
 
-    @SaIgnore
     @PostMapping("/confirm")
     @Operation(summary = "确认授权")
     public ApiResponse<Map<String, Object>> confirmAuthorization(@RequestBody Map<String, String> request) {
         String userCode = request.get("user_code");
         String deviceCode = request.get("device_code");
-        
+
         if (userCode == null || deviceCode == null) {
             return ApiResponse.fail(ErrorCode.INVALID_PARAMETER.getCode(), "参数不完整");
         }
-        
+
         String key = CODE_PREFIX + deviceCode;
-        
+
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             return ApiResponse.fail(ErrorCode.AUTHORIZATION_EXPIRED.getCode(), "设备码无效");
         }
-        
+
         String storedCode = (String) redisTemplate.opsForHash().get(key, "user_code");
         if (!userCode.equalsIgnoreCase(storedCode)) {
             return ApiResponse.fail(ErrorCode.INVALID_PARAMETER.getCode(), "授权码不匹配");
         }
-        
-        UserEntity user = userService.getByUsername("testuser");
+
+        long loginUserId = StpUtil.getLoginIdAsLong();
+        UserEntity user = userService.getById(loginUserId);
         if (user == null) {
-            return ApiResponse.fail(ErrorCode.USER_NOT_FOUND.getCode(), "请先注册用户或创建 testuser");
+            return ApiResponse.fail(ErrorCode.USER_NOT_FOUND.getCode(), "当前登录用户不存在");
         }
-        
+
         redisTemplate.opsForHash().put(key, "status", "authorized");
         redisTemplate.opsForHash().put(key, "user_id", String.valueOf(user.getId()));
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("message", "授权成功！请回到终端。");
-        
+
         log.info("设备授权确认: userCode={}, userId={}", userCode, user.getId());
         return ApiResponse.ok(result);
     }
@@ -167,5 +170,16 @@ public class DeviceAuthController {
             sb.append(chars.charAt(RANDOM.nextInt(chars.length())));
         }
         return sb.toString();
+    }
+
+    /**
+     * 构建完整的验证页面 URL，确保包含协议、主机和端口
+     */
+    private String buildFullVerificationUrl(String userCode, String deviceCode) {
+        return toDeviceVerificationUrl(userCode, deviceCode);
+    }
+
+    private String toDeviceVerificationUrl(String userCode, String deviceCode) {
+        return DEFAULT_WEB_URL + "/auth/device?code=" + userCode + "&device=" + deviceCode;
     }
 }

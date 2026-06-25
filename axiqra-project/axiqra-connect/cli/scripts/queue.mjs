@@ -1,6 +1,6 @@
 /**
  * Axiqra CLI - 本地暂存队列模块
- * 
+ *
  * 实现 D09 文档第 14 节规定的本地暂存失败提交功能：
  * - 网络失败时本地写入 pending queue
  * - 指数退避重试
@@ -138,8 +138,8 @@ export class QueueManager {
   getPending() {
     const queue = this.loadQueue();
     const now = new Date().toISOString();
-    return queue.filter(e => 
-      e.status === PENDING_STATUS.PENDING || 
+    return queue.filter(e =>
+      e.status === PENDING_STATUS.PENDING ||
       e.status === PENDING_STATUS.RETRYING
     );
   }
@@ -150,7 +150,7 @@ export class QueueManager {
   getReadyForRetry() {
     const queue = this.loadQueue();
     const now = new Date().toISOString();
-    return queue.filter(e => 
+    return queue.filter(e =>
       (e.status === PENDING_STATUS.PENDING || e.status === PENDING_STATUS.RETRYING) &&
       (!e.nextRetryAt || new Date(e.nextRetryAt) <= new Date())
     );
@@ -215,6 +215,27 @@ export class QueueManager {
   clearSucceeded() {
     const queue = this.loadQueue();
     const filtered = queue.filter(e => e.status !== PENDING_STATUS.SUCCEEDED);
+    if (filtered.length < queue.length) {
+      this.saveQueue(filtered);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * 清空所有条目
+   */
+  clearAll() {
+    this.saveQueue([]);
+    return true;
+  }
+
+  /**
+   * 清空失败的条目
+   */
+  clearFailed() {
+    const queue = this.loadQueue();
+    const filtered = queue.filter(e => e.status !== PENDING_STATUS.FAILED);
     if (filtered.length < queue.length) {
       this.saveQueue(filtered);
       return true;

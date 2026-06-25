@@ -93,7 +93,7 @@ public class ConnectServiceImpl implements ConnectService {
         boolean connectWrite = userId != null && rbacService.hasScope(userId, "connect:write");
         boolean targetReachable = true;
         boolean stateReady = loggedIn && channelOk && toolTypeOk && connectWrite;
-        
+
         // ========== 扩展检测项 ==========
         // 环境检测
         boolean envCheck = checkEnvironment();
@@ -145,7 +145,7 @@ public class ConnectServiceImpl implements ConnectService {
                 .checks(checks)
                 .build();
     }
-    
+
     /**
      * 检测运行环境
      */
@@ -156,7 +156,7 @@ public class ConnectServiceImpl implements ConnectService {
         log.debug("Environment check: java={}, os={}", javaVersion, osName);
         return javaVersion != null && osName != null;
     }
-    
+
     /**
      * 检测网络连接
      */
@@ -171,7 +171,7 @@ public class ConnectServiceImpl implements ConnectService {
             return false;
         }
     }
-    
+
     /**
      * 检测认证有效性
      */
@@ -179,7 +179,7 @@ public class ConnectServiceImpl implements ConnectService {
         // 检测用户认证是否有效
         return userId != null && userId > 0;
     }
-    
+
     /**
      * 检测权限完整性
      */
@@ -189,7 +189,7 @@ public class ConnectServiceImpl implements ConnectService {
         boolean hasConnectWrite = rbacService.hasScope(userId, "connect:write");
         return hasConnectRead && hasConnectWrite;
     }
-    
+
     /**
      * 检测依赖完整性
      */
@@ -271,7 +271,12 @@ public class ConnectServiceImpl implements ConnectService {
 
     @Override
     public List<ConnectSessionVO> listSessions(Long userId) {
-        return connectSessionPort.listByUser(userId);
+        try {
+            return connectSessionPort.listByUser(userId);
+        } catch (RuntimeException ex) {
+            log.warn("Connect session list unavailable, returning empty list: userId={}, error={}", userId, ex.getMessage());
+            return List.of();
+        }
     }
 
     private boolean hasWorkspaceAccess(Long userId, Long workspaceId) {

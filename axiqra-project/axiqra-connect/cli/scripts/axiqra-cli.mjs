@@ -1,6 +1,6 @@
 /**
  * Axiqra Connect CLI - CLI 命令行接口
- * 
+ *
  * 实现类似 git 的设备授权流程：
  * 1. axiqra login → 获取设备码和用户码
  * 2. 打开浏览器输入用户码授权
@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createQueueManager } from './queue.mjs';
+import { createDraftManager } from './draft-manager.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,7 +22,11 @@ const program = new Command();
 /**
  * 配置文件路径
  */
-const CONFIG_DIR = process.env.AXIQRA_CONFIG_DIR || resolve(process.env.HOME || '', '.axiqra');
+const CONFIG_DIR = process.env.AXIQRA_CONFIG_DIR || (
+  process.platform === 'win32'
+    ? resolve(process.env.USERPROFILE || 'C:\\Users\\' + process.env.USERNAME, '.axiqra')
+    : resolve(process.env.HOME || '', '.axiqra')
+);
 const CONFIG_FILE = resolve(CONFIG_DIR, 'config.json');
 
 /**
@@ -58,7 +63,7 @@ function saveLogin(token, user) {
     if (!existsSync(CONFIG_DIR)) {
       mkdirSync(CONFIG_DIR, { recursive: true });
     }
-    const config = existsSync(CONFIG_FILE) 
+    const config = existsSync(CONFIG_FILE)
       ? JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'))
       : {};
     config.token = token;
@@ -90,33 +95,103 @@ function clearLogin() {
 /**
  * API 请求封装
  */
+const REQUEST_TIMEOUT_MS = 30000;
+
 async function apiRequest(endpoint, options = {}) {
   const apiUrl = process.env.AXIQRA_API_URL || 'http://localhost:8080/api';
   const token = process.env.AXIQRA_TOKEN || loadToken() || '';
-  
-  const response = await fetch(`${apiUrl}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token || '',
-      ...options.headers
-    }
-  });
 
-  if (!response.ok) {
-    try {
-      const error = await response.json();
-      const message = error.message || error.error || `API error: ${response.status}`;
-      throw new Error(message);
-    } catch (e) {
-      if (e.message.includes('API error')) {
-        throw e;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${apiUrl}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token || '',
+        ...options.headers
       }
-      throw new Error(`API error: ${response.status}`);
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      try {
+        const error = await response.json();
+        const code = error.code || response.status;
+        const message = error.message || error.error || `API 错误 (${response.status})`;
+        throw new Error(formatError(code, message));
+      } catch (e) {
+        if (e.message.includes('API') || e.message.includes('错误')) {
+          throw e;
+        }
+        throw new Error(formatError(response.status, `请求失败 (HTTP ${response.status})`));
+      }
     }
+
+    return response.json();
+  } catch (e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') {
+      throw new Error(formatError('TIMEOUT', `请求超时（${REQUEST_TIMEOUT_MS / 1000}秒）`));
+    }
+    throw e;
+  }
+}
+
+/**
+ * 统一错误格式
+ * @param {string|number} code 错误码
+ * @param {string} message 错误消息
+ * @returns {string} 格式化后的错误信息
+ */
+function formatError(code, message) {
+  const errorMap = {
+    'TIMEOUT': { reason: '网络请求超时', tip: '请检查网络连接后重试' },
+    401: { reason: '未登录或 Token 已过期', tip: '请运行 axiqra login 重新登录' },
+    403: { reason: '无权访问该资源', tip: '请检查账号权限设置' },
+    404: { reason: '请求的资源不存在', tip: '请确认资源 ID 是否正确' },
+    500: { reason: '服务器内部错误', tip: '请稍后重试或联系技术支持' },
+    502: { reason: '网关错误', tip: '请稍后重试' },
+    503: { reason: '服务暂不可用', tip: '请稍后重试' }
+  };
+
+  const codeStr = String(code);
+  const info = errorMap[code] || errorMap[codeStr] || { reason: '未知错误', tip: '请查看完整错误信息' };
+
+  return `错误：${message}\n原因：${info.reason}\n提示：${info.tip}`;
+}
+
+/**
+ * Loading 动画控制器
+ */
+class LoadingIndicator {
+  constructor(message = '加载中') {
+    this.message = message;
+    this.frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    this.interval = null;
+    this.currentFrame = 0;
   }
 
-  return response.json();
+  start() {
+    process.stdout.write(chalk.cyan(`${this.frames[0]} ${this.message}... `));
+    this.interval = setInterval(() => {
+      process.stdout.write('\b\b\b\b');
+      this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+      process.stdout.write(`${chalk.cyan(this.frames[this.currentFrame])} ${this.message}... `);
+    }, 100);
+  }
+
+  stop(success = true) {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+      process.stdout.write('\b\b\b\b\b\b');
+      console.log(success ? chalk.green('完成') : chalk.red('失败'));
+    }
+  }
 }
 
 /**
@@ -127,7 +202,7 @@ function openBrowser(url) {
   const start = (cmd) => {
     require('child_process').spawn(cmd, [url], { detached: true, stdio: 'ignore' }).unref();
   };
-  
+
   if (os === 'darwin') {
     require('child_process').spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
   } else if (os === 'win32') {
@@ -150,11 +225,19 @@ program
 // ============================================================
 program
   .command('login')
-  .description('登录 Axiqra（设备授权）')
+  .description('登录 Axiqra（设备授权/API Key）')
+  .usage('[options]')
   .option('-n, --no-browser', '不自动打开浏览器')
   .option('-u, --username <username>', '使用用户名密码登录（不安全，不推荐）')
   .option('-p, --password <password>', '密码')
+  .option('-k, --api-key <apiKey>', '使用 API Key 登录')
   .action(async (options) => {
+    // API Key 登录
+    if (options.apiKey) {
+      await loginWithApiKey(options.apiKey);
+      return;
+    }
+
     // 如果指定了用户名密码，回退到传统登录（不推荐）
     if (options.username && options.password) {
       await loginWithPassword(options.username, options.password);
@@ -167,7 +250,7 @@ program
 
       // 步骤 1: 获取设备码
       console.log(chalk.cyan('\n步骤 1/3: 请求授权码...'));
-      
+
       const codeResult = await apiRequest('/auth/device/code', {
         method: 'POST'
       });
@@ -175,7 +258,7 @@ program
       const { user_code, verification_url, device_code, expires_in, interval } = codeResult.data;
 
       console.log(chalk.green('\n✓ 授权码已生成！\n'));
-      
+
       // 显示用户码
       console.log(chalk.yellow('┌─────────────────────────────────────────┐'));
       console.log(chalk.yellow('│           授权码                        │'));
@@ -184,7 +267,7 @@ program
       console.log(chalk.yellow(`│     🔑  ${chalk.white.bold(user_code)}      │`));
       console.log(chalk.yellow(`│                                         │`));
       console.log(chalk.yellow('└─────────────────────────────────────────┘'));
-      
+
       console.log(chalk.gray(`\n  验证页面: ${verification_url}`));
       console.log(chalk.gray(`  有效期: ${Math.floor(expires_in / 60)} 分钟`));
 
@@ -208,9 +291,9 @@ program
 
       while (attempts < maxAttempts) {
         attempts++;
-        
+
         process.stdout.write(chalk.gray(`  正在验证 (${attempts}/${maxAttempts})... `));
-        
+
         try {
           const tokenResult = await apiRequest(`/auth/device/token?deviceCode=${device_code}`, {
             method: 'POST'
@@ -220,7 +303,7 @@ program
           if (tokenResult.code === 0 && tokenResult.data?.access_token) {
             // 授权成功
             const { access_token, user } = tokenResult.data;
-            
+
             saveLogin(access_token, user);
             process.env.AXIQRA_TOKEN = access_token;
 
@@ -241,7 +324,7 @@ program
         }
 
         console.log(chalk.gray('等待中...\n'));
-        
+
         // 等待 interval 秒
         await new Promise(resolve => setTimeout(resolve, interval * 1000));
       }
@@ -263,7 +346,7 @@ program
 async function loginWithPassword(username, password) {
   try {
     console.log(chalk.yellow('\n⚠ 使用用户名密码登录（不推荐）\n'));
-    
+
     const result = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
@@ -277,7 +360,7 @@ async function loginWithPassword(username, password) {
         nickname: result.data.nickname
       });
       process.env.AXIQRA_TOKEN = token;
-      
+
       console.log(chalk.green('\n✓ 登录成功！'));
       console.log(chalk.gray(`  用户: ${result.data.nickname || result.data.username}`));
       console.log(chalk.gray(`  Token 已保存到: ${CONFIG_FILE}`));
@@ -287,6 +370,40 @@ async function loginWithPassword(username, password) {
     }
   } catch (error) {
     console.error(chalk.red('\n✗ 登录失败:'), error.message);
+    process.exit(1);
+  }
+}
+
+/**
+ * API Key 登录
+ */
+async function loginWithApiKey(apiKey) {
+  try {
+    console.log(chalk.blue('\n⚡ 使用 API Key 登录\n'));
+
+    const result = await apiRequest('/auth/api-key/login', {
+      method: 'POST',
+      body: JSON.stringify({ apiKey })
+    });
+
+    if (result.data?.token) {
+      const token = result.data.token;
+      saveLogin(token, {
+        id: result.data.userId,
+        username: result.data.username,
+        nickname: result.data.nickname
+      });
+      process.env.AXIQRA_TOKEN = token;
+
+      console.log(chalk.green('\n✓ 登录成功！'));
+      console.log(chalk.gray(`  用户: ${result.data.nickname || result.data.username}`));
+      console.log(chalk.gray(`  Token 已保存到: ${CONFIG_FILE}`));
+      console.log(chalk.gray('\n  运行 axiqra doctor 验证连接\n'));
+    } else {
+      throw new Error('API Key 登录响应中未包含 token');
+    }
+  } catch (error) {
+    console.error(chalk.red('\n✗ API Key 登录失败:'), error.message);
     process.exit(1);
   }
 }
@@ -308,7 +425,7 @@ program
       const email = options.email || process.env.AXIQRA_EMAIL;
       const nickname = options.nickname;
 
-      
+
       if (!username || !password) {
         console.log(chalk.yellow('请提供用户名和密码:'));
         console.log(chalk.gray('  axiqra register -u <username> -p <password>'));
@@ -316,7 +433,7 @@ program
       }
 
       console.log(chalk.blue(`\n正在注册用户: ${username}...`));
-      
+
       const result = await apiRequest('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ username, password, email, nickname })
@@ -330,7 +447,7 @@ program
           nickname: result.data.nickname
         });
         process.env.AXIQRA_TOKEN = token;
-        
+
         console.log(chalk.green('\n✓ 注册成功！'));
         console.log(chalk.gray(`  Token 已保存到: ${CONFIG_FILE}`));
       } else {
@@ -362,7 +479,7 @@ program
     for (const check of checks) {
       try {
         process.stdout.write(`  ${check.padEnd(15)} `);
-        
+
         switch (check) {
           case 'network':
             try {
@@ -377,7 +494,7 @@ program
               console.log(chalk.red('✗ 失败'));
             }
             break;
-            
+
           case 'auth':
             const token = process.env.AXIQRA_TOKEN || loadToken();
             if (token) {
@@ -392,7 +509,7 @@ program
               console.log(chalk.yellow('⚠ 未登录'));
             }
             break;
-            
+
           case 'quota':
             try {
               const quota = await apiRequest('/connect/quota');
@@ -406,7 +523,7 @@ program
               }
             }
             break;
-            
+
           default:
             console.log(chalk.green('✓ 通过'));
             passed++;
@@ -444,12 +561,15 @@ program
 
       if (!result.data?.results || result.data.results.length === 0) {
         console.log(chalk.yellow('\n未找到匹配的方案\n'));
-        console.log(chalk.gray('  提示: 尝试更通用的搜索词，或自行解决后提交轨迹'));
+        console.log(chalk.gray('  建议:'));
+        console.log(chalk.gray('  1. 尝试更通用的关键词'));
+        console.log(chalk.gray('  2. 使用 axiqra seed create 提交新需求'));
+        console.log(chalk.gray('  3. 自行解决后提交轨迹: axiqra trace submit <file>\n'));
         return;
       }
 
       console.log(chalk.blue(`\n找到 ${result.data.results.length} 个方案:\n`));
-      
+
       result.data.results.forEach((item, index) => {
         const levelColor = {
           'L0': chalk.gray,
@@ -478,279 +598,406 @@ program
 // ============================================================
 // Solution 命令
 // ============================================================
-program
+const solutionCmd = program
   .command('solution')
-  .description('Solution 管理')
-  .addCommand(
-    new Command('get <id>')
-      .description('获取 Solution 详情')
-      .option('-v, --view <mode>', '视图模式', /^(execution|full|metadata)$/i, 'execution')
-      .action(async (id, options) => {
-        try {
-          const result = await apiRequest(`/solutions/${id}?view=${options.view}`);
-          
-          console.log(chalk.blue(`\n ${result.data?.title || id}\n`));
-          console.log(chalk.gray('='.repeat(50)));
-          console.log(chalk.gray(`  ID: ${id}`));
-          console.log(chalk.gray(`  验证等级: ${result.data?.verificationLevel || 'N/A'}`));
-          console.log(chalk.gray(`  风险等级: ${result.data?.riskLevel || 'N/A'}\n`));
+  .description('Solution 管理');
 
-          if (result.data?.executionSteps) {
-            console.log(chalk.cyan('  执行步骤:'));
-            result.data.executionSteps.forEach((step, i) => {
-              console.log(chalk.gray(`    ${i + 1}. ${step}`));
-            });
-            console.log();
-          }
+solutionCmd
+  .command('get <id>')
+  .usage('<solution-id> [options]')
+  .description('获取 Solution 详情')
+  .option('-v, --view <mode>', '视图模式', /^(execution|full|metadata)$/i, 'execution')
+  .action(async (id, options) => {
+    try {
+      const result = await apiRequest(`/solutions/${id}?view=${options.view}`);
 
-          if (result.data?.riskWarnings) {
-            console.log(chalk.yellow('  风险提示:'));
-            result.data.riskWarnings.forEach(w => {
-              console.log(chalk.yellow(`    ⚠ ${w}`));
-            });
-            console.log();
-          }
-        } catch (error) {
-          console.error(chalk.red('获取失败:'), error.message);
-        }
-      })
-  );
+      console.log(chalk.blue(`\n ${result.data?.title || id}\n`));
+      console.log(chalk.gray('='.repeat(50)));
+      console.log(chalk.gray(`  ID: ${id}`));
+      console.log(chalk.gray(`  验证等级: ${result.data?.verificationLevel || 'N/A'}`));
+      console.log(chalk.gray(`  风险等级: ${result.data?.riskLevel || 'N/A'}\n`));
+
+      if (result.data?.executionSteps) {
+        console.log(chalk.cyan('  执行步骤:'));
+        result.data.executionSteps.forEach((step, i) => {
+          console.log(chalk.gray(`    ${i + 1}. ${step}`));
+        });
+        console.log();
+      }
+
+      if (result.data?.riskWarnings) {
+        console.log(chalk.yellow('  风险提示:'));
+        result.data.riskWarnings.forEach(w => {
+          console.log(chalk.yellow(`    ⚠ ${w}`));
+        });
+        console.log();
+      }
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
 
 // ============================================================
-// Trace Queue 命令 (本地暂存)
+// Trace 命令 - 初始化队列管理器
 // ============================================================
 const queueManager = createQueueManager();
 
-program
+// ============================================================
+// trace - 父命令
+// ============================================================
+const traceCmd = program
   .command('trace')
-  .description('轨迹管理')
-  .addCommand(
-    new Command('submit <file>')
-      .description('提交轨迹（失败时自动暂存）')
-      .option('-t, --tag <tags...>', '标签')
-      .option('-n, --note <note>', '备注')
-      .option('--no-queue', '不启用本地暂存，失败直接报错')
-      .action(async (file, options) => {
-        try {
-          const traceData = JSON.parse(readFileSync(resolve(file), 'utf-8'));
-          const idempotencyKey = traceData.idempotency_key || `trace_${Date.now()}`;
-          
-          const result = await apiRequest('/traces', {
-            method: 'POST',
-            body: JSON.stringify({
-              trace: traceData,
-              tags: options.tag,
-              note: options.note,
-              idempotency_key: idempotencyKey
-            })
-          });
+  .description('轨迹管理（submit/queue/retry/list/get）');
 
-          console.log(chalk.green('\n✓ 轨迹提交成功'));
-          console.log(chalk.gray(`  Trace ID: ${result.data?.id || result.data?.traceId}`));
-          console.log(chalk.gray(`  状态: ${result.data?.status || 'draft'}\n`));
-        } catch (error) {
-          if (options.queue !== false) {
-            // 启用本地暂存
-            console.log(chalk.yellow('\n⚠ 提交失败，启用本地暂存...\n'));
-            const traceData = JSON.parse(readFileSync(resolve(file), 'utf-8'));
-            const idempotencyKey = traceData.idempotency_key || `trace_${Date.now()}`;
-            const entry = queueManager.add(traceData, idempotencyKey, null, null);
-            
-            console.log(chalk.green('✓ 已添加到本地暂存队列'));
-            console.log(chalk.gray(`  暂存 ID: ${entry.id}`));
-            console.log(chalk.gray(`  重试次数: ${entry.retryCount} / ${queueManager.maxRetries}`));
-            console.log(chalk.gray('\n  运行 axiqra trace queue 查看队列'));
-            console.log(chalk.gray('  运行 axiqra trace retry 重试暂存的轨迹\n'));
-          } else {
-            console.error(chalk.red('提交失败:'), error.message);
-          }
-        }
-      })
-  )
-  .addCommand(
-    new Command('queue')
-      .description('查看本地暂存队列')
-      .option('-s, --status <status>', '状态过滤 (pending/retrying/failed/succeeded)')
-      .option('-c, --clear', '清空已完成的条目')
-      .action(async (options) => {
-        if (options.clear) {
-          const removed = queueManager.clearSucceeded();
-          if (removed) {
-            console.log(chalk.green('\n✓ 已清空已完成的条目\n'));
-          } else {
-            console.log(chalk.gray('\n  没有已完成的条目需要清空\n'));
-          }
-          return;
-        }
+// ============================================================
+// trace submit <file>
+// ============================================================
+traceCmd
+  .command('submit <file>')
+  .usage('<file> [options]')
+  .description('提交轨迹（失败时自动暂存）')
+  .option('-t, --tag <tags...>', '标签')
+  .option('-n, --note <note>', '备注')
+  .option('-w, --workspace <id>', '工作空间 ID（必需）')
+  .option('--no-queue', '不启用本地暂存，失败直接报错')
+  .action(async (file, options) => {
+    // 检查文件是否存在
+    const resolvedPath = resolve(file);
+    if (!existsSync(resolvedPath)) {
+      console.error(chalk.red(`\n✗ 文件不存在: ${file}`));
+      console.log(chalk.gray('  请检查文件路径是否正确。\n'));
+      return;
+    }
 
-        const stats = queueManager.getStats();
-        console.log(chalk.blue('\n Axiqra 本地暂存队列'));
-        console.log(chalk.gray('='.repeat(50)));
-        console.log(chalk.gray(`  总数: ${stats.total}`));
-        console.log(chalk.cyan(`  待处理: ${stats.pending}`));
-        console.log(chalk.yellow(`  重试中: ${stats.retrying}`));
-        console.log(chalk.red(`  失败: ${stats.failed}`));
-        console.log(chalk.green(`  成功: ${stats.succeeded}`));
-        console.log(chalk.gray('='.repeat(50)));
+    let traceData;
+    try {
+      traceData = JSON.parse(readFileSync(resolvedPath, 'utf-8'));
+    } catch (e) {
+      console.error(chalk.red(`\n✗ 无法读取轨迹文件: ${e.message}`));
+      return;
+    }
 
-        let entries = queueManager.loadQueue();
-        if (options.status) {
-          entries = entries.filter(e => e.status === options.status);
-        }
+    try {
+      const idempotencyKey = traceData.idempotency_key || `trace_${Date.now()}`;
+      const workspaceId = options.workspace || traceData.workspace_id || traceData.workspaceId;
 
-        if (entries.length === 0) {
-          console.log(chalk.gray('\n  队列为空\n'));
-          return;
-        }
+      if (!workspaceId) {
+        console.error(chalk.red('\n✗ 缺少工作空间 ID'));
+        console.log(chalk.gray('  请通过 --workspace 指定工作空间 ID，或在轨迹 JSON 中包含 workspace_id 字段。\n'));
+        console.log(chalk.gray('  示例: axiqra trace submit trace.json --workspace 1\n'));
+        return;
+      }
 
-        console.log(chalk.blue('\n队列详情:\n'));
-        entries.forEach((entry, i) => {
-          const statusColor = {
-            pending: chalk.cyan,
-            retrying: chalk.yellow,
-            failed: chalk.red,
-            succeeded: chalk.green
-          }[entry.status] || chalk.white;
+      const result = await apiRequest('/traces', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceId: workspaceId,
+          taskGoal: traceData.task_goal || traceData.taskGoal || '',
+          outcome: traceData.outcome || '',
+          riskLevel: traceData.risk_level || traceData.riskLevel || 'low',
+          visibilityScope: traceData.visibility_scope || traceData.visibilityScope || 'workspace',
+          projectId: traceData.project_id || traceData.projectId,
+          toolType: traceData.tool_type || traceData.toolType,
+          contextSnapshot: traceData.context_snapshot || traceData.contextSnapshot,
+          forwardSteps: traceData.forward_steps || traceData.forwardSteps,
+          reversePath: traceData.reverse_path || traceData.reversePath,
+          decisions: traceData.decisions,
+          rollbackPath: traceData.rollback_path || traceData.rollbackPath,
+          solutionId: traceData.solution_id || traceData.solutionId,
+          evolutionSuggestion: traceData.evolution_suggestion || traceData.evolutionSuggestion,
+          idempotencyKey: idempotencyKey,
+          evidences: (traceData.evidences || []).map(e => ({
+            uri: e.uri || e.path || '',
+            type: e.type || 'file',
+            hash: e.hash || null,
+            sizeBytes: e.size || e.sizeBytes || 0
+          }))
+        })
+      });
 
-          console.log(statusColor(`  ${i + 1}. ${entry.id}`));
-          console.log(chalk.gray(`     状态: ${entry.status}`));
-          console.log(chalk.gray(`     重试: ${entry.retryCount} / ${queueManager.maxRetries}`));
-          if (entry.lastError) {
-            console.log(chalk.gray(`     错误: ${entry.lastError.substring(0, 60)}...`));
-          }
-          if (entry.nextRetryAt) {
-            const nextTime = new Date(entry.nextRetryAt);
-            console.log(chalk.gray(`     下次重试: ${nextTime.toLocaleString()}`));
-          }
-          if (entry.tracePayload?.taskGoal) {
-            console.log(chalk.gray(`     任务: ${entry.tracePayload.taskGoal.substring(0, 40)}...`));
-          }
-          console.log();
-        });
-      })
-  )
-  .addCommand(
-    new Command('retry')
-      .description('重试暂存的轨迹')
-      .option('-i, --id <id>', '指定暂存 ID')
-      .option('-a, --all', '重试所有待处理的')
-      .option('-f, --force', '强制重试即使未到重试时间')
-      .action(async (options) => {
-        const stats = queueManager.getStats();
-        if (stats.pending === 0 && stats.retrying === 0 && stats.failed === 0) {
-          console.log(chalk.yellow('\n  队列为空，没有需要重试的条目\n'));
-          return;
-        }
+      console.log(chalk.green('\n✓ 轨迹提交成功'));
+      console.log(chalk.gray(`  Trace ID: ${result.data?.id || result.data?.traceId}`));
+      console.log(chalk.gray(`  状态: ${result.data?.status || 'draft'}\n`));
+    } catch (error) {
+      if (options.queue !== false) {
+        console.log(chalk.yellow('\n⚠ 提交失败，启用本地暂存...\n'));
+        const idempotencyKey = traceData.idempotency_key || `trace_${Date.now()}`;
+        const entry = queueManager.add(traceData, idempotencyKey, null, null);
 
-        let entriesToRetry = [];
-        
-        if (options.id) {
-          const queue = queueManager.loadQueue();
-          const entry = queue.find(e => e.id === options.id);
-          if (entry) {
-            entriesToRetry = [entry];
-          } else {
-            console.error(chalk.red(`\n✗ 找不到暂存 ID: ${options.id}\n`));
-            return;
-          }
-        } else if (options.all) {
-          entriesToRetry = queueManager.getReadyForRetry();
-          if (entriesToRetry.length === 0) {
-            console.log(chalk.yellow('\n  没有到达重试时间的条目\n'));
-            if (options.force) {
-              entriesToRetry = queueManager.getPending();
-            } else {
-              console.log(chalk.gray('  使用 --force 强制重试\n'));
-              return;
-            }
-          }
+        console.log(chalk.green('✓ 已添加到本地暂存队列'));
+        console.log(chalk.gray(`  暂存 ID: ${entry.id}`));
+        console.log(chalk.gray(`  重试次数: ${entry.retryCount} / ${queueManager.maxRetries}`));
+        console.log(chalk.gray('\n  运行 axiqra trace queue 查看队列'));
+        console.log(chalk.gray('  运行 axiqra trace retry 重试暂存的轨迹\n'));
+      } else {
+        console.error(chalk.red('提交失败:'), error.message);
+      }
+    }
+  });
+
+// ============================================================
+// trace queue
+// ============================================================
+traceCmd
+  .command('queue')
+  .usage('[options]')
+  .description('查看本地暂存队列')
+  .option('-s, --status <status>', '状态过滤 (pending/retrying/failed/succeeded)')
+  .option('-c, --clear', '清空已完成的条目')
+  .action(async (options) => {
+    if (options.clear) {
+      const removed = queueManager.clearSucceeded();
+      if (removed) {
+        console.log(chalk.green('\n✓ 已清空已完成的条目\n'));
+      } else {
+        console.log(chalk.gray('\n  没有已完成的条目需要清空\n'));
+      }
+      return;
+    }
+
+    const stats = queueManager.getStats();
+    console.log(chalk.blue('\n Axiqra 本地暂存队列'));
+    console.log(chalk.gray('='.repeat(50)));
+    console.log(chalk.gray(`  总数: ${stats.total}`));
+    console.log(chalk.cyan(`  待处理: ${stats.pending}`));
+    console.log(chalk.yellow(`  重试中: ${stats.retrying}`));
+    console.log(chalk.red(`  失败: ${stats.failed}`));
+    console.log(chalk.green(`  成功: ${stats.succeeded}`));
+    console.log(chalk.gray('='.repeat(50)));
+
+    let entries = queueManager.loadQueue();
+    if (options.status) {
+      entries = entries.filter(e => e.status === options.status);
+    }
+
+    if (entries.length === 0) {
+      console.log(chalk.gray('\n  队列为空\n'));
+      return;
+    }
+
+    console.log(chalk.blue('\n队列详情:\n'));
+    entries.forEach((entry, i) => {
+      const statusColor = {
+        pending: chalk.cyan,
+        retrying: chalk.yellow,
+        failed: chalk.red,
+        succeeded: chalk.green
+      }[entry.status] || chalk.white;
+
+      console.log(statusColor(`  ${i + 1}. ${entry.id}`));
+      console.log(chalk.gray(`     状态: ${entry.status}`));
+      console.log(chalk.gray(`     重试: ${entry.retryCount} / ${queueManager.maxRetries}`));
+      if (entry.lastError) {
+        console.log(chalk.gray(`     错误: ${entry.lastError.substring(0, 60)}...`));
+      }
+      if (entry.nextRetryAt) {
+        const nextTime = new Date(entry.nextRetryAt);
+        console.log(chalk.gray(`     下次重试: ${nextTime.toLocaleString()}`));
+      }
+      if (entry.tracePayload?.taskGoal) {
+        console.log(chalk.gray(`     任务: ${entry.tracePayload.taskGoal.substring(0, 40)}...`));
+      }
+      console.log();
+    });
+  });
+
+// ============================================================
+// trace retry
+// ============================================================
+traceCmd
+  .command('retry')
+  .usage('[options]')
+  .description('重试暂存的轨迹')
+  .option('-i, --id <id>', '指定暂存 ID')
+  .option('-a, --all', '重试所有待处理的')
+  .option('-f, --force', '强制重试即使未到重试时间')
+  .action(async (options) => {
+    const stats = queueManager.getStats();
+    if (stats.pending === 0 && stats.retrying === 0 && stats.failed === 0) {
+      console.log(chalk.yellow('\n  队列为空，没有需要重试的条目\n'));
+      return;
+    }
+
+    let entriesToRetry = [];
+
+    if (options.id) {
+      const queue = queueManager.loadQueue();
+      const entry = queue.find(e => e.id === options.id);
+      if (entry) {
+        entriesToRetry = [entry];
+      } else {
+        console.error(chalk.red(`\n✗ 找不到暂存 ID: ${options.id}\n`));
+        return;
+      }
+    } else if (options.all) {
+      entriesToRetry = queueManager.getReadyForRetry();
+      if (entriesToRetry.length === 0) {
+        console.log(chalk.yellow('\n  没有到达重试时间的条目\n'));
+        if (options.force) {
+          entriesToRetry = queueManager.getPending();
         } else {
-          entriesToRetry = queueManager.getReadyForRetry();
-          if (entriesToRetry.length === 0) {
-            console.log(chalk.yellow('\n  没有到达重试时间的条目\n'));
-            console.log(chalk.gray('  使用 --all 或 --force 重试所有待处理的\n'));
-            return;
-          }
+          console.log(chalk.gray('  使用 --force 强制重试\n'));
+          return;
         }
+      }
+    } else {
+      entriesToRetry = queueManager.getReadyForRetry();
+      if (entriesToRetry.length === 0) {
+        console.log(chalk.yellow('\n  没有到达重试时间的条目\n'));
+        console.log(chalk.gray('  使用 --all 或 --force 重试所有待处理的\n'));
+        return;
+      }
+    }
 
-        console.log(chalk.blue(`\n 正在重试 ${entriesToRetry.length} 个条目...\n`));
-        
-        let successCount = 0;
-        let failCount = 0;
+    console.log(chalk.blue(`\n 正在重试 ${entriesToRetry.length} 个条目...\n`));
 
-        for (const entry of entriesToRetry) {
-          try {
-            const result = await apiRequest('/traces', {
-              method: 'POST',
-              body: JSON.stringify({
-                trace: entry.tracePayload,
-                idempotency_key: entry.idempotencyKey,
-                workspace_id: entry.targetWorkspaceId
-              })
-            });
+    let successCount = 0;
+    let failCount = 0;
 
-            queueManager.markSucceeded(entry.id);
-            console.log(chalk.green(`  ✓ ${entry.id} 提交成功`));
-            successCount++;
-          } catch (error) {
-            const updatedEntry = queueManager.markFailed(entry.id, error.message);
-            console.log(chalk.red(`  ✗ ${entry.id} 失败: ${error.message}`));
-            if (updatedEntry?.status === 'failed') {
-              console.log(chalk.yellow(`    已达到最大重试次数，不再重试`));
-            } else {
-              console.log(chalk.gray(`    将在 ${new Date(updatedEntry?.nextRetryAt).toLocaleTimeString()} 重试`));
-            }
-            failCount++;
-          }
+    for (const entry of entriesToRetry) {
+      try {
+        const payload = entry.tracePayload || {};
+        const result = await apiRequest('/traces', {
+          method: 'POST',
+          body: JSON.stringify({
+            workspaceId: entry.targetWorkspaceId || payload.workspaceId || payload.workspace_id,
+            taskGoal: payload.task_goal || payload.taskGoal || '',
+            outcome: payload.outcome || '',
+            riskLevel: payload.risk_level || payload.riskLevel || 'low',
+            visibilityScope: payload.visibility_scope || payload.visibilityScope || 'workspace',
+            projectId: payload.project_id || payload.projectId,
+            toolType: payload.tool_type || payload.toolType,
+            contextSnapshot: payload.context_snapshot || payload.contextSnapshot,
+            forwardSteps: payload.forward_steps || payload.forwardSteps,
+            reversePath: payload.reverse_path || payload.reversePath,
+            decisions: payload.decisions,
+            rollbackPath: payload.rollback_path || payload.rollbackPath,
+            idempotencyKey: entry.idempotencyKey,
+            evidences: (payload.evidences || []).map(e => ({
+              uri: e.uri || e.path || '',
+              type: e.type || 'file',
+              hash: e.hash || null,
+              sizeBytes: e.size || e.sizeBytes || 0
+            }))
+          })
+        });
+
+        queueManager.markSucceeded(entry.id);
+        console.log(chalk.green(`  ✓ ${entry.id} 提交成功`));
+        successCount++;
+      } catch (error) {
+        const updatedEntry = queueManager.markFailed(entry.id, error.message);
+        console.log(chalk.red(`  ✗ ${entry.id} 失败: ${error.message}`));
+        if (updatedEntry?.status === 'failed') {
+          console.log(chalk.yellow(`    已达到最大重试次数，不再重试`));
+        } else {
+          console.log(chalk.gray(`    将在 ${new Date(updatedEntry?.nextRetryAt).toLocaleTimeString()} 重试`));
         }
+        failCount++;
+      }
+    }
 
-        console.log(chalk.gray('\n' + '='.repeat(50)));
-        console.log(chalk.green(`  成功: ${successCount}`));
-        console.log(chalk.red(`  失败: ${failCount}`));
-        console.log(chalk.gray('='.repeat(50) + '\n'));
-      })
-  )
-  .addCommand(
-    new Command('list')
-      .description('查看轨迹列表')
-      .option('-s, --status <status>', '状态过滤')
-      .action(async (options) => {
-        try {
-          const result = await apiRequest('/traces?' + new URLSearchParams(options).toString());
-          
-          console.log(chalk.blue('\n轨迹列表:\n'));
-          const traces = result.data || [];
-          if (traces.length === 0) {
-            console.log(chalk.gray('  暂无轨迹'));
-          } else {
-            traces.forEach(t => {
-              console.log(`  ${t.id || t.traceId}  ${t.status}  ${(t.taskGoal || '').substring(0, 50)}...`);
-            });
-          }
-          console.log();
-        } catch (error) {
-          console.error(chalk.red('获取失败:'), error.message);
-        }
-      })
-  )
-  .addCommand(
-    new Command('get <id>')
-      .description('查看轨迹详情')
-      .action(async (id) => {
-        try {
-          const result = await apiRequest(`/traces/${id}`);
-          console.log(JSON.stringify(result, null, 2));
-        } catch (error) {
-          console.error(chalk.red('获取失败:'), error.message);
-        }
-      })
-  );
+    console.log(chalk.gray('\n' + '='.repeat(50)));
+    console.log(chalk.green(`  成功: ${successCount}`));
+    console.log(chalk.red(`  失败: ${failCount}`));
+    console.log(chalk.gray('='.repeat(50) + '\n'));
+  });
+
+// ============================================================
+// trace list
+// ============================================================
+traceCmd
+  .command('list')
+  .usage('[options]')
+  .description('查看轨迹列表')
+  .option('-s, --status <status>', '状态过滤')
+  .option('-p, --page <page>', '页码', '1')
+  .option('-l, --limit <limit>', '每页数量', '20')
+  .action(async (options) => {
+    try {
+      const params = new URLSearchParams({
+        page: options.page || '1',
+        size: options.limit || '20'
+      });
+      if (options.status) {
+        params.append('status', options.status);
+      }
+      const result = await apiRequest('/traces?' + params.toString());
+
+      console.log(chalk.blue('\n轨迹列表:\n'));
+      const traces = result.data || [];
+      if (traces.length === 0) {
+        console.log(chalk.gray('  暂无轨迹'));
+      } else {
+        traces.forEach(t => {
+          console.log(`  ${t.id || t.traceId}  ${t.status}  ${(t.taskGoal || '').substring(0, 50)}...`);
+        });
+      }
+      console.log();
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// trace clean
+// ============================================================
+traceCmd
+  .command('clean')
+  .usage('[options]')
+  .description('清空暂存队列')
+  .option('-a, --all', '清空所有条目（包括失败的）')
+  .action(async (options) => {
+    if (options.all) {
+      queueManager.clearAll();
+      console.log(chalk.green('\n✓ 已清空所有暂存条目\n'));
+    } else {
+      const removed = queueManager.clearSucceeded();
+      if (removed) {
+        console.log(chalk.green('\n✓ 已清空已完成的条目\n'));
+      } else {
+        console.log(chalk.gray('\n  没有已完成的条目需要清空\n'));
+      }
+    }
+  });
+
+// ============================================================
+// trace remove <id>
+// ============================================================
+traceCmd
+  .command('remove <id>')
+  .usage('<id>')
+  .description('从暂存队列删除特定条目')
+  .action(async (id) => {
+    const removed = queueManager.remove(id);
+    if (removed) {
+      console.log(chalk.green(`\n✓ 已删除暂存条目: ${id}\n`));
+    } else {
+      console.error(chalk.red(`\n✗ 找不到暂存条目: ${id}\n`));
+    }
+  });
+
+// ============================================================
+// trace get <id>
+// ============================================================
+traceCmd
+  .command('get <id>')
+  .description('查看轨迹详情')
+  .action(async (id) => {
+    try {
+      const result = await apiRequest(`/traces/${id}`);
+      console.log(JSON.stringify(result, null, 2));
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
 
 // ============================================================
 // Feedback 命令
 // ============================================================
 program
   .command('feedback <invocation-id> <type>')
+  .usage('<invocation-id> <type> [options]')
   .description('提交反馈')
   .option('-e, --evidence <files...>', '证据文件')
   .option('-r, --reason <reason>', '原因')
@@ -767,10 +1014,10 @@ program
       const result = await apiRequest('/v1/feedbacks', {
         method: 'POST',
         body: JSON.stringify({
-          invocationId,
+          invocationId: parseInt(invocationId) || invocationId,
           feedbackType: type,
-          reason: options.reason,
-          notes: options.note,
+          feedbackContent: options.reason,
+          contextDelta: options.note,
           evidenceRefs: options.evidence
         })
       });
@@ -792,21 +1039,128 @@ program
 program
   .command('quota')
   .description('查看配额状态')
+  .usage('[options]')
   .option('-d, --detail', '详细输出')
   .action(async (options) => {
     try {
       const result = await apiRequest('/connect/quota');
-      
+
+      const used = result.data?.used ?? 0;
+      const limit = result.data?.limit ?? 2000;
+      const remaining = result.data?.remaining ?? (limit - used);
+
       console.log(chalk.blue('\n 配额状态\n'));
       console.log(chalk.gray('='.repeat(40)));
-      console.log(chalk.gray(`  今日使用: ${result.data?.dailyUsed || 0} / ${result.data?.dailyLimit || 2000}`));
-      console.log(chalk.gray(`  剩余: ${result.data?.dailyRemaining || (result.data?.dailyLimit - result.data?.dailyUsed) || 'N/A'}`));
-      
+      console.log(chalk.gray(`  今日使用: ${used} / ${limit}`));
+      console.log(chalk.gray(`  剩余: ${remaining >= 0 ? remaining : 'N/A'}`));
+
       if (options.detail && result.data) {
-        console.log(chalk.gray(`  窗口: ${result.data.window || 'daily'}`));
+        console.log(chalk.gray(`  窗口: daily`));
         console.log(chalk.gray(`  重置时间: ${result.data.resetAt || 'UTC 00:00'}`));
+        if (result.data.exceeded !== undefined) {
+          console.log(chalk.gray(`  已超限: ${result.data.exceeded ? '是' : '否'}`));
+        }
       }
       console.log(chalk.gray('='.repeat(40) + '\n'));
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// Seed 命令
+// ============================================================
+const seedCmd = program
+  .command('seed')
+  .description('候选 Seed 管理');
+
+seedCmd
+  .command('create <query>')
+  .usage('<query> [options]')
+  .description('创建候选 Seed')
+  .option('-t, --tech-stack <techStack>', '技术栈')
+  .option('-d, --domain <domain>', '领域')
+  .option('-p, --priority <priority>', '优先级', /^(low|medium|high)$/i, 'medium')
+  .action(async (query, options) => {
+    try {
+      const result = await apiRequest('/seeds', {
+        method: 'POST',
+        body: JSON.stringify({
+          query,
+          techStack: options.techStack,
+          domain: options.domain,
+          priority: options.priority
+        })
+      });
+
+      console.log(chalk.green('\n✓ 候选 Seed 已创建'));
+      console.log(chalk.gray(`  Seed ID: ${result.data?.seedId || result.data?.id}`));
+      console.log(chalk.gray(`  查询: ${query}`));
+      if (result.data?.status) {
+        console.log(chalk.gray(`  状态: ${result.data.status}`));
+      }
+      console.log();
+    } catch (error) {
+      console.error(chalk.red('创建失败:'), error.message);
+    }
+  });
+
+seedCmd
+  .command('list')
+  .usage('[options]')
+  .description('查看 Seed 列表')
+  .option('-s, --status <status>', '状态过滤 (pending/processed/rejected)')
+  .action(async (options) => {
+    try {
+      const url = options.status ? `/seeds?status=${options.status}` : '/seeds';
+      const result = await apiRequest(url);
+
+      console.log(chalk.blue('\n候选 Seed 列表:\n'));
+      const seeds = result.data || [];
+      if (seeds.length === 0) {
+        console.log(chalk.gray('  暂无候选 Seed'));
+      } else {
+        seeds.forEach((seed, i) => {
+          const statusColor = seed.status === 'pending' ? chalk.yellow :
+                             seed.status === 'processed' ? chalk.green : chalk.gray;
+          console.log(chalk.cyan(`  ${i + 1}. ${seed.seedId || seed.id}`));
+          console.log(chalk.gray(`     查询: ${seed.query || seed.taskGoal}`));
+          console.log(statusColor(`     状态: ${seed.status || 'N/A'}`));
+          if (seed.techStack) {
+            console.log(chalk.gray(`     技术栈: ${seed.techStack}`));
+          }
+          console.log();
+        });
+      }
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+seedCmd
+  .command('get <id>')
+  .usage('<seed-id> [options]')
+  .description('查看 Seed 详情')
+  .action(async (id) => {
+    try {
+      const result = await apiRequest(`/seeds/${id}`);
+      const seed = result.data;
+
+      if (!seed) {
+        console.log(chalk.yellow('\n  找不到该 Seed\n'));
+        return;
+      }
+
+      console.log(chalk.blue(`\n Seed 详情\n`));
+      console.log(chalk.gray('='.repeat(50)));
+      console.log(chalk.gray(`  ID: ${seed.seedId || seed.id}`));
+      console.log(chalk.gray(`  查询: ${seed.query || seed.taskGoal}`));
+      console.log(chalk.gray(`  状态: ${seed.status || 'N/A'}`));
+      if (seed.techStack) console.log(chalk.gray(`  技术栈: ${seed.techStack}`));
+      if (seed.domain) console.log(chalk.gray(`  领域: ${seed.domain}`));
+      if (seed.priority) console.log(chalk.gray(`  优先级: ${seed.priority}`));
+      if (seed.createdAt) console.log(chalk.gray(`  创建时间: ${seed.createdAt}`));
+      console.log(chalk.gray('='.repeat(50) + '\n'));
     } catch (error) {
       console.error(chalk.red('获取失败:'), error.message);
     }
@@ -820,11 +1174,12 @@ program
   .description('会话管理')
   .addCommand(
     new Command('list')
+      .usage('[options]')
       .description('查看会话列表')
       .action(async () => {
         try {
           const result = await apiRequest('/connect/sessions');
-          
+
           console.log(chalk.blue('\n会话列表:\n'));
           const sessions = result.data || [];
           if (sessions.length === 0) {
@@ -842,6 +1197,7 @@ program
   )
   .addCommand(
     new Command('get <id>')
+      .usage('<session-id> [options]')
       .description('查看会话详情')
       .action(async (id) => {
         try {
@@ -865,7 +1221,7 @@ program
       .action(() => {
         const apiUrl = process.env.AXIQRA_API_URL || 'http://localhost:8080/api';
         const token = process.env.AXIQRA_TOKEN || loadToken();
-        
+
         console.log(chalk.blue('\n Axiqra 配置\n'));
         console.log(chalk.gray('='.repeat(40)));
         console.log(chalk.gray(`  API URL: ${apiUrl}`));
@@ -904,7 +1260,7 @@ program
     // 先尝试从本地缓存读取
     const cachedUser = loadUser();
     const token = loadToken();
-    
+
     if (!token) {
       console.log(chalk.yellow('\n未登录，请运行 axiqra login\n'));
       return;
@@ -913,7 +1269,7 @@ program
     try {
       const result = await apiRequest('/auth/me');
       const user = result.data;
-      
+
       // 更新本地缓存
       saveLogin(token, {
         id: user.userId || user.id,
@@ -944,7 +1300,7 @@ program
       }
     }
   });
-  
+
 // ============================================================
 // 登出命令
 // ============================================================
@@ -958,12 +1314,208 @@ program
     } catch (e) {
       // 忽略服务端错误
     }
-    
+
     // 清除本地登录信息
     clearLogin();
     delete process.env.AXIQRA_TOKEN;
-    
+
     console.log(chalk.green('\n✓ 已退出登录\n'));
+  });
+
+// ============================================================
+// Draft 命令
+// ============================================================
+const draftManager = createDraftManager();
+
+const draftCmd = program
+  .command('draft')
+  .description('草稿管理（draft/flush/list/get/abandon）');
+
+// ============================================================
+// draft trace <goal>
+// ============================================================
+draftCmd
+  .command('trace <goal>')
+  .usage('<task-goal> [options]')
+  .description('记录本地草稿步骤')
+  .option('-d, --draft-id <draftId>', '指定草稿 ID（为空则创建新草稿）')
+  .option('-t, --type <type>', '步骤类型', /^(forward|decision|evidence|blocker|correction|summary)$/i, 'forward')
+  .option('-c, --content <content>', '步骤内容')
+  .option('-n, --notes <notes>', '备注')
+  .option('-k, --idempotency-key <key>', '幂等键')
+  .action(async (goal, options) => {
+    try {
+      const content = options.content || 'recorded';
+      const draft = draftManager.addStep(
+        options.draftId,
+        goal,
+        options.type,
+        content,
+        options.notes,
+        options.idempotencyKey
+      );
+
+      console.log(chalk.green(`\n✓ 已记录步骤 (草稿: ${draft.draftId})`));
+      console.log(chalk.gray(`  任务: ${goal}`));
+      console.log(chalk.gray(`  类型: ${options.type}`));
+      console.log(chalk.gray(`  步骤数: ${draft.stepCount}\n`));
+    } catch (error) {
+      console.error(chalk.red('记录失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// draft flush <draft-id>
+// ============================================================
+draftCmd
+  .command('flush <draftId>')
+  .usage('<draft-id> <outcome> [options]')
+  .description('提交草稿为正式轨迹')
+  .option('-n, --notes <notes>', '最终说明')
+  .action(async (draftId, outcome, options) => {
+    const validOutcomes = ['success', 'failure', 'partial'];
+    if (!validOutcomes.includes(outcome)) {
+      console.error(chalk.red(`无效的 outcome: ${outcome}`));
+      console.log(chalk.gray(`  有效值: ${validOutcomes.join(', ')}\n`));
+      process.exit(1);
+    }
+
+    try {
+      const result = draftManager.flushDraft(
+        draftId,
+        outcome,
+        options.notes,
+        true
+      );
+
+      if (result.alreadyFlushed) {
+        console.log(chalk.yellow(`\n草稿 ${draftId} 已提交过，结果: ${outcome}\n`));
+      } else {
+        console.log(chalk.green(`\n✓ 草稿已提交 (outcome: ${outcome})`));
+        console.log(chalk.gray(`  草稿 ID: ${draftId}`));
+        console.log(chalk.gray(`  提交时间: ${result.draft.flushedAt}\n`));
+      }
+    } catch (error) {
+      console.error(chalk.red('提交失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// draft list
+// ============================================================
+draftCmd
+  .command('list')
+  .usage('[options]')
+  .description('列出所有草稿')
+  .option('-s, --status <status>', '状态过滤 (active/idle/ready/flushed/abandoned)')
+  .action(async (options) => {
+    try {
+      const drafts = draftManager.listDrafts();
+
+      console.log(chalk.blue('\n本地草稿列表\n'));
+      console.log(chalk.gray('='.repeat(50)));
+
+      let filtered = drafts;
+      if (options.status) {
+        filtered = drafts.filter(d => d.status === options.status);
+      }
+
+      if (filtered.length === 0) {
+        console.log(chalk.gray('  暂无草稿'));
+      } else {
+        filtered.forEach(d => {
+          const statusColor = {
+            active: chalk.cyan,
+            idle: chalk.yellow,
+            ready: chalk.blue,
+            flushed: chalk.green,
+            abandoned: chalk.gray
+          }[d.status] || chalk.white;
+
+          console.log(chalk.cyan(`  ${d.draftId}`));
+          console.log(chalk.gray(`    任务: ${d.taskGoal}`));
+          statusColor(`    状态: ${d.status}`);
+          console.log(chalk.gray(`    步骤数: ${d.stepCount}`));
+          console.log(chalk.gray(`    更新: ${new Date(d.updatedAt).toLocaleString()}`));
+          console.log();
+        });
+      }
+
+      console.log(chalk.gray('='.repeat(50) + '\n'));
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// draft get <draft-id>
+// ============================================================
+draftCmd
+  .command('get <draftId>')
+  .usage('<draft-id>')
+  .description('查看草稿详情')
+  .action(async (draftId) => {
+    try {
+      const draft = draftManager.getDraft(draftId);
+
+      if (!draft) {
+        console.error(chalk.red(`找不到草稿: ${draftId}\n`));
+        return;
+      }
+
+      console.log(chalk.blue(`\n草稿详情: ${draftId}\n`));
+      console.log(chalk.gray('='.repeat(50)));
+      console.log(chalk.gray(`  任务: ${draft.taskGoal}`));
+      console.log(chalk.gray(`  状态: ${draft.status}`));
+      console.log(chalk.gray(`  步骤数: ${draft.stepCount}`));
+      console.log(chalk.gray(`  创建: ${new Date(draft.createdAt).toLocaleString()}`));
+      console.log(chalk.gray(`  更新: ${new Date(draft.updatedAt).toLocaleString()}`));
+      console.log(chalk.gray('='.repeat(50)));
+
+      if (draft.steps.length > 0) {
+        console.log(chalk.gray('\n步骤记录:\n'));
+        draft.steps.forEach((step, i) => {
+          console.log(chalk.cyan(`  ${i + 1}. [${step.stepType}] ${step.stepContent.substring(0, 80)}...`));
+        });
+      }
+
+      console.log();
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// draft abandon <draft-id>
+// ============================================================
+draftCmd
+  .command('abandon <draftId>')
+  .usage('<draft-id> [options]')
+  .description('放弃草稿')
+  .option('-r, --reason <reason>', '放弃原因')
+  .action(async (draftId, options) => {
+    try {
+      draftManager.abandonDraft(draftId, options.reason, true);
+      console.log(chalk.green(`\n✓ 已放弃草稿: ${draftId}\n`));
+    } catch (error) {
+      console.error(chalk.red('放弃失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// draft delete <draft-id>
+// ============================================================
+draftCmd
+  .command('delete <draftId>')
+  .usage('<draft-id>')
+  .description('删除草稿')
+  .action(async (draftId) => {
+    try {
+      draftManager.deleteDraft(draftId);
+      console.log(chalk.green(`\n✓ 已删除草稿: ${draftId}\n`));
+    } catch (error) {
+      console.error(chalk.red('删除失败:'), error.message);
+    }
   });
 
 // ============================================================

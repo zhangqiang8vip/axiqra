@@ -196,7 +196,7 @@ axiqra <command> --help
 axiqra --version
 
 # 指定配置文件
-axiqra --config ~/.axiqra/config.yaml <command>
+axiqra --config ~/.axiqra/config.json <command>
 
 # 详细输出
 axiqra --verbose <command>
@@ -213,7 +213,7 @@ axiqra --output yaml <command>
 | `AXIQRA_API_URL` | API 地址 | `https://api.axiqra.com` |
 | `AXIQRA_API_KEY` | API Key | - |
 | `AXIQRA_WORKSPACE_ID` | 工作空间 ID | - |
-| `AXIQRA_CONFIG_PATH` | 配置文件路径 | `~/.axiqra/config.yaml` |
+| `AXIQRA_CONFIG_DIR` | 配置目录 | `~/.axiqra` |
 | `AXIQRA_LOG_LEVEL` | 日志级别 | `info` |
 
 ## 退出码
@@ -229,28 +229,16 @@ axiqra --output yaml <command>
 
 ## 配置文件
 
-默认配置文件: `~/.axiqra/config/config.yaml`
+默认配置文件: `~/.axiqra/config.json`
 
-```yaml
-api:
-  url: https://api.axiqra.com
-  timeout: 30
-  retry: 3
-
-cli:
-  install_path: ~/.axiqra
-  log_level: info
-
-connect:
-  default_channel: cli
-  default_tool_type: custom
-  auto_doctor: true
-
-paths:
-  config: ~/.axiqra/config/config.yaml
-  cache: ~/.axiqra/cache
-  data: ~/.axiqra/data
-  logs: ~/.axiqra/logs
+```json
+{
+  "apiUrl": "https://api.axiqra.com",
+  "apiTimeout": 30,
+  "logLevel": "info",
+  "token": "...",
+  "user": { "id": 1, "username": "..." }
+}
 ```
 
 ## 故障排除

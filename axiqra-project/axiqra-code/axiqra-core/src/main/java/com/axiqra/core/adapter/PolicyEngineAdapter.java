@@ -246,7 +246,7 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
      * S2: 从 axiqra_authorization 表读取实际授权范围
      */
     private Set<String> getUserScopes(Long userId) {
-        // S1: 默认基础权限
+        // S1: 所有登录用户默认拥有基础 scope
         Set<String> defaultScopes = Set.of(
                 ScopeEnum.CONNECT_READ.getCode(),
                 ScopeEnum.CONNECT_WRITE.getCode(),
@@ -260,6 +260,8 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                 ScopeEnum.CASE_WRITE.getCode(),
                 ScopeEnum.FEEDBACK_READ.getCode(),
                 ScopeEnum.FEEDBACK_WRITE.getCode(),
+                ScopeEnum.SEED_READ.getCode(),
+                ScopeEnum.SEED_WRITE.getCode(),
                 ScopeEnum.PUBLIC_READ.getCode()
         );
         // S2 TODO: 从 axiqra_authorization 表查询用户持有的实际 scope

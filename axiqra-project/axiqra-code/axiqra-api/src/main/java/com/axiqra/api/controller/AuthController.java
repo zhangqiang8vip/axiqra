@@ -12,6 +12,7 @@ import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.response.ApiResponse;
 import com.axiqra.common.util.PasswordHashUtil;
 import com.axiqra.core.service.UserService;
+import com.axiqra.core.service.WorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -43,9 +44,11 @@ public class AuthController {
             "dummy-timing-balance-" + System.currentTimeMillis() + "-" + ThreadLocalRandom.current().nextInt());
 
     private final UserService userService;
+    private final WorkspaceService workspaceService;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, WorkspaceService workspaceService) {
         this.userService = userService;
+        this.workspaceService = workspaceService;
     }
 
     @PostMapping("/login")
@@ -65,7 +68,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "注册", description = "注册新用户")
+    @Operation(summary = "注册", description = "注册新用户，自动创建 personal workspace")
     public ResponseEntity<ApiResponse<LoginResponse>> register(@Valid @RequestBody RegisterRequest request,
                                                               HttpServletRequest httpRequest) {
         try {
@@ -75,6 +78,8 @@ public class AuthController {
                     request.getEmail(),
                     request.getNickname()
             );
+            // 注册成功后自动创建 personal workspace
+            workspaceService.create(user.getId(), "personal", null);
             StpUtil.login(user.getId());
             String token = StpUtil.getTokenValue();
             LoginResponse body = buildLoginResponse(user, token);

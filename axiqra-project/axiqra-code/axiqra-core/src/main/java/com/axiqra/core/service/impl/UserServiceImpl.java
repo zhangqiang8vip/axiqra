@@ -13,7 +13,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 用户服务实现
@@ -47,11 +52,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UserEntity register(String username, String password, String email, String nickname) {
+        String defaultAvatar = generateRandomAvatar();
+
         UserEntity user = new UserEntity()
                 .setUsername(username)
                 .setPasswordHash(passwordHashUtil.hash(password))
                 .setEmail(email)
                 .setNickname(nickname)
+                .setAvatar(defaultAvatar)
                 .setDeleted(false);
         try {
             userMapper.insertSelective(user);
@@ -130,5 +138,36 @@ public class UserServiceImpl implements UserService {
         return msg.contains("unique") || msg.contains("duplicate") ||
                msg.contains("idx_username") || msg.contains("idx_email") ||
                msg.contains("23505");
+    }
+
+    private String generateRandomAvatar() {
+        // DiceBear API 提供的头像风格
+        String[] styles = {
+            "adventurer", "adventurer-neutral", "avataaars", "big-ears", "big-ears-neutral",
+            "big-smile", "bottts", "bottts-neutral", "croodles", "croodles-neutral",
+            "dylan", "fun-emoji", "glass", "icons", "identicon", "initials",
+            "lorelei", "lorelei-neutral", "micah", "miniavs", "notionists",
+            "notionists-neutral", "open-peeps", "personas", "pixel-art", "pixel-art-neutral",
+            "shapes", "thumbs"
+        };
+
+        // 丰富的背景色
+        String[] backgroundColors = {
+            "b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf",
+            "a0d2db", "d4a5a5", "9dd6c3", "e8c1a8", "b8d4e3",
+            "c9e4de", "f0e6ef", "e8d5b7", "b5c7ed", "f5c3c2",
+            "d5dce4", "e2d1c3", "f5e6cc", "d4e7ed", "c4d7f2"
+        };
+
+        String style = styles[ThreadLocalRandom.current().nextInt(styles.length)];
+        String bgColor = backgroundColors[ThreadLocalRandom.current().nextInt(backgroundColors.length)];
+        String seed = UUID.randomUUID().toString();
+
+        return String.format(
+            "https://api.dicebear.com/7.x/%s/svg?seed=%s&backgroundColor=%s",
+            style,
+            URLEncoder.encode(seed, StandardCharsets.UTF_8),
+            bgColor
+        );
     }
 }

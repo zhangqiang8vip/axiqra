@@ -5,8 +5,6 @@ import com.axiqra.api.advice.TraceIdResponseAdvice;
 import com.axiqra.api.filter.TraceIdFilter;
 import com.axiqra.api.handler.GlobalExceptionHandler;
 import com.axiqra.common.domain.entity.UserEntity;
-import com.axiqra.common.exception.BizException;
-import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,22 +71,21 @@ class UserControllerMockMvcTest {
                 .andExpect(jsonPath("$.message").value("操作成功"))
                 .andExpect(jsonPath("$.requestId").value("trace-user-me-001"))
                 .andExpect(jsonPath("$.traceId").value("trace-user-me-001"))
-                .andExpect(jsonPath("$.data.userId").value(USER_ID))
+                .andExpect(jsonPath("$.data.id").value(USER_ID))
                 .andExpect(jsonPath("$.data.username").value("alice"))
-                .andExpect(jsonPath("$.data.email").value("alice@example.com"));
+                .andExpect(jsonPath("$.data.nickname").value("Alice"));
     }
 
     @Test
-    @DisplayName("GET /users/{userId} 用户不存在时应走统一异常响应")
-    void shouldReturnUnifiedNotFoundResponseWhenUserMissing() throws Exception {
+    @DisplayName("GET /users/{userId} 用户不存在时应返回 null")
+    void shouldReturnNullWhenUserMissing() throws Exception {
         when(userService.getById(99L)).thenReturn(null);
 
         mockMvc.perform(get("/users/{userId}", 99L)
                         .header("X-Trace-Id", "trace-user-404-001")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value(ErrorCode.USER_NOT_FOUND.getCode()))
-                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
-                .andExpect(jsonPath("$.requestId").value("trace-user-404-001"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 }

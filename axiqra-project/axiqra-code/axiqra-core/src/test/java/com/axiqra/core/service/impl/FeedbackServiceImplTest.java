@@ -152,13 +152,8 @@ class FeedbackServiceImplTest {
     @Test
     @DisplayName("getSolutionFeedbackStats 应聚合各类型统计")
     void shouldAggregateFeedbackStats() {
-        FeedbackMapper.FeedbackStatRow workedRow = mock(FeedbackMapper.FeedbackStatRow.class);
-        when(workedRow.getFeedbackType()).thenReturn("worked");
-        when(workedRow.getCount()).thenReturn(3L);
-
-        FeedbackMapper.FeedbackStatRow failedRow = mock(FeedbackMapper.FeedbackStatRow.class);
-        when(failedRow.getFeedbackType()).thenReturn("failed");
-        when(failedRow.getCount()).thenReturn(2L);
+        FeedbackMapper.FeedbackStatRow workedRow = mockStatRow("worked", 3L);
+        FeedbackMapper.FeedbackStatRow failedRow = mockStatRow("failed", 2L);
 
         when(feedbackMapper.selectFeedbackStatsBySolutionId(77L))
                 .thenReturn(List.of(workedRow, failedRow));
@@ -170,26 +165,6 @@ class FeedbackServiceImplTest {
         assertEquals(5L, result.getTotalCount());
         assertEquals(0L, result.getPartialCount());
     }
-
-    private FeedbackMapper.FeedbackStatRow mockStatRow(String type, Long count) {
-        FeedbackMapper.FeedbackStatRow row = mock(FeedbackMapper.FeedbackStatRow.class);
-        when(row.getFeedbackType()).thenReturn(type);
-        when(row.getCount()).thenReturn(count);
-        return row;
-    }
-
-    private FeedbackEntity feedbackEntity(Long id, Long invocationId) {
-        FeedbackEntity entity = new FeedbackEntity();
-        entity.setId(id);
-        entity.setInvocationId(invocationId);
-        entity.setUserId(1L);
-        entity.setFeedbackType("worked");
-        entity.setFeedbackContent("test");
-        entity.setStatus("accepted");
-        return entity;
-    }
-
-    // ========== 边界用例测试 ==========
 
     @Test
     @DisplayName("幂等 key 重复提交应去重")
@@ -204,14 +179,10 @@ class FeedbackServiceImplTest {
         request.setFeedbackType("worked");
         request.setIdempotencyKey("idem-key-001");
 
-        // 第一次提交
         FeedbackDetailVO result1 = feedbackService.submitFeedback(1L, request);
         assertNotNull(result1);
 
-        // 第二次提交相同幂等键 - 应该去重（当前实现返回 null）
         FeedbackDetailVO result2 = feedbackService.submitFeedback(1L, request);
-        // 如果去重逻辑已实现，应该返回 null 或相同结果
-        // 这里我们只验证不会抛出异常
         assertNotNull(result2);
     }
 
@@ -300,8 +271,82 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("not_applicable 类型反馈应正确保存")
-    void shouldHandleNotApplicableFeedback() {
+    @DisplayName("通过 invocationCode 查找 Invocation 应成功")
+    void shouldResolveByInvocationCode() {
+        InvocationEntity invocation = new InvocationEntity();
+        invocation.setId(77L);
+        invocation.setDeleted(false);
+        when(invocationMapper.selectByInvocationCode("INV-001")).thenReturn(invocation);
+
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setInvocationCode("INV-001");
+        request.setFeedbackType("worked");
+
+        FeedbackDetailVO result = feedbackService.submitFeedback(1L, request);
+
+        assertNotNull(result);
+        assertEquals(77L, result.getInvocationId());
+    }
+
+    @Test
+    @DisplayName("既无 invocationId 也无 invocationCode 应抛异常")
+    void shouldThrowWhenNoInvocationIdentifier() {
+        FeedbackSubmitRequest request = new FeedbackSubmitRequest();
+        request.setFeedbackType("worked");
+
+        BizException ex = assertThrows(BizException.class,
+                () -> feedbackService.submitFeedback(1L, request));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("request 为 null 应抛异常")
+    void shouldThrowWhenRequestIsNull() {
+        BizException ex = assertThrows(BizException.class,
+                () -> feedbackService.submitFeedback(1L, null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getSolutionFeedbackStats 统计为 null 应返回全零统计")
+    void shouldReturnZeroStatsWhenNull() {
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(77L)).thenReturn(null);
+
+        SolutionFeedbackStatsVO result = feedbackService.getSolutionFeedbackStats(77L);
+
+        assertEquals(0L, result.getTotalCount());
+        assertEquals(0L, result.getWorkedCount());
+        assertEquals(0L, result.getPartialCount());
+        assertEquals(0L, result.getFailedCount());
+        assertEquals(0L, result.getNotApplicableCount());
+    }
+
+    @Test
+    @DisplayName("getSolutionFeedbackStats 空统计应返回全零统计")
+    void shouldReturnZeroStatsWhenEmpty() {
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(77L)).thenReturn(List.of());
+
+        SolutionFeedbackStatsVO result = feedbackService.getSolutionFeedbackStats(77L);
+
+        assertEquals(0L, result.getTotalCount());
+    }
+
+    @Test
+    @DisplayName("listFeedbacks null 返回值应返回空列表")
+    void shouldHandleNullFeedbackList() {
+        when(feedbackMapper.selectBySolutionId(77L)).thenReturn(null);
+
+        List<FeedbackDetailVO> result = feedbackService.listFeedbacks(1L, "solution", 77L);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("contextDelta 和 boundaryNotes 应正确保存")
+    void shouldSaveContextDeltaAndBoundaryNotes() {
         InvocationEntity invocation = new InvocationEntity();
         invocation.setId(77L);
         invocation.setDeleted(false);
@@ -309,7 +354,9 @@ class FeedbackServiceImplTest {
 
         FeedbackSubmitRequest request = new FeedbackSubmitRequest();
         request.setInvocationId(77L);
-        request.setFeedbackType("not_applicable");
+        request.setFeedbackType("partial");
+        request.setContextDelta("{\"key\": \"value\"}");
+        request.setBoundaryNotes("边界条件说明");
 
         ArgumentCaptor<FeedbackEntity> captor = ArgumentCaptor.forClass(FeedbackEntity.class);
 
@@ -317,6 +364,25 @@ class FeedbackServiceImplTest {
 
         assertNotNull(result);
         verify(feedbackMapper).insert(captor.capture());
-        assertEquals("not_applicable", captor.getValue().getFeedbackType());
+        assertEquals("{\"key\": \"value\"}", captor.getValue().getContextDelta());
+        assertEquals("边界条件说明", captor.getValue().getBoundaryNotes());
+    }
+
+    private FeedbackEntity feedbackEntity(Long id, Long invocationId) {
+        FeedbackEntity entity = new FeedbackEntity();
+        entity.setId(id);
+        entity.setInvocationId(invocationId);
+        entity.setUserId(1L);
+        entity.setFeedbackType("worked");
+        entity.setFeedbackContent("test");
+        entity.setStatus("accepted");
+        return entity;
+    }
+
+    private FeedbackMapper.FeedbackStatRow mockStatRow(String type, Long count) {
+        FeedbackMapper.FeedbackStatRow row = mock(FeedbackMapper.FeedbackStatRow.class);
+        when(row.getFeedbackType()).thenReturn(type);
+        when(row.getCount()).thenReturn(count);
+        return row;
     }
 }

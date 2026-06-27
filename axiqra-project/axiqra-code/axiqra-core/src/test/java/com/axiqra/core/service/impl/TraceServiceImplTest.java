@@ -196,6 +196,225 @@ class TraceServiceImplTest {
         assertEquals(ErrorCode.TRACE_EVIDENCE_MISSING.getCode(), ex.getCode());
     }
 
+    @Test
+    @DisplayName("listByUser 应返回用户创建的 Trace 列表")
+    void shouldListByUser() {
+        EngineeringTraceEntity trace = traceEntity(88L, 1L, TraceStatus.SUBMITTED, RiskLevel.R1);
+        when(rbacService.hasScope(1L, "trace:read")).thenReturn(true);
+        when(engineeringTraceMapper.selectByAuthorId(1L)).thenReturn(List.of(trace));
+        when(traceEvidenceRefMapper.selectByTraceId(88L)).thenReturn(List.of(evidenceEntity(2001L, 88L)));
+
+        List<TraceDetailVO> result = traceService.listByUser(1L);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(88L, result.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("listByUser 无结果时返回空列表")
+    void shouldReturnEmptyListWhenNoTraces() {
+        when(rbacService.hasScope(1L, "trace:read")).thenReturn(true);
+        when(engineeringTraceMapper.selectByAuthorId(1L)).thenReturn(List.of());
+
+        List<TraceDetailVO> result = traceService.listByUser(1L);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("submitEvidence 应保存证据引用")
+    void shouldSubmitEvidence() throws Exception {
+        EngineeringTraceEntity trace = traceEntity(88L, 1L, TraceStatus.USER_CONFIRMED, RiskLevel.R1);
+        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
+
+        traceService.submitEvidence(1L, 88L, List.of("evidence-1", "evidence-2"));
+
+        assertNotNull(trace.getEvidencePath());
+        verify(engineeringTraceMapper).update(trace);
+    }
+
+    @Test
+    @DisplayName("submitEvidence 非作者且非管理员应拒绝")
+    void shouldRejectSubmitEvidenceForNonOwner() {
+        EngineeringTraceEntity trace = traceEntity(88L, 2L, TraceStatus.USER_CONFIRMED, RiskLevel.R1);
+        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
+        when(rbacService.isAdmin(1L, 100L)).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.submitEvidence(1L, 88L, List.of("evidence-1")));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("submitEvidence 空证据列表应抛异常")
+    void shouldRejectEmptyEvidenceRefs() {
+        EngineeringTraceEntity trace = traceEntity(88L, 1L, TraceStatus.USER_CONFIRMED, RiskLevel.R1);
+        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.submitEvidence(1L, 88L, List.of()));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("幂等键命中他人 Trace 时应抛冲突异常")
+    void shouldRejectWhenIdempotencyKeyBelongsToOther() {
+        TraceCreateRequest request = baseCreateRequest();
+        EngineeringTraceEntity existing = traceEntity(88L, 2L, TraceStatus.DRAFT, RiskLevel.R1);
+        existing.setIdempotencyKey("idem-1");
+        when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
+        when(rbacService.isMember(1L, 100L)).thenReturn(true);
+        when(engineeringTraceMapper.selectByIdempotencyKey("idem-1")).thenReturn(existing);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.createDraft(1L, request));
+
+        assertEquals(ErrorCode.IDEMPOTENCY_KEY_CONFLICT.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("确认时状态不允许应抛异常")
+    void shouldRejectConfirmWhenStatusNotAllowed() {
+        EngineeringTraceEntity trace = traceEntity(88L, 1L, TraceStatus.SUBMITTED, RiskLevel.R1);
+        when(rbacService.hasScope(1L, "trace:confirm")).thenReturn(true);
+        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.confirm(1L, 88L, TraceConfirmRequest.builder()
+                        .userConfirmation("已确认")
+                        .build()));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("提交时证据缺失应抛异常")
+    void shouldRejectSubmitWhenEvidenceMissing() {
+        EngineeringTraceEntity trace = traceEntity(88L, 1L, TraceStatus.USER_CONFIRMED, RiskLevel.R1);
+        when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
+        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
+        when(traceEvidenceRefMapper.selectByTraceId(88L)).thenReturn(List.of());
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.submit(1L, 88L));
+
+        assertEquals(ErrorCode.TRACE_EVIDENCE_MISSING.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getDetail 无权访问应抛异常")
+    void shouldRejectGetDetailWhenNoAccess() {
+        EngineeringTraceEntity trace = traceEntity(91L, 2L, TraceStatus.SUBMITTED, RiskLevel.R1);
+        trace.setVisibilityScope(VisibilityScope.PRIVATE);
+        when(engineeringTraceMapper.selectActiveById(91L)).thenReturn(trace);
+        when(rbacService.hasScope(1L, "trace:admin")).thenReturn(false);
+        when(rbacService.hasScope(1L, "trace:read")).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.getDetail(1L, 91L));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getDetail traceId 不存在应抛异常")
+    void shouldThrowWhenTraceNotFound() {
+        when(engineeringTraceMapper.selectActiveById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.getDetail(1L, 999L));
+
+        assertEquals(ErrorCode.TRACE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("submitEvidence traceId 不存在应抛异常")
+    void shouldThrowWhenTraceNotFoundForSubmitEvidence() {
+        when(engineeringTraceMapper.selectActiveById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.submitEvidence(1L, 999L, List.of("evidence")));
+
+        assertEquals(ErrorCode.TRACE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("R2 风险 Trace 提交后应进入 submitted")
+    void shouldSubmitDirectlyForMediumRiskTrace() {
+        EngineeringTraceEntity trace = traceEntity(89L, 1L, TraceStatus.USER_CONFIRMED, RiskLevel.R2);
+        when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
+        when(engineeringTraceMapper.selectActiveById(89L)).thenReturn(trace);
+        when(traceEvidenceRefMapper.selectByTraceId(89L)).thenReturn(List.of(evidenceEntity(2002L, 89L)));
+
+        TraceDetailVO result = traceService.submit(1L, 89L);
+
+        assertEquals("submitted", result.getStatus());
+    }
+
+    @Test
+    @DisplayName("公开 Trace 任意用户可见")
+    void shouldAllowPublicTraceView() {
+        EngineeringTraceEntity trace = traceEntity(92L, 2L, TraceStatus.SUBMITTED, RiskLevel.R1);
+        trace.setVisibilityScope(VisibilityScope.PUBLIC);
+        when(engineeringTraceMapper.selectActiveById(92L)).thenReturn(trace);
+        when(rbacService.hasScope(1L, "trace:admin")).thenReturn(false);
+        when(rbacService.hasScope(1L, "trace:read")).thenReturn(true);
+        when(traceEvidenceRefMapper.selectByTraceId(92L)).thenReturn(List.of(evidenceEntity(2003L, 92L)));
+
+        TraceDetailVO result = traceService.getDetail(1L, 92L);
+
+        assertEquals(92L, result.getId());
+    }
+
+    @Test
+    @DisplayName("workspace Trace 成员可访问")
+    void shouldAllowWorkspaceMemberToViewTrace() {
+        EngineeringTraceEntity trace = traceEntity(93L, 2L, TraceStatus.SUBMITTED, RiskLevel.R1);
+        trace.setVisibilityScope(VisibilityScope.WORKSPACE);
+        when(engineeringTraceMapper.selectActiveById(93L)).thenReturn(trace);
+        when(rbacService.hasScope(1L, "trace:admin")).thenReturn(false);
+        when(rbacService.hasScope(1L, "trace:read")).thenReturn(true);
+        when(rbacService.isMember(1L, 100L)).thenReturn(true);
+        when(traceEvidenceRefMapper.selectByTraceId(93L)).thenReturn(List.of(evidenceEntity(2004L, 93L)));
+
+        TraceDetailVO result = traceService.getDetail(1L, 93L);
+
+        assertEquals(93L, result.getId());
+    }
+
+    @Test
+    @DisplayName("无效 riskLevel 应抛异常")
+    void shouldRejectInvalidRiskLevel() {
+        TraceCreateRequest request = baseCreateRequest();
+        request.setRiskLevel("INVALID");
+        when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.createDraft(1L, request));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("riskLevel"));
+    }
+
+    @Test
+    @DisplayName("无效 visibilityScope 应抛异常")
+    void shouldRejectInvalidVisibilityScope() {
+        TraceCreateRequest request = baseCreateRequest();
+        request.setVisibilityScope("invalid");
+        when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
+        when(rbacService.isMember(1L, 100L)).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> traceService.createDraft(1L, request));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("visibilityScope"));
+    }
+
     private TraceCreateRequest baseCreateRequest() {
         return TraceCreateRequest.builder()
                 .workspaceId(100L)

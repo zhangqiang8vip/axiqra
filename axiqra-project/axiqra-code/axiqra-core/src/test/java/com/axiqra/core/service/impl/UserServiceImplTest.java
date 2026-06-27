@@ -4,7 +4,9 @@ import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.util.PasswordHashUtil;
+import com.axiqra.core.mapper.MembershipMapper;
 import com.axiqra.core.mapper.UserMapper;
+import com.axiqra.core.mapper.WorkspaceMapper;
 import com.axiqra.core.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +30,12 @@ class UserServiceImplTest {
     private UserMapper userMapper;
 
     @Mock
+    private WorkspaceMapper workspaceMapper;
+
+    @Mock
+    private MembershipMapper membershipMapper;
+
+    @Mock
     private PasswordHashUtil passwordHashUtil;
 
     private UserService userService;
@@ -36,7 +44,7 @@ class UserServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        userService = new UserServiceImpl(userMapper, passwordHashUtil);
+        userService = new UserServiceImpl(userMapper, workspaceMapper, membershipMapper, passwordHashUtil);
     }
 
     @Nested

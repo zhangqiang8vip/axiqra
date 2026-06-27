@@ -1,8 +1,6 @@
 package com.axiqra.api.controller;
 
 import com.axiqra.common.domain.entity.UserEntity;
-import com.axiqra.common.exception.BizException;
-import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +12,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -31,7 +31,6 @@ class UserControllerTest {
     private MockedStatic<cn.dev33.satoken.stp.StpUtil> stpUtilMock;
 
     private static final Long USER_ID = 1L;
-    private static final Long TARGET_USER_ID = 2L;
 
     @BeforeEach
     void setUp() {
@@ -45,11 +44,53 @@ class UserControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /users/search")
+    class SearchUsersTests {
+
+        @Test
+        @DisplayName("用户名存在时应返回用户列表")
+        void shouldReturnUsersWhenFound() {
+            UserEntity user = createUser(USER_ID, "alice", "Alice", null);
+            when(userService.getByUsername("alice")).thenReturn(user);
+
+            var response = controller.searchUsers("alice");
+
+            assertNotNull(response);
+            assertNotNull(response.getData());
+            assertEquals(1, response.getData().size());
+            assertEquals(USER_ID, response.getData().get(0).id());
+            assertEquals("alice", response.getData().get(0).username());
+        }
+
+        @Test
+        @DisplayName("用户不存在时应返回空列表")
+        void shouldReturnEmptyListWhenNotFound() {
+            when(userService.getByUsername("nonexistent")).thenReturn(null);
+
+            var response = controller.searchUsers("nonexistent");
+
+            assertNotNull(response);
+            assertNotNull(response.getData());
+            assertTrue(response.getData().isEmpty());
+        }
+
+        @Test
+        @DisplayName("空字符串应返回空列表")
+        void shouldReturnEmptyListForBlankInput() {
+            var response = controller.searchUsers("");
+
+            assertNotNull(response);
+            assertNotNull(response.getData());
+            assertTrue(response.getData().isEmpty());
+        }
+    }
+
+    @Nested
     @DisplayName("GET /users/me")
     class GetCurrentUserTests {
 
         @Test
-        @DisplayName("当前用户存在时应返回完整用户信息")
+        @DisplayName("当前用户存在时应返回用户信息")
         void shouldReturnCurrentUserInfo() {
             UserEntity user = createUser(USER_ID, "alice", "Alice", "alice@example.com");
             when(userService.getById(USER_ID)).thenReturn(user);
@@ -58,54 +99,21 @@ class UserControllerTest {
 
             assertNotNull(response);
             assertNotNull(response.getData());
-            assertEquals(USER_ID, response.getData().getUserId());
-            assertEquals("alice", response.getData().getUsername());
-            assertEquals("alice@example.com", response.getData().getEmail());
+            assertEquals(USER_ID, response.getData().id());
+            assertEquals("alice", response.getData().username());
             verify(userService).getById(USER_ID);
         }
 
         @Test
-        @DisplayName("当前用户不存在时应抛统一 USER_NOT_FOUND 异常")
-        void shouldThrowUserNotFoundWhenCurrentUserMissing() {
+        @DisplayName("当前用户不存在时应返回 null")
+        void shouldReturnNullWhenUserNotFound() {
             when(userService.getById(USER_ID)).thenReturn(null);
 
-            BizException exception = assertThrows(BizException.class, () -> controller.getCurrentUser());
-
-            assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), exception.getCode());
-            verify(userService).getById(USER_ID);
-        }
-    }
-
-    @Nested
-    @DisplayName("GET /users/{userId}")
-    class GetUserByIdTests {
-
-        @Test
-        @DisplayName("目标用户存在时应返回公开用户信息")
-        void shouldReturnPublicUserInfo() {
-            UserEntity user = createUser(TARGET_USER_ID, "bob", "Bob", "bob@example.com");
-            when(userService.getById(TARGET_USER_ID)).thenReturn(user);
-
-            var response = controller.getUserById(TARGET_USER_ID);
+            var response = controller.getCurrentUser();
 
             assertNotNull(response);
-            assertNotNull(response.getData());
-            assertEquals(TARGET_USER_ID, response.getData().getUserId());
-            assertEquals("bob", response.getData().getUsername());
-            assertEquals("Bob", response.getData().getNickname());
-            verify(userService).getById(TARGET_USER_ID);
-        }
-
-        @Test
-        @DisplayName("目标用户不存在时应抛统一 USER_NOT_FOUND 异常")
-        void shouldThrowUserNotFoundWhenTargetUserMissing() {
-            when(userService.getById(TARGET_USER_ID)).thenReturn(null);
-
-            BizException exception = assertThrows(BizException.class,
-                    () -> controller.getUserById(TARGET_USER_ID));
-
-            assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), exception.getCode());
-            verify(userService).getById(TARGET_USER_ID);
+            assertNull(response.getData());
+            verify(userService).getById(USER_ID);
         }
     }
 

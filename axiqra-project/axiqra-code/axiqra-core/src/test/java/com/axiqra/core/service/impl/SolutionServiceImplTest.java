@@ -369,6 +369,389 @@ class SolutionServiceImplTest {
         assertEquals(ErrorCode.LICENSE_SCOPE_MISSING.getCode(), ex.getCode());
     }
 
+    // ========== 状态转换测试 ==========
+
+    @Test
+    @DisplayName("transitionToNeedsReview 应将 DRAFT 转为 NEEDS_REVIEW")
+    void shouldTransitionToNeedsReviewFromDraft() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.DRAFT);
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(1);
+
+        solutionService.transitionToNeedsReview(1L, 10L);
+
+        assertEquals(SolutionStatus.NEEDS_REVIEW, solution.getStatus());
+        verify(solutionMapper).update(solution);
+    }
+
+    @Test
+    @DisplayName("transitionToNeedsReview 应将 CANDIDATE 转为 NEEDS_REVIEW")
+    void shouldTransitionToNeedsReviewFromCandidate() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.CANDIDATE);
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(1);
+
+        solutionService.transitionToNeedsReview(1L, 10L);
+
+        assertEquals(SolutionStatus.NEEDS_REVIEW, solution.getStatus());
+    }
+
+    @Test
+    @DisplayName("transitionToNeedsReview 无 solution:write 权限应抛异常")
+    void shouldRejectTransitionToNeedsReviewWithoutPermission() {
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionToNeedsReview(1L, 10L));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("transitionToNeedsReview 非 DRAFT/CANDIDATE 状态应抛异常")
+    void shouldRejectTransitionToNeedsReviewFromInvalidStatus() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.VERIFIED);
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionToNeedsReview(1L, 10L));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("transitionAfterReviewApproved 应将 NEEDS_REVIEW 转为 REVIEWED")
+    void shouldApproveReview() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.NEEDS_REVIEW);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(1);
+
+        solutionService.transitionAfterReviewApproved(10L, 2L);
+
+        assertEquals(SolutionStatus.REVIEWED, solution.getStatus());
+    }
+
+    @Test
+    @DisplayName("transitionAfterReviewApproved 非 NEEDS_REVIEW 状态应抛异常")
+    void shouldRejectApproveReviewFromInvalidStatus() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.DRAFT);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionAfterReviewApproved(10L, 2L));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("transitionAfterReviewRejected 应将 NEEDS_REVIEW 转为 REJECTED")
+    void shouldRejectReview() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.NEEDS_REVIEW);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(1);
+
+        solutionService.transitionAfterReviewRejected(10L, 2L, "INVALID_FORMAT");
+
+        assertEquals(SolutionStatus.REJECTED, solution.getStatus());
+    }
+
+    @Test
+    @DisplayName("transitionToQuarantined 应将任意状态转为 QUARANTINED")
+    void shouldQuarantineSolution() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.VERIFIED);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(1);
+
+        solutionService.transitionToQuarantined(10L, 2L, "MALICIOUS");
+
+        assertEquals(SolutionStatus.QUARANTINED, solution.getStatus());
+    }
+
+    @Test
+    @DisplayName("transitionToQuarantined 已隔离或废弃应抛异常")
+    void shouldRejectQuarantineAlreadyQuarantined() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.QUARANTINED);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionToQuarantined(10L, 2L, "ALREADY_QUARANTINED"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("transitionToArchived 应将 DEPRECATED 转为 ARCHIVED")
+    void shouldArchiveSolution() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.DEPRECATED);
+        when(rbacService.hasScope(1L, "solution:maintain")).thenReturn(true);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(1);
+
+        solutionService.transitionToArchived(10L, 1L);
+
+        assertEquals(SolutionStatus.ARCHIVED, solution.getStatus());
+    }
+
+    @Test
+    @DisplayName("transitionToArchived 无 solution:maintain 权限应抛异常")
+    void shouldRejectArchiveWithoutPermission() {
+        when(rbacService.hasScope(1L, "solution:maintain")).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionToArchived(10L, 1L));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("transitionToArchived 非 DEPRECATED 状态应抛异常")
+    void shouldRejectArchiveFromInvalidStatus() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.VERIFIED);
+        when(rbacService.hasScope(1L, "solution:maintain")).thenReturn(true);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionToArchived(10L, 1L));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("乐观锁冲突应抛异常")
+    void shouldThrowOnOptimisticLockConflict() {
+        SolutionEntity solution = baseSolution();
+        solution.setStatus(SolutionStatus.NEEDS_REVIEW);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+        when(solutionMapper.update(solution)).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.transitionAfterReviewApproved(10L, 2L));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    // ========== 边界用例测试 ==========
+
+    @Test
+    @DisplayName("createFromProjectCase null userId 应抛 UNAUTHORIZED")
+    void shouldRejectCreateWithNullUserId() {
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(null, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("Test")
+                        .build()));
+
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase 无 solution:write 权限应抛 FORBIDDEN")
+    void shouldRejectCreateWithoutWriteScope() {
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("Test")
+                        .build()));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase request 为 null 应抛异常")
+    void shouldRejectCreateWithNullRequest() {
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase projectCaseId 无效应抛异常")
+    void shouldRejectCreateWithInvalidProjectCaseId() {
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(null)
+                        .title("Test")
+                        .build()));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase title 为空应抛异常")
+    void shouldRejectCreateWithEmptyTitle() {
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("")
+                        .build()));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase ProjectCase 不存在应抛异常")
+    void shouldRejectCreateWhenProjectCaseNotFound() {
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(null);
+        when(projectCaseMapper.selectActiveById(77L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("Test")
+                        .build()));
+
+        assertEquals(ErrorCode.PROJECT_CASE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase 无权使用 ProjectCase 应抛异常")
+    void shouldRejectCreateWhenNoAccessToProjectCase() {
+        ProjectCaseEntity projectCase = baseProjectCase();
+        projectCase.setAuthorId(2L);
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(null);
+        when(projectCaseMapper.selectActiveById(77L)).thenReturn(projectCase);
+        when(rbacService.isMember(1L, 100L)).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("Test")
+                        .build()));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase visibilityScope 为 ENTERPRISE 应抛异常")
+    void shouldRejectEnterpriseVisibilityScope() {
+        ProjectCaseEntity projectCase = baseProjectCase();
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(null);
+        when(projectCaseMapper.selectActiveById(77L)).thenReturn(projectCase);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                        .projectCaseId(77L)
+                        .title("Test")
+                        .visibilityScope("enterprise")
+                        .build()));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("createFromProjectCase 已存在本人 Solution 应复用")
+    void shouldReuseExistingSolutionFromSameAuthor() throws Exception {
+        SolutionEntity existingSolution = baseSolution();
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+        when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(existingSolution);
+        when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
+        when(feedbackMapper.selectFeedbackStatsBySolutionId(10L)).thenReturn(List.of());
+
+        var result = solutionService.createFromProjectCase(1L, SolutionCreateFromProjectCaseRequest.builder()
+                .projectCaseId(77L)
+                .title("Duplicate")
+                .build());
+
+        assertNotNull(result);
+        assertEquals("SOL-010", result.getSolutionCode());
+    }
+
+    @Test
+    @DisplayName("listPublicSolutions limit 为 null 应使用默认值")
+    void shouldUseDefaultLimitWhenNull() {
+        when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(baseSolution()));
+
+        var result = solutionService.listPublicSolutions("spring", null, null, null, null);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    @DisplayName("listPublicSolutions minVerificationLevel 超出范围应抛异常")
+    void shouldRejectInvalidMinVerificationLevel() {
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.listPublicSolutions("spring", null, null, 10, null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("listPublicSolutions minVerificationLevel 超出上限应修正为 L5")
+    void shouldCapMinVerificationLevelAtL5() {
+        when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of());
+
+        var result = solutionService.listPublicSolutions("spring", null, null, 6, null);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    @DisplayName("getDetail null solutionId 应抛异常")
+    void shouldRejectNullSolutionIdForGetDetail() {
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getDetail(1L, null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getPublicDetail null solutionId 应抛异常")
+    void shouldRejectNullSolutionIdForGetPublicDetail() {
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getPublicDetail(null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getPublicDetail solution 不存在应抛异常")
+    void shouldThrowWhenPublicDetailSolutionNotFound() {
+        when(solutionMapper.selectActiveById(10L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getPublicDetail(10L));
+
+        assertEquals(ErrorCode.SOLUTION_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getPublicDetail 低验证等级 solution 应隐藏")
+    void shouldHideLowVerificationFromPublicDetail() {
+        SolutionEntity solution = baseSolution();
+        solution.setVerificationLevel(VerificationLevel.L0);
+        when(solutionMapper.selectActiveById(10L)).thenReturn(solution);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.getPublicDetail(10L));
+
+        assertEquals(ErrorCode.SOLUTION_NOT_FOUND.getCode(), ex.getCode());
+    }
+
     private SolutionEntity baseSolution() {
         SolutionEntity solution = new SolutionEntity();
         solution.setId(10L);

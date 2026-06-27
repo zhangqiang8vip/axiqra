@@ -160,6 +160,316 @@ class ReviewServiceImplTest {
         assertEquals("I disagree with quarantine", entity.getAppealContent());
     }
 
+    // ========== 边界用例测试 ==========
+
+    @Test
+    @DisplayName("approve 非 solution 类型不应调用 SolutionService")
+    void shouldNotCallSolutionServiceForNonSolutionApprove() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setObjectType("trace");
+        entity.setObjectId(100L);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(1);
+
+        ReviewDetailVO result = reviewService.approve(1L, 10L, "CODE_OK", "LGTM");
+
+        assertNotNull(result);
+        assertEquals(ReviewResult.APPROVED, entity.getStatus());
+    }
+
+    @Test
+    @DisplayName("reject 非 solution 类型不应调用 SolutionService")
+    void shouldNotCallSolutionServiceForNonSolutionReject() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setObjectType("case");
+        entity.setObjectId(100L);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(1);
+
+        ReviewDetailVO result = reviewService.reject(1L, 10L, "RISK_HIGH", "R4 not allowed");
+
+        assertNotNull(result);
+        assertEquals(ReviewResult.REJECTED, entity.getStatus());
+    }
+
+    @Test
+    @DisplayName("quarantine 非 solution 类型不应调用 SolutionService")
+    void shouldNotCallSolutionServiceForNonSolutionQuarantine() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setObjectType("project_case");
+        entity.setObjectId(100L);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(1);
+
+        ReviewDetailVO result = reviewService.quarantine(1L, 10L, "QUARANTINE", "malicious content");
+
+        assertNotNull(result);
+        assertEquals(ReviewResult.QUARANTINED, entity.getStatus());
+    }
+
+    @Test
+    @DisplayName("getReviewDetail 应返回审核详情")
+    void shouldReturnReviewDetail() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setReasonCode("INITIAL");
+        entity.setNotes("Initial review");
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        ReviewDetailVO result = reviewService.getReviewDetail(1L, 10L);
+
+        assertNotNull(result);
+        assertEquals(10L, result.getId());
+        assertEquals("pending", result.getStatus());
+        assertEquals("INITIAL", result.getReasonCode());
+    }
+
+    @Test
+    @DisplayName("getReviewDetail 审核不存在应抛异常")
+    void shouldThrowWhenReviewNotFound() {
+        when(reviewMapper.selectById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.getReviewDetail(1L, 999L));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("getReviewDetail 审核已删除应抛异常")
+    void shouldThrowWhenReviewDeleted() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setDeleted(true);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.getReviewDetail(1L, 10L));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("approve 已完成的审核应抛异常")
+    void shouldRejectApproveAlreadyFinalReview() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.APPROVED);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.approve(1L, 10L, "CODE_OK", "LGTM"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("reject 已完成的审核应抛异常")
+    void shouldRejectRejectAlreadyFinalReview() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.REJECTED);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.reject(1L, 10L, "RISK_HIGH", "R4 not allowed"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("quarantine 已完成的审核应抛异常")
+    void shouldRejectQuarantineAlreadyFinalReview() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.QUARANTINED);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.quarantine(1L, 10L, "QUARANTINE", "malicious"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("approve 审核不存在应抛异常")
+    void shouldThrowWhenApproveReviewNotFound() {
+        when(reviewMapper.selectById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.approve(1L, 999L, "CODE_OK", "LGTM"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("reject 审核不存在应抛异常")
+    void shouldThrowWhenRejectReviewNotFound() {
+        when(reviewMapper.selectById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.reject(1L, 999L, "RISK_HIGH", "R4 not allowed"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("quarantine 审核不存在应抛异常")
+    void shouldThrowWhenQuarantineReviewNotFound() {
+        when(reviewMapper.selectById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.quarantine(1L, 999L, "QUARANTINE", "malicious"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("approve 审核已删除应抛异常")
+    void shouldThrowWhenApproveReviewDeleted() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setDeleted(true);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.approve(1L, 10L, "CODE_OK", "LGTM"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("reject 审核已删除应抛异常")
+    void shouldThrowWhenRejectReviewDeleted() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setDeleted(true);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.reject(1L, 10L, "RISK_HIGH", "R4 not allowed"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("quarantine 审核已删除应抛异常")
+    void shouldThrowWhenQuarantineReviewDeleted() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setDeleted(true);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.quarantine(1L, 10L, "QUARANTINE", "malicious"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("approve 乐观锁冲突应抛异常")
+    void shouldThrowOnApproveOptimisticLockConflict() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.approve(1L, 10L, "CODE_OK", "LGTM"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("reject 乐观锁冲突应抛异常")
+    void shouldThrowOnRejectOptimisticLockConflict() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.reject(1L, 10L, "RISK_HIGH", "R4 not allowed"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("quarantine 乐观锁冲突应抛异常")
+    void shouldThrowOnQuarantineOptimisticLockConflict() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.quarantine(1L, 10L, "QUARANTINE", "malicious"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("appeal 审核不存在应抛异常")
+    void shouldThrowWhenAppealReviewNotFound() {
+        when(reviewMapper.selectById(999L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.appeal(2L, 999L, "I disagree"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("appeal 审核已删除应抛异常")
+    void shouldThrowWhenAppealReviewDeleted() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.REJECTED);
+        entity.setDeleted(true);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.appeal(2L, 10L, "I disagree"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("appeal 乐观锁冲突应抛异常")
+    void shouldThrowOnAppealOptimisticLockConflict() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.REJECTED);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.appeal(2L, 10L, "I disagree"));
+
+        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("appeal 内容为空白应抛异常")
+    void shouldRejectAppealWithBlankContent() {
+        BizException ex = assertThrows(BizException.class,
+                () -> reviewService.appeal(2L, 10L, "   "));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("approve null objectId 不应调用 SolutionService")
+    void shouldNotCallSolutionServiceWhenObjectIdIsNull() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setObjectType("solution");
+        entity.setObjectId(null);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(1);
+
+        ReviewDetailVO result = reviewService.approve(1L, 10L, "CODE_OK", "LGTM");
+
+        assertNotNull(result);
+        assertEquals(ReviewResult.APPROVED, entity.getStatus());
+    }
+
+    @Test
+    @DisplayName("reject null objectId 不应调用 SolutionService")
+    void shouldNotCallSolutionServiceWhenRejectObjectIdIsNull() {
+        ReviewEntity entity = reviewEntity(10L, ReviewResult.PENDING);
+        entity.setObjectType("solution");
+        entity.setObjectId(null);
+        when(reviewMapper.selectById(10L)).thenReturn(entity);
+        when(reviewMapper.update(entity)).thenReturn(1);
+
+        ReviewDetailVO result = reviewService.reject(1L, 10L, "RISK_HIGH", "R4 not allowed");
+
+        assertNotNull(result);
+        assertEquals(ReviewResult.REJECTED, entity.getStatus());
+    }
+
     private ReviewEntity reviewEntity(Long id, ReviewResult status) {
         ReviewEntity entity = new ReviewEntity();
         entity.setId(id);

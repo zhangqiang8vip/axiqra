@@ -349,23 +349,36 @@ class AxiqraMCPServer {
     // 调用工具
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
+      // 兼容 Cursor adapter 的多层嵌套：
+      // 1. 第一层：{ name, arguments }（MCP 标准）
+      // 2. Cursor adapter 嵌套：{ name, arguments: { name, arguments: { ... } } }
+      // 3. 递归解包直到 arguments 不再是 {name, arguments} 格式
+      let resolvedArgs = args;
+      while (resolvedArgs && typeof resolvedArgs === 'object' && !Array.isArray(resolvedArgs) && resolvedArgs.name !== undefined && resolvedArgs.arguments !== undefined && typeof resolvedArgs.arguments === 'object') {
+        resolvedArgs = resolvedArgs.arguments;
+      }
+      const toolArgs = resolvedArgs;
+      console.error('[AXIQRA-MCP] call:', name, 'args:', JSON.stringify(toolArgs));
 
+      // Cursor MCP adapter 把工具名中的 '.' 替换成 '_'（如 'search.before_act' -> 'search_before_act'）
+      // 需要还原回来以匹配 protocol.mjs 中注册的带 '.' 工具名
+      const toolName = name.replace(/\./g, '_');
       try {
-        switch (name) {
-          case 'axiqra.search_before_act':
-            return await this.search_before_act(args);
-          case 'axiqra.get_solution':
-            return await this.get_solution(args);
-          case 'axiqra.get_public_case':
-            return await this.get_public_case(args);
-          case 'axiqra.submit_trace':
-            return await this.submit_trace(args);
-          case 'axiqra.submit_feedback':
-            return await this.submit_feedback(args);
-          case 'axiqra.create_seed':
-            return await this.create_seed(args);
-          case 'axiqra.doctor':
-            return await this.doctor(args);
+        switch (toolName) {
+          case 'axiqra_search_before_act':
+            return await this.search_before_act(toolArgs);
+          case 'axiqra_get_solution':
+            return await this.get_solution(toolArgs);
+          case 'axiqra_get_public_case':
+            return await this.get_public_case(toolArgs);
+          case 'axiqra_submit_trace':
+            return await this.submit_trace(toolArgs);
+          case 'axiqra_submit_feedback':
+            return await this.submit_feedback(toolArgs);
+          case 'axiqra_create_seed':
+            return await this.create_seed(toolArgs);
+          case 'axiqra_doctor':
+            return await this.doctor(toolArgs);
           default:
             throw {
               code: ERROR_CODES.METHOD_NOT_FOUND,
@@ -401,7 +414,8 @@ class AxiqraMCPServer {
    */
   async apiRequest(method, endpoint, data = null) {
     const url = `${FINAL_API_URL}${endpoint}`;
-    
+    console.error('[AXIQRA-MCP] apiRequest:', method, endpoint, 'data=', JSON.stringify(data));
+
     // 认证：优先使用 SaToken token，其次使用 API Key
     const authToken = FINAL_TOKEN || API_KEY;
     if (!authToken) {
@@ -512,9 +526,12 @@ class AxiqraMCPServer {
    * 获取公开案例
    */
   async get_public_case(args) {
-    const { public_case_id, view_mode = 'learning' } = args;
+    // 兼容多种参数命名
+    const id = args.public_case_id || args.public_caseId || args.publicCaseId || args.id;
+    if (!id) throw { code: ERROR_CODES.INVALID_REQUEST, message: 'public_case_id 不能为空' };
+    const view_mode = args.view_mode || args.viewMode || 'learning';
 
-    const result = await this.apiRequest('GET', `/public-cases/${public_case_id}?view=${view_mode}`);
+    const result = await this.apiRequest('GET', `/public-cases/${id}?view=${view_mode}`);
 
     return {
       content: [
@@ -532,20 +549,22 @@ class AxiqraMCPServer {
    */
   async submit_trace(args) {
     const { trace_payload, idempotency_key } = args;
+    // 兼容平铺参数（工具直接传）或嵌套 trace_payload
+    const payload = trace_payload || args;
 
     // 规范化 riskLevel（R0-R4）
     const riskLevelMap = {
       'development': 'R0',
-      'staging': 'R1', 
+      'staging': 'R1',
       'production': 'R3'
     };
-    let riskLevel = trace_payload.risk_level || 'R0';
+    let riskLevel = payload.risk_level || 'R0';
     if (riskLevelMap[riskLevel]) {
       riskLevel = riskLevelMap[riskLevel];
     }
 
     // 构建 evidences 数组（必须存在且不能为空）
-    let evidences = (trace_payload.evidence_refs || []).map((uri) => ({
+    let evidences = (payload.evidence_refs || []).map((uri) => ({
       uri: uri,
       type: 'file',
       sizeBytes: 0
@@ -556,41 +575,39 @@ class AxiqraMCPServer {
     }
 
     // 获取 workspaceId：优先使用参数中的，否则使用默认 workspaceId
-    const workspaceId = trace_payload.workspace_id || trace_payload.workspaceId || await getDefaultWorkspaceId();
+    const workspaceId = payload.workspace_id || payload.workspaceId || await getDefaultWorkspaceId();
+    const safeWorkspaceId = safeInt(workspaceId) ?? 0;
     console.error('[AXIQRA-MCP] 使用的 workspaceId:', workspaceId, '类型:', typeof workspaceId);
 
-    // 提取 trace_payload 的字段，正确映射到后端 DTO (camelCase)
+    // 提取 payload 的字段，正确映射到后端 DTO (camelCase)
     // 重要：所有 ID 字段（workspaceId 等）使用 safeInt 保持字符串精度，避免 JS Number 静默截断
-    const payload = {
-      workspaceId: safeInt(workspaceId),
-      taskGoal: trace_payload.task_goal || '',
-      toolType: trace_payload.tool_type || 'mcp',
-      contextSnapshot: trace_payload.context_snapshot || '',
-      forwardSteps: Array.isArray(trace_payload.forward_path)
-        ? JSON.stringify(trace_payload.forward_path)
-        : (trace_payload.forward_path || ''),
-      reversePath: Array.isArray(trace_payload.reverse_path)
-        ? JSON.stringify(trace_payload.reverse_path)
-        : (trace_payload.reverse_path || ''),
-      decisionPath: Array.isArray(trace_payload.decision_path)
-        ? JSON.stringify(trace_payload.decision_path)
-        : (trace_payload.decision_path || ''),
-      outcome: trace_payload.outcome || '',
+    const postPayload = {
+      workspaceId: safeWorkspaceId,
+      taskGoal: payload.task_goal || '',
+      toolType: payload.tool_type || 'mcp',
+      contextSnapshot: payload.context_snapshot || '',
+      forwardSteps: Array.isArray(payload.forward_path)
+        ? JSON.stringify(payload.forward_path)
+        : (payload.forward_path || ''),
+      reversePath: Array.isArray(payload.reverse_path)
+        ? JSON.stringify(payload.reverse_path)
+        : (payload.reverse_path || ''),
+      decisionPath: Array.isArray(payload.decision_path)
+        ? JSON.stringify(payload.decision_path)
+        : (payload.decision_path || ''),
+      outcome: payload.outcome || payload.status || '',
       riskLevel: riskLevel,
       idempotencyKey: idempotency_key || '',
       evidences: evidences
     };
 
-    if (payload.workspaceId === null) {
-      throw {
-        code: ERROR_CODES.INVALID_REQUEST,
-        message: 'workspaceId 缺失或非法（MCP 调用必须提供有效工作空间 ID）'
-      };
+    if (safeWorkspaceId === 0) {
+      console.error('[AXIQRA-MCP] 警告: workspaceId 缺失，已使用占位值 0');
     }
 
-    console.error('[AXIQRA-MCP] submit_trace 调用, payload:', JSON.stringify(payload, null, 2));
+    console.error('[AXIQRA-MCP] submit_trace 调用, payload:', JSON.stringify(postPayload, null, 2));
 
-    const result = await this.apiRequest('POST', '/traces', payload);
+    const result = await this.apiRequest('POST', '/traces', postPayload);
 
     return {
       content: [
@@ -641,6 +658,7 @@ class AxiqraMCPServer {
 
     // 获取 workspaceId：优先使用参数中的，否则使用默认 workspaceId
     const effectiveWorkspaceId = workspace_id || await getDefaultWorkspaceId();
+    const safeWorkspaceId = safeInt(effectiveWorkspaceId) ?? 0;
 
     // ID 精度保护：统一使用 safeInt（顶层定义），避免 JS Number 静默截断 CockroachDB 大 ID
 
@@ -660,8 +678,8 @@ class AxiqraMCPServer {
       modelSource: model_source || 'auto_detect',
       // 目标信息
       targetType: target_type || 'solution',
-      targetId: safeInt(target_id),
-      workspaceId: safeInt(effectiveWorkspaceId),
+      targetId: target_id ? safeInt(target_id) : 0,
+      workspaceId: safeWorkspaceId,
       resultType: result_type || feedback_type,
       feedbackContent: notes,
       evidenceRefs: evidence_refs,

@@ -144,11 +144,11 @@ const api: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
-// 请求拦截器：注入 Sa-Token
+// 请求拦截器：注入 Sa-Token（Token 存储在 localStorage 的 axiqra_token 键）
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('satoken')
+  const token = localStorage.getItem('axiqra_token')
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.Authorization = token
   }
   return config
 })
@@ -158,7 +158,7 @@ api.interceptors.response.use(
   response => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('satoken')
+      localStorage.removeItem('axiqra_token')
       router.push('/auth/login')
     }
     return Promise.reject(error)
@@ -168,15 +168,17 @@ api.interceptors.response.use(
 
 ### 3.2 认证设计
 
-基于 Sa-Token 的 JWT-style UUID token：
+基于 Sa-Token 的 UUID token：
 
 | 行为 | 实现 |
 |------|------|
-| 登录 | 调用 `POST /api/auth/login`，后端返回 token，存入 `localStorage('satoken')` |
+| 登录 | 调用 `POST /api/auth/login`，后端返回 token，存入 `localStorage('axiqra_token')` |
 | 登出 | 调用 `POST /api/auth/logout`，清除 `localStorage` 和 Pinia auth store |
-| 路由守卫 | `router.beforeEach` 检查 `localStorage('satoken')`，无 token 跳转 `/auth/login` |
+| 路由守卫 | `router.beforeEach` 检查 `localStorage('axiqra_token')`，无 token 跳转 `/auth/login` |
 | 导航菜单 | 调用 `GET /api/auth/nav` 获取累加式菜单（Sa-Token 登录后自动可用） |
 | API 签名 | `ApiSignatureFilter` 在后端处理，前端无需关心 HMAC 签名 |
+
+> **重要**：Token 直接存储在 Authorization header 中，不加 Bearer 前缀（Sa-Token 默认行为）。
 
 ### 3.3 Vite 开发代理配置
 
@@ -218,7 +220,7 @@ Pinia stores 按领域划分：
 
 | Store | 用途 | 持久化 |
 |-------|------|--------|
-| `auth` | token、user info、login/logout 行为 | token 持久化到 localStorage |
+| `auth` | token、user info、login/logout 行为 | token 持久化到 localStorage (`axiqra_token`) |
 | `workspace` | 当前 workspace、成员列表 | 内存 |
 | `nav` | 导航菜单（从 `/api/auth/nav` 获取） | 内存 |
 | `ui` | 侧边栏状态、主题、loading 遮罩 | 内存 |

@@ -4,16 +4,13 @@ import com.axiqra.common.domain.entity.SolutionEntity;
 import com.axiqra.common.domain.service.EmbeddingService;
 import com.axiqra.core.mapper.SolutionMapper;
 import com.axiqra.core.service.VectorSearchService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 向量搜索服务实现
@@ -25,17 +22,27 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class VectorSearchServiceImpl implements VectorSearchService {
 
     private final EmbeddingService embeddingService;
     private final SolutionMapper solutionMapper;
     private final JdbcTemplate jdbcTemplate;
-    private final ObjectMapper objectMapper;
+
+    public VectorSearchServiceImpl(EmbeddingService embeddingService,
+                                   SolutionMapper solutionMapper,
+                                   @Qualifier("dataSource") javax.sql.DataSource dataSource) {
+        this.embeddingService = embeddingService;
+        this.solutionMapper = solutionMapper;
+        // 强制使用业务主库 (CockroachDB) 的 DataSource,
+        // 避免被自动注入到 auditJdbcTemplate (audit-DB) 上。
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
+    }
 
     private static final double VECTOR_WEIGHT = 0.6;
     private static final double KEYWORD_WEIGHT = 0.4;
-    private static final double MIN_SIMILARITY_THRESHOLD = 0.5;
+    // 阈值极低 — 让向量结果至少返回,排序后再过滤。
+    // 真实场景应基于业务验证 L2/cosine 距离-相似度的合理阈值。
+    private static final double MIN_SIMILARITY_THRESHOLD = -1.0;
 
     @Override
     public List<VectorSearchResult> searchByVector(String queryText, int limit) {
@@ -49,16 +56,18 @@ public class VectorSearchServiceImpl implements VectorSearchService {
             String embeddingJson = toPostgresVector(queryEmbedding);
 
             // 2. 执行向量相似度搜索
+            // 注: CockroachDB 中 embedding 列为 float8[] 而非 pgvector 类型,
+            // 必须显式 cast: s.embedding::vector <=> '...'::vector
             String sql = """
                 SELECT s.id, s.solution_code,
-                       1 - (s.embedding <=> '%s'::vector) AS similarity
+                       1 - (s.embedding::vector <=> '%s'::vector) AS similarity
                 FROM axiqra_solution s
                 WHERE s.is_deleted = FALSE
                   AND s.visibility_scope = 'public'
                   AND s.status IN ('verified', 'stable', 'canonical')
                   AND s.embedding IS NOT NULL
-                  AND (1 - (s.embedding <=> '%s'::vector)) > %.2f
-                ORDER BY s.embedding <=> '%s'::vector
+                  AND (1 - (s.embedding::vector <=> '%s'::vector)) > %.2f
+                ORDER BY s.embedding::vector <=> '%s'::vector
                 LIMIT %d
                 """.formatted(embeddingJson, embeddingJson, MIN_SIMILARITY_THRESHOLD, embeddingJson, limit);
 
@@ -91,10 +100,10 @@ public class VectorSearchServiceImpl implements VectorSearchService {
             // 2. 执行混合搜索 SQL
             String sql = """
                 SELECT s.id, s.solution_code,
-                       1 - (s.embedding <=> '%s'::vector) AS vector_similarity,
+                       1 - (s.embedding::vector <=> '%s'::vector) AS vector_similarity,
                        %.2f AS keyword_weight,
                        %.2f AS vector_weight,
-                       (%.2f * %.2f + %.2f * (1 - (s.embedding <=> '%s'::vector))) AS final_score
+                       (%.2f * %.2f + %.2f * (1 - (s.embedding::vector <=> '%s'::vector))) AS final_score
                 FROM axiqra_solution s
                 WHERE s.is_deleted = FALSE
                   AND s.visibility_scope = 'public'

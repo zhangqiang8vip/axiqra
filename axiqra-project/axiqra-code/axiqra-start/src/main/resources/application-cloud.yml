@@ -184,7 +184,9 @@ logging:
     path: ${LOGGING_FILE_PATH:./logs/axiqra}
   level:
     com.axiqra: ${AXIQRA_LOG_LEVEL:INFO}
-    org.springframework.jdbc: INFO
+    com.axiqra.core.service.impl: ${AXIQRA_LOG_LEVEL_VECTOR:INFO}
+    com.axiqra.core.mapper: ${AXIQRA_LOG_LEVEL_MAPPER:INFO}
+    org.springframework.jdbc.core: ${AXIQRA_LOG_LEVEL_JDBC:INFO}
 
 alert:
   webhook:

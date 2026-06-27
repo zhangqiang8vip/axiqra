@@ -64,6 +64,7 @@ public class FlywayConfig {
      * 审计库 Flyway 实例
      */
     @Bean(name = "auditFlyway")
+    @ConditionalOnProperty(prefix = "axiqra.audit-datasource", name = "enabled", havingValue = "true")
     public Flyway auditFlyway(@Qualifier("auditDataSource") DataSource auditDataSource) {
         Flyway flyway = createFlyway(auditDataSource, auditLocations);
         repairAndMigrate(flyway);

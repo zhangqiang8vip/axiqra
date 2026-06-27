@@ -5,18 +5,10 @@ spring:
   flyway:
     enabled: false
   datasource:
-    type: org.springframework.jdbc.datasource.DriverManagerDataSource
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://127.0.0.1:1/axiqra?sslmode=disable&currentSchema=public
-    username: root
+    url: jdbc:postgresql://127.0.0.1:5432/postgres?sslmode=disable
+    username: postgres
     password: ${DB_PASSWORD:change_me_before_production}
-    druid:
-      enabled: false
-      initial-size: 1
-      min-idle: 1
-      max-active: 2
-      validation-query: SELECT 1
-      test-while-idle: true
   data:
     redis:
       host: localhost
@@ -145,10 +137,6 @@ axiqra:
     id: 0
   audit-datasource:
     enabled: false
-    url: jdbc:postgresql://localhost:5433/axiqra_audit_db
-    username: ${AUDIT_APP_DB_USER:axiqra_audit_app}
-    password: ${AUDIT_APP_DB_PASSWORD:change_me_before_production}
-    driver-class-name: org.postgresql.Driver
   minio:
     endpoint: http://localhost:9000
     access-key: ${MINIO_ACCESS_KEY:change_me_before_production}

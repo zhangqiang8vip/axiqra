@@ -20,13 +20,13 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Invocation Controller
+ * 调用记录 Controller
  *
  * @author Axiqra Team
  * @date 2026-06-11
  */
 @Slf4j
-@Tag(name = "Invocation", description = "调用记录接口")
+@Tag(name = "调用记录", description = "上报 AI 工具调用结果，查询调用详情和反馈统计")
 @RestController
 @RequestMapping("/v1/invocations")
 @RequiredArgsConstructor
@@ -35,7 +35,7 @@ public class InvocationController {
 
     private final InvocationService invocationService;
 
-    @Operation(summary = "上报调用结果")
+    @Operation(summary = "上报调用结果", description = "由 AI 工具/插件调用，上报一次执行结果，用于统计和反馈分析")
     @PostMapping
     @RequireScope("connect:write")
     public ResponseEntity<ApiResponse<InvocationDetailVO>> reportInvocation(
@@ -51,7 +51,7 @@ public class InvocationController {
         }
     }
 
-    @Operation(summary = "获取调用详情")
+    @Operation(summary = "获取调用详情", description = "查询单条调用记录的详细信息，仅可查看自己的记录")
     @GetMapping("/{invocationId}")
     @RequireScope("connect:read")
     public ResponseEntity<ApiResponse<InvocationDetailVO>> getInvocationDetail(
@@ -64,7 +64,7 @@ public class InvocationController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    @Operation(summary = "获取指定 Solution 的反馈统计")
+    @Operation(summary = "获取 Solution 反馈统计", description = "查询指定 Solution 的正负反馈数量分布")
     @GetMapping("/solutions/{solutionId}/feedback-stats")
     @RequireScope("feedback:read")
     public ResponseEntity<ApiResponse<SolutionFeedbackStatsVO>> getSolutionFeedbackStats(@PathVariable @Positive Long solutionId) {

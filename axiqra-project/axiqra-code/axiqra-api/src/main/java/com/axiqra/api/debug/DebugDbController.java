@@ -1,6 +1,8 @@
 package com.axiqra.api.debug;
 
 import com.axiqra.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -15,13 +17,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 临时诊断端点 - 检查数据库表结构
- * 用于诊断 Axiqra 项目数据库结构问题
+ * 数据库诊断 Controller（仅开发环境使用）
  */
 @Slf4j
 @RestController
 @RequestMapping("/debug/db")
 @RequiredArgsConstructor
+@Tag(name = "数据库诊断", description = "检查表结构、字段、索引等（仅开发/调试用）")
 public class DebugDbController {
 
     @Qualifier("dataSource")
@@ -33,6 +35,7 @@ public class DebugDbController {
     }
 
     @GetMapping("/invocation-columns")
+    @Operation(summary = "查看调用记录表结构")
     public ApiResponse<List<Map<String, Object>>> checkInvocationColumns() {
         try {
             List<Map<String, Object>> columns = jdbcTemplate().queryForList(
@@ -47,6 +50,7 @@ public class DebugDbController {
     }
 
     @GetMapping("/feedback-columns")
+    @Operation(summary = "查看反馈表结构")
     public ApiResponse<List<Map<String, Object>>> checkFeedbackColumns() {
         try {
             List<Map<String, Object>> columns = jdbcTemplate().queryForList(
@@ -61,6 +65,7 @@ public class DebugDbController {
     }
 
     @GetMapping("/flyway-history")
+    @Operation(summary = "查看数据库迁移历史")
     public ApiResponse<List<Map<String, Object>>> checkFlywayHistory() {
         try {
             List<Map<String, Object>> rows = jdbcTemplate().queryForList(
@@ -75,6 +80,7 @@ public class DebugDbController {
     }
 
     @GetMapping("/schema-info")
+    @Operation(summary = "查看数据库基本信息")
     public ApiResponse<Map<String, Object>> getSchemaInfo() {
         try {
             JdbcTemplate template = jdbcTemplate();
@@ -94,6 +100,7 @@ public class DebugDbController {
      * 测试 CockroachDB 是否支持 pgvector 算子
      */
     @GetMapping("/vector-test")
+    @Operation(summary = "测试向量检索支持")
     public ApiResponse<Map<String, Object>> testVector() {
         try {
             JdbcTemplate template = jdbcTemplate();
@@ -256,6 +263,7 @@ public class DebugDbController {
      * 列出指定表的列类型 (用于诊断 forward_steps 等 JSON 字段)
      */
     @GetMapping("/table-columns")
+    @Operation(summary = "查看指定表结构")
     public ApiResponse<java.util.List<java.util.Map<String, Object>>> getTableColumns(
             @org.springframework.web.bind.annotation.RequestParam String table) {
         try {
@@ -275,6 +283,7 @@ public class DebugDbController {
      * 修复 Feedback 表缺失字段 (V2 migration 中 idempotency_key)
      */
     @PostMapping("/fix-feedback-fields")
+    @Operation(summary = "修复反馈表字段")
     public ApiResponse<Map<String, Object>> fixFeedbackFields() {
         JdbcTemplate template = jdbcTemplate();
         java.util.List<String> executed = new java.util.ArrayList<>();
@@ -315,6 +324,7 @@ public class DebugDbController {
      * 修复 Invocation 表缺失字段 (V3 migration 中 caller_type 等)
      */
     @PostMapping("/fix-invocation-fields")
+    @Operation(summary = "修复调用记录表字段")
     public ApiResponse<Map<String, Object>> fixInvocationFields() {
         JdbcTemplate template = jdbcTemplate();
         java.util.List<String> executed = new java.util.ArrayList<>();
@@ -389,6 +399,7 @@ public class DebugDbController {
      * 修复 Solution 表缺失字段 (V3 migration 中部分字段)
      */
     @PostMapping("/fix-solution-fields")
+    @Operation(summary = "修复方案表字段")
     public ApiResponse<Map<String, Object>> fixSolutionFields() {
         JdbcTemplate template = jdbcTemplate();
         java.util.List<String> executed = new java.util.ArrayList<>();
@@ -458,6 +469,7 @@ public class DebugDbController {
      * 测试 Invocation 插入 - 直接使用 JdbcTemplate 绕过 MyBatis-Flex
      */
     @PostMapping("/test-invocation")
+    @Operation(summary = "测试调用记录插入")
     public ApiResponse<Map<String, Object>> testInvocation() {
         JdbcTemplate template = jdbcTemplate();
         Map<String, Object> result = new java.util.HashMap<>();

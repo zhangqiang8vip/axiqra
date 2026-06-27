@@ -23,19 +23,19 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Solution 控制器
+ * 工程方案 Controller
  */
 @Slf4j
 @RestController
 @RequestMapping("/solutions")
 @RequiredArgsConstructor
-@Tag(name = "Solution", description = "Solution 详情、版本与反馈统计")
+@Tag(name = "工程方案", description = "Solution 详情、版本与反馈统计")
 public class SolutionController {
 
     private final SolutionService solutionService;
 
     @PostMapping("/from-project-case")
-    @Operation(summary = "从 Project Case 生成工程方案")
+    @Operation(summary = "从项目案例生成方案", description = "基于 Project Case 自动生成 Solution 工程方案")
     public ApiResponse<SolutionDetailVO> createFromProjectCase(@Valid @RequestBody SolutionCreateFromProjectCaseRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         SolutionDetailVO result = solutionService.createFromProjectCase(userId, request);
@@ -45,7 +45,7 @@ public class SolutionController {
     }
 
     @GetMapping("/{solutionId}")
-    @Operation(summary = "获取 Solution 详情")
+    @Operation(summary = "获取方案详情", description = "查询指定 Solution 的完整详情，包括版本和反馈统计")
     public ApiResponse<SolutionDetailVO> getDetail(@PathVariable Long solutionId) {
         long userId = StpUtil.getLoginIdAsLong();
         SolutionDetailVO result = solutionService.getDetail(userId, solutionId);
@@ -54,7 +54,7 @@ public class SolutionController {
     }
 
     @GetMapping("/public")
-    @Operation(summary = "列出公开可展示的 Solution")
+    @Operation(summary = "公开方案列表", description = "列出所有公开可展示的 Solution，支持按领域、技术栈筛选")
     public ApiResponse<List<SearchResultItemVO>> listPublicSolutions(@RequestParam(required = false) String query,
                                                                      @RequestParam(required = false) String domain,
                                                                      @RequestParam(required = false) String techStack,
@@ -67,7 +67,7 @@ public class SolutionController {
     }
 
     @GetMapping("/public/{solutionId}")
-    @Operation(summary = "获取公开 Solution 详情")
+    @Operation(summary = "获取公开方案详情", description = "无需登录，获取公开 Solution 的详情信息")
     public ApiResponse<SolutionDetailVO> getPublicDetail(@PathVariable Long solutionId) {
         SolutionDetailVO result = solutionService.getPublicDetail(solutionId);
         log.info("匿名读取 Public Solution 详情: solutionId={}", solutionId);
@@ -75,7 +75,7 @@ public class SolutionController {
     }
 
     @GetMapping
-    @Operation(summary = "分页查询用户的 Solutions")
+    @Operation(summary = "我的方案列表", description = "分页查询当前用户创建的 Solution")
     public ApiResponse<PageResponse<SearchResultItemVO>> listMySolutions(
             @RequestParam(required = false) Long workspaceId,
             @RequestParam(defaultValue = "1") int page,
@@ -87,7 +87,7 @@ public class SolutionController {
     }
 
     @PostMapping("/{solutionId}/submit-for-review")
-    @Operation(summary = "提交 Solution 审核 (DRAFT/CANDIDATE → NEEDS_REVIEW)")
+    @Operation(summary = "提交审核", description = "将 Solution 从草稿/候选状态提交进入人工审核流程")
     public ApiResponse<Void> submitForReview(@PathVariable Long solutionId) {
         long userId = StpUtil.getLoginIdAsLong();
         solutionService.transitionToNeedsReview(userId, solutionId);
@@ -96,7 +96,7 @@ public class SolutionController {
     }
 
     @PostMapping("/{solutionId}/archive")
-    @Operation(summary = "归档 Solution (DEPRECATED → ARCHIVED)")
+    @Operation(summary = "归档方案", description = "将 Solution 标记为废弃状态")
     public ApiResponse<Void> archive(@PathVariable Long solutionId) {
         long userId = StpUtil.getLoginIdAsLong();
         solutionService.transitionToArchived(solutionId, userId);

@@ -22,19 +22,19 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Trace 控制器
+ * 工程轨迹 Controller
  */
 @Slf4j
 @RestController
 @RequestMapping("/traces")
 @RequiredArgsConstructor
-@Tag(name = "Trace", description = "工程轨迹提交、确认与查询")
+@Tag(name = "工程轨迹", description = "AI 执行过程轨迹记录、确认与查询")
 public class TraceController {
 
     private final TraceService traceService;
 
     @PostMapping
-    @Operation(summary = "创建 Trace 草稿")
+    @Operation(summary = "创建轨迹草稿", description = "记录 AI 执行过程的初始轨迹信息")
     public ApiResponse<TraceDetailVO> createDraft(@Valid @RequestBody TraceCreateRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         TraceDetailVO result = traceService.createDraft(userId, request);
@@ -44,7 +44,7 @@ public class TraceController {
     }
 
     @PostMapping("/{traceId}/confirm")
-    @Operation(summary = "确认 Trace 执行结果")
+    @Operation(summary = "确认执行结果", description = "确认轨迹执行成功或失败，附带结果信息")
     public ApiResponse<TraceDetailVO> confirm(@PathVariable Long traceId,
                                               @Valid @RequestBody TraceConfirmRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
@@ -54,7 +54,7 @@ public class TraceController {
     }
 
     @PostMapping("/{traceId}/submit")
-    @Operation(summary = "提交 Trace 进入审核")
+    @Operation(summary = "提交轨迹", description = "将确认后的轨迹提交进入审核流程")
     public ApiResponse<TraceDetailVO> submit(@PathVariable Long traceId) {
         long userId = StpUtil.getLoginIdAsLong();
         TraceDetailVO result = traceService.submit(userId, traceId);
@@ -63,7 +63,7 @@ public class TraceController {
     }
 
     @GetMapping
-    @Operation(summary = "获取 Trace 列表")
+    @Operation(summary = "轨迹列表", description = "查询当前用户的所有轨迹记录")
     public ApiResponse<List<TraceDetailVO>> list() {
         long userId = StpUtil.getLoginIdAsLong();
         List<TraceDetailVO> result = traceService.listByUser(userId);
@@ -72,7 +72,7 @@ public class TraceController {
     }
 
     @GetMapping("/{traceId}")
-    @Operation(summary = "获取 Trace 详情")
+    @Operation(summary = "轨迹详情", description = "查询单条轨迹的详细信息")
     public ApiResponse<TraceDetailVO> getDetail(@PathVariable Long traceId) {
         long userId = StpUtil.getLoginIdAsLong();
         TraceDetailVO result = traceService.getDetail(userId, traceId);
@@ -81,7 +81,7 @@ public class TraceController {
     }
 
     @PostMapping("/{traceId}/evidence")
-    @Operation(summary = "提交证据路径 (Evidence Path)")
+    @Operation(summary = "提交执行证据", description = "上传轨迹执行的证据路径列表，用于人工复核")
     public ApiResponse<Void> submitEvidence(@PathVariable Long traceId,
                                            @RequestBody EvidenceSubmitRequest request) {
         long userId = StpUtil.getLoginIdAsLong();

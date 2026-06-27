@@ -36,7 +36,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/connect")
 @RequiredArgsConstructor
-@Tag(name = "Connect", description = "Quota + RateLimit + Connect 会话")
+@Tag(name = "连接管理", description = "AI 连接会话管理、配额查询和限流控制")
 public class ConnectController {
 
     private static final String RETRY_AFTER_HEADER = "Retry-After";
@@ -46,14 +46,14 @@ public class ConnectController {
     private final RateLimitService rateLimitService;
 
     @GetMapping("/quota")
-    @Operation(summary = "查询当前配额状态")
+    @Operation(summary = "查询配额状态", description = "查询当前用户/工作空间剩余调用配额和使用量")
     public ApiResponse<QuotaStatusVO> quota() {
         long userId = StpUtil.getLoginIdAsLong();
         return ApiResponse.ok(quotaService.getStatus(userId));
     }
 
     @GetMapping("/rate-limit")
-    @Operation(summary = "检查当前限流窗口")
+    @Operation(summary = "查询限流状态", description = "检查当前是否触发限流，返回重试等待秒数")
     public ApiResponse<RateLimitStatusVO> rateLimit(HttpServletResponse response) {
         long userId = StpUtil.getLoginIdAsLong();
         try {
@@ -71,7 +71,7 @@ public class ConnectController {
     }
 
     @GetMapping("/doctor")
-    @Operation(summary = "执行 Connect doctor 八项检查")
+    @Operation(summary = "健康诊断", description = "执行八项诊断检查，排查 AI 连接配置问题，需指定 channel 和 toolType")
     public ApiResponse<ConnectDoctorVO> doctor(@RequestParam String channel,
                                                @RequestParam String toolType,
                                                @RequestParam(required = false) Long workspaceId) {
@@ -93,21 +93,21 @@ public class ConnectController {
                     "database", "search", "storage", "compute", "integration", "messaging", "monitoring", "ai");
 
     @GetMapping("/sessions")
-    @Operation(summary = "查询我的 Connect 会话列表")
+    @Operation(summary = "查询会话列表", description = "获取当前用户所有 Connect 会话记录")
     public ApiResponse<List<ConnectSessionVO>> listSessions() {
         long userId = StpUtil.getLoginIdAsLong();
         return ApiResponse.ok(connectService.listSessions(userId));
     }
 
     @GetMapping("/sessions/{sessionId}")
-    @Operation(summary = "查询 Connect 会话详情")
+    @Operation(summary = "查询会话详情", description = "根据会话 ID 获取单条会话的详细信息")
     public ApiResponse<ConnectSessionVO> getSession(@PathVariable String sessionId) {
         long userId = StpUtil.getLoginIdAsLong();
         return ApiResponse.ok(connectService.getSession(userId, sessionId));
     }
 
     @PostMapping("/sessions")
-    @Operation(summary = "创建 Connect 会话")
+    @Operation(summary = "创建会话", description = "新建一个 Connect AI 会话，返回会话 ID 用于后续交互")
     public ResponseEntity<ApiResponse<ConnectSessionVO>> create(@Valid @RequestBody ConnectSessionCreateRequest request,
                                                 HttpServletRequest httpRequest,
                                                 HttpServletResponse response) {

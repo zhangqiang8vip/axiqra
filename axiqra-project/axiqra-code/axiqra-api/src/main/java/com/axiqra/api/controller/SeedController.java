@@ -24,12 +24,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Candidate Seed Controller
+ * 候选种子 Controller
  *
  * @author Axiqra Team
  * @date 2026-06-25
  */
-@Tag(name = "Seed", description = "候选种子管理")
+@Tag(name = "候选种子", description = "管理搜索无结果时的候选 Seed，记录知识空白用于后续补充")
 @RestController
 @RequestMapping("/seeds")
 @RequiredArgsConstructor
@@ -40,7 +40,7 @@ public class SeedController {
     private final RbacService rbacService;
 
     @PostMapping
-    @Operation(summary = "创建候选 Seed", description = "搜索无结果时创建候选 Seed")
+    @Operation(summary = "创建候选种子", description = "搜索无结果时创建候选 Seed，记录用户查询意图和覆盖空白描述，供后续补充知识库")
     @RequireScope("contribution:write")
     public ApiResponse<CandidateSeedVO> createSeed(@Valid @RequestBody CreateSeedRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
@@ -57,7 +57,7 @@ public class SeedController {
     }
 
     @GetMapping
-    @Operation(summary = "获取候选 Seed 列表")
+    @Operation(summary = "获取候选种子列表", description = "查询当前用户创建的候选种子，可按状态或工作空间筛选")
     @RequireScope("contribution:read")
     public ApiResponse<List<CandidateSeedVO>> listSeeds(
             @RequestParam(required = false) String status,
@@ -73,7 +73,7 @@ public class SeedController {
     }
 
     @GetMapping("/{seedId}")
-    @Operation(summary = "获取候选 Seed 详情")
+    @Operation(summary = "获取候选种子详情", description = "根据 ID 查询单条候选种子的详细信息")
     @RequireScope("contribution:read")
     public ApiResponse<CandidateSeedVO> getSeed(@PathVariable Long seedId) {
         CandidateSeedEntity seed = candidateSeedMapper.selectById(seedId);

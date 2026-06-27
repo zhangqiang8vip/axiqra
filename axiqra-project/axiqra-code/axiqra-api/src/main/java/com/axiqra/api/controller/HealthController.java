@@ -1,6 +1,8 @@
 package com.axiqra.api.controller;
 
 import com.axiqra.api.config.HealthProbeProperties;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -18,8 +20,12 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * 健康检查 Controller（内部使用，不对外公开）
+ */
 @RestController
 @RequestMapping("/internal/health")
+@Tag(name = "健康检查", description = "服务健康状态探测（内部接口）")
 public class HealthController {
 
     private static final int TCP_CONNECT_TIMEOUT_MS = 2000;
@@ -31,9 +37,9 @@ public class HealthController {
     private final HealthProbeProperties probeProperties;
 
     public HealthController(JdbcTemplate jdbcTemplate,
-                           StringRedisTemplate stringRedisTemplate,
-                           RabbitTemplate rabbitTemplate,
-                           HealthProbeProperties probeProperties) {
+                          StringRedisTemplate stringRedisTemplate,
+                          RabbitTemplate rabbitTemplate,
+                          HealthProbeProperties probeProperties) {
         this.jdbcTemplate = jdbcTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
         this.rabbitTemplate = rabbitTemplate;
@@ -41,6 +47,7 @@ public class HealthController {
     }
 
     @GetMapping
+    @Operation(summary = "健康状态", description = "返回服务基础健康状态")
     public Map<String, Object> health() {
         return Map.of(
                 "service", "axiqra-api",
@@ -50,6 +57,7 @@ public class HealthController {
     }
 
     @GetMapping("/verify")
+    @Operation(summary = "完整探测", description = "检查数据库、Redis、RabbitMQ、PostgreSQL、MinIO 等依赖服务状态")
     public Map<String, Object> verify() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("service", "axiqra-api");

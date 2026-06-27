@@ -21,19 +21,19 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Public Case 控制器
+ * 公开案例 Controller
  */
 @Slf4j
 @RestController
 @RequestMapping("/public-cases")
 @RequiredArgsConstructor
-@Tag(name = "Public Case", description = "公开 Case 发布与查询")
+@Tag(name = "公开案例", description = "公开案例发布与查询")
 public class PublicCaseController {
 
     private final PublicCaseService publicCaseService;
 
     @PostMapping("/publish/{projectCaseId}")
-    @Operation(summary = "将 Project Case 发布为 Public Case")
+    @Operation(summary = "发布公开案例", description = "将私有项目案例发布为公开案例")
     public ApiResponse<PublicCaseDetailVO> publish(@PathVariable Long projectCaseId) {
         long userId = StpUtil.getLoginIdAsLong();
         PublicCaseDetailVO result = publicCaseService.publish(userId, projectCaseId);
@@ -43,7 +43,7 @@ public class PublicCaseController {
     }
 
     @PostMapping("/{publicCaseId}/submit-review")
-    @Operation(summary = "提交 Public Case 审核")
+    @Operation(summary = "提交审核", description = "将公开案例提交进入人工审核流程")
     public ApiResponse<ReviewSubmitResult> submitReview(@PathVariable Long publicCaseId) {
         long userId = StpUtil.getLoginIdAsLong();
         ReviewSubmitResult result = publicCaseService.submitForReview(userId, publicCaseId);
@@ -53,7 +53,7 @@ public class PublicCaseController {
     }
 
     @GetMapping("/{publicCaseId}/review-status")
-    @Operation(summary = "获取审核状态")
+    @Operation(summary = "审核状态", description = "查询公开案例的当前审核状态和进度")
     public ApiResponse<ReviewStatusVO> getReviewStatus(@PathVariable Long publicCaseId) {
         long userId = StpUtil.getLoginIdAsLong();
         ReviewStatusVO result = publicCaseService.getReviewStatus(userId, publicCaseId);
@@ -61,7 +61,7 @@ public class PublicCaseController {
     }
 
     @GetMapping("/{publicCaseId}")
-    @Operation(summary = "获取 Public Case 详情")
+    @Operation(summary = "公开案例详情", description = "无需登录，获取公开案例的详细信息")
     public ApiResponse<PublicCaseDetailVO> getDetail(@PathVariable Long publicCaseId) {
         PublicCaseDetailVO result = publicCaseService.getPublicDetail(publicCaseId);
         log.info("匿名读取 Public Case 详情: publicCaseId={}", publicCaseId);
@@ -69,7 +69,7 @@ public class PublicCaseController {
     }
 
     @GetMapping
-    @Operation(summary = "列出公开可读的 Public Case")
+    @Operation(summary = "公开案例列表", description = "列出所有公开可访问的案例，支持数量限制")
     public ApiResponse<List<PublicCaseDetailVO>> list(@RequestParam(required = false) Integer limit) {
         List<PublicCaseDetailVO> result = publicCaseService.listPublicCases(limit);
         log.info("匿名列出 Public Case: limit={}, count={}", limit, result.size());

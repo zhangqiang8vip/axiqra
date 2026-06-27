@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Contribution 控制器
+ * 贡献积分 Controller
  *
  * @author Axiqra Team
  */
@@ -22,13 +22,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/contributions")
 @RequiredArgsConstructor
-@Tag(name = "Contribution", description = "贡献积分查询")
+@Tag(name = "贡献积分", description = "用户贡献积分统计与排行榜")
 public class ContributionController {
 
     private final ContributionService contributionService;
 
     @GetMapping("/me")
-    @Operation(summary = "获取我的贡献统计")
+    @Operation(summary = "我的贡献统计", description = "查询当前用户的贡献积分明细，可按工作空间筛选")
     public ApiResponse<UserContributionVO> getMyContribution(
             @RequestParam(required = false) Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
@@ -38,7 +38,7 @@ public class ContributionController {
     }
 
     @GetMapping("/rankings")
-    @Operation(summary = "获取贡献排行榜")
+    @Operation(summary = "贡献排行榜", description = "查询贡献积分排名榜单，支持按工作空间筛选")
     public ApiResponse<List<ContributionRankingVO>> getRankings(
             @RequestParam(required = false) Long workspaceId,
             @RequestParam(defaultValue = "20") int limit) {

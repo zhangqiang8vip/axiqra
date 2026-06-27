@@ -21,19 +21,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Project Case 控制器
+ * 项目案例 Controller
  */
 @Slf4j
 @RestController
 @RequestMapping("/project-cases")
 @RequiredArgsConstructor
-@Tag(name = "Project Case", description = "私有 Case 创建、详情与发布申请")
+@Tag(name = "项目案例", description = "私有案例创建、详情与发布申请")
 public class ProjectCaseController {
 
     private final ProjectCaseService projectCaseService;
 
     @PostMapping
-    @Operation(summary = "从 Trace 创建 Project Case")
+    @Operation(summary = "从轨迹创建案例", description = "基于已确认的 Trace 创建私有项目案例")
     public ApiResponse<ProjectCaseDetailVO> create(@Valid @RequestBody ProjectCaseCreateRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         ProjectCaseDetailVO result = projectCaseService.create(userId, request);
@@ -43,7 +43,7 @@ public class ProjectCaseController {
     }
 
     @GetMapping("/{caseId}")
-    @Operation(summary = "获取 Project Case 详情")
+    @Operation(summary = "案例详情", description = "查询指定项目案例的完整信息")
     public ApiResponse<ProjectCaseDetailVO> getDetail(@PathVariable Long caseId) {
         long userId = StpUtil.getLoginIdAsLong();
         ProjectCaseDetailVO result = projectCaseService.getDetail(userId, caseId);
@@ -52,7 +52,7 @@ public class ProjectCaseController {
     }
 
     @GetMapping
-    @Operation(summary = "分页查询 Project Cases")
+    @Operation(summary = "案例列表", description = "分页查询工作空间内的项目案例")
     public ApiResponse<PageResponse<ProjectCaseDetailVO>> listByWorkspace(
             @RequestParam(required = false) Long workspaceId,
             @RequestParam(defaultValue = "1") int page,
@@ -64,7 +64,7 @@ public class ProjectCaseController {
     }
 
     @PostMapping("/{caseId}/publish-request")
-    @Operation(summary = "发起 Project Case 发布申请")
+    @Operation(summary = "申请发布", description = "发起项目案例的公开发布申请，需指定授权信息")
     public ApiResponse<ProjectCaseDetailVO> requestPublish(@PathVariable Long caseId,
                                                            @RequestParam Long authorizationId) {
         long userId = StpUtil.getLoginIdAsLong();

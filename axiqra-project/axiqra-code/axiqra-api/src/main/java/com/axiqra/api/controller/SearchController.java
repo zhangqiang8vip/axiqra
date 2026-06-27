@@ -16,19 +16,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Search 控制器
+ * 搜索控制器
  */
 @Slf4j
 @RestController
 @RequestMapping("/search")
 @RequiredArgsConstructor
-@Tag(name = "Search", description = "权限预过滤 + 多路召回 + 空结果处理")
+@Tag(name = "搜索", description = "权限预过滤 + 多路召回 + 空结果处理")
 public class SearchController {
 
     private final SearchService searchService;
 
     @PostMapping("/before-act")
-    @Operation(summary = "搜索前执行权限预过滤与召回")
+    @Operation(summary = "搜索前权限预过滤", description = "执行搜索前先根据用户权限预过滤，返回可访问的召回结果")
     public ApiResponse<SearchResponseVO> searchBeforeAct(@Valid @RequestBody SearchRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         SearchResponseVO result = searchService.searchBeforeAct(userId, request);
@@ -37,7 +37,7 @@ public class SearchController {
     }
 
     @PostMapping("/public")
-    @Operation(summary = "匿名搜索公开可展示的 Solution")
+    @Operation(summary = "公开搜索", description = "无需登录，搜索所有公开可展示的 Solution")
     public ApiResponse<SearchResponseVO> searchPublic(@Valid @RequestBody SearchRequest request) {
         SearchResponseVO result = searchService.searchPublic(request);
         log.info("执行 Public Search: query={}, hits={}", request.getQuery(), result.getReturnedHits());

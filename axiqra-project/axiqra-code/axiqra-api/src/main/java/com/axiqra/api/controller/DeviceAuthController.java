@@ -20,13 +20,13 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * OAuth 设备授权控制器（类似 GitHub Device Flow）
+ * 设备授权 Controller（类似 GitHub Device Flow）
  */
 @Slf4j
 @RestController
 @RequestMapping("/auth/device")
 @RequiredArgsConstructor
-@Tag(name = "OAuth 设备授权", description = "OAuth 2.0 设备授权流程")
+@Tag(name = "设备授权", description = "OAuth 2.0 设备授权流程，用于 CLI/桌面端登录")
 public class DeviceAuthController {
 
     private final UserService userService;
@@ -42,7 +42,7 @@ public class DeviceAuthController {
 
     @SaIgnore
     @PostMapping("/code")
-    @Operation(summary = "获取设备授权码")
+    @Operation(summary = "获取授权码", description = "设备端请求授权码，返回 device_code 和 user_code 用于后续验证")
     public ApiResponse<Map<String, Object>> getDeviceCode() {
         String deviceCode = generateRandomString(16);
         String userCode = generateUserCode();
@@ -70,7 +70,7 @@ public class DeviceAuthController {
 
     @SaIgnore
     @PostMapping("/token")
-    @Operation(summary = "轮询获取访问令牌")
+    @Operation(summary = "轮询令牌", description = "设备端轮询查询授权状态，用户在网页确认后返回 access_token")
     public ApiResponse<Map<String, Object>> pollToken(@RequestParam String deviceCode) {
         String key = CODE_PREFIX + deviceCode;
 
@@ -120,13 +120,13 @@ public class DeviceAuthController {
 
     @SaIgnore
     @GetMapping("/verify-page")
-    @Operation(summary = "验证页面")
+    @Operation(summary = "验证页面", description = "返回验证页面 URL，供用户在浏览器中打开授权")
     public String getVerifyPage() {
         return "redirect:" + DEFAULT_WEB_URL + "/auth/device";
     }
 
     @PostMapping("/confirm")
-    @Operation(summary = "确认授权")
+    @Operation(summary = "确认授权", description = "已登录用户在网页端确认设备授权，填入 user_code 完成授权")
     public ApiResponse<Map<String, Object>> confirmAuthorization(@RequestBody Map<String, String> request) {
         String userCode = request.get("user_code");
         String deviceCode = request.get("device_code");

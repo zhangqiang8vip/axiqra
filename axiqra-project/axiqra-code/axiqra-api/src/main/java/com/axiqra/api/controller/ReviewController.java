@@ -21,12 +21,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Review Controller
+ * 审核 Controller
  *
  * @author Axiqra Team
  * @date 2026-06-11
  */
-@Tag(name = "Review", description = "审核接口")
+@Tag(name = "审核", description = "Solution 和 Case 的人工审核流程管理")
 @RestController
 @RequestMapping("/v1/reviews")
 @RequiredArgsConstructor
@@ -35,7 +35,7 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "获取待审核队列")
+    @Operation(summary = "待审核队列", description = "获取指定队列的待审核列表，支持按类型筛选")
     @GetMapping("/pending")
     @RequireScope("review:read")
     public ResponseEntity<ApiResponse<List<ReviewDetailVO>>> getPendingReviews(
@@ -49,7 +49,7 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    @Operation(summary = "获取审核详情")
+    @Operation(summary = "审核详情", description = "查看单条审核记录的详细信息")
     @GetMapping("/{reviewId}")
     @RequireScope("review:read")
     public ResponseEntity<ApiResponse<ReviewDetailVO>> getReviewDetail(
@@ -59,7 +59,7 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    @Operation(summary = "审核通过")
+    @Operation(summary = "审核通过", description = "批准当前内容通过审核，可附加原因码和备注")
     @PostMapping("/{reviewId}/approve")
     @RequireScope("review:write")
     public ResponseEntity<ApiResponse<ReviewDetailVO>> approve(
@@ -71,7 +71,7 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    @Operation(summary = "审核拒绝")
+    @Operation(summary = "审核拒绝", description = "拒绝当前内容，可附加原因码和拒绝说明")
     @PostMapping("/{reviewId}/reject")
     @RequireScope("review:write")
     public ResponseEntity<ApiResponse<ReviewDetailVO>> reject(
@@ -83,7 +83,7 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    @Operation(summary = "隔离内容")
+    @Operation(summary = "隔离内容", description = "将问题内容移入隔离区，等待进一步处理")
     @PostMapping("/{reviewId}/quarantine")
     @RequireScope("review:write")
     public ResponseEntity<ApiResponse<ReviewDetailVO>> quarantine(
@@ -95,7 +95,7 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    @Operation(summary = "申诉")
+    @Operation(summary = "申诉", description = "被拒绝的内容可提交申诉，附上申诉说明")
     @PostMapping("/{reviewId}/appeal")
     @RequireScope("review:write")
     public ResponseEntity<ApiResponse<ReviewDetailVO>> appeal(

@@ -22,13 +22,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-@Tag(name = "用户", description = "用户查询（仅供内部使用）")
+@Tag(name = "用户", description = "用户搜索与信息查询")
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping("/search")
-    @Operation(summary = "搜索用户", description = "按用户名搜索用户（用于邀请成员）")
+    @Operation(summary = "搜索用户", description = "按用户名精确搜索，用于邀请成员")
     public ApiResponse<List<UserSearchVO>> searchUsers(@RequestParam String username) {
         if (username == null || username.trim().isEmpty()) {
             return ApiResponse.ok(List.of());
@@ -46,7 +46,7 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "获取当前用户信息")
+    @Operation(summary = "我的信息", description = "获取当前登录用户的基本信息")
     public ApiResponse<UserSearchVO> getCurrentUser() {
         long userId = StpUtil.getLoginIdAsLong();
         UserEntity user = userService.getById(userId);
@@ -62,7 +62,7 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
-    @Operation(summary = "获取指定用户公开信息")
+    @Operation(summary = "用户公开信息", description = "根据 ID 获取用户的公开信息")
     public ApiResponse<UserSearchVO> getUserById(@PathVariable Long userId) {
         UserEntity user = userService.getById(userId);
         if (user == null) {

@@ -23,14 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Tag(name = "导航", description = "累加式导航菜单")
+@Tag(name = "导航", description = "用户导航菜单，按权限累加显示可访问模块")
 public class NavController {
 
     private final NavService navService;
 
     @SaCheckLogin
     @GetMapping("/nav")
-    @Operation(summary = "获取导航菜单", description = "累加式返回当前用户可见的全部菜单")
+    @Operation(summary = "获取导航菜单", description = "根据用户权限返回可访问的功能菜单列表")
     public ApiResponse<NavResponseVO> getNav() {
         long userId = StpUtil.getLoginIdAsLong();
         NavResponseVO nav = navService.getNav(userId);

@@ -21,14 +21,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * MCP Doctor 控制器
+ * MCP 诊断 Controller
  * 
- * <p>为 MCP 渠道提供独立的诊断端点，不依赖 SaToken 会话认证。
+ * <p>为 MCP 渠道提供独立的诊断端点，不依赖 Web 会话认证。
  * MCP 渠道使用 API Key 认证，不需要 Web 用户登录。
  * 
  * <p>与 /connect/doctor 的区别：
  * <ul>
- *   <li>/connect/doctor - 需要 Web 用户登录 (SaToken)，用于 Web/CLI 会话</li>
+ *   <li>/connect/doctor - 需要 Web 用户登录，用于 Web/CLI 会话</li>
  *   <li>/mcp/doctor - 不需要登录，用于 MCP/CLI/API Key 认证的渠道</li>
  * </ul>
  *
@@ -39,14 +39,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/mcp")
 @RequiredArgsConstructor
-@Tag(name = "MCP Doctor", description = "MCP 渠道专用诊断接口（无需登录）")
+@Tag(name = "MCP 诊断", description = "MCP 渠道专用诊断接口（无需登录）")
 public class McpDoctorController {
 
     private final ConnectService connectService;
     private final RbacService rbacService;
 
     @GetMapping("/doctor")
-    @Operation(summary = "MCP 渠道诊断（API Key 认证）")
+    @Operation(summary = "渠道诊断", description = "执行 MCP 渠道健康诊断，检查配置、网络、认证等状态")
     public ApiResponse<ConnectDoctorVO> mcpDoctor(
             @RequestParam String channel,
             @RequestParam String toolType,
@@ -142,7 +142,7 @@ public class McpDoctorController {
     }
 
     @GetMapping("/quota")
-    @Operation(summary = "MCP 配额查询（API Key 认证）")
+    @Operation(summary = "配额查询", description = "查询 MCP 渠道的 API 调用配额状态")
     public ApiResponse<QuotaStatusVO> mcpQuota(@RequestParam(required = false) Long workspaceId) {
         // MCP 配额通过 workspaceId 或 API Key 关联查询
         // 这里返回简化状态，实际配额由 QuotaService 处理
@@ -157,7 +157,7 @@ public class McpDoctorController {
     }
 
     @GetMapping("/health")
-    @Operation(summary = "MCP 健康检查")
+    @Operation(summary = "健康检查", description = "检查 API、数据库、Redis、MCP 服务可用性")
     public ApiResponse<HealthCheckVO> mcpHealth() {
         List<HealthCheckVO.HealthItem> items = new ArrayList<>();
         

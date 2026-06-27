@@ -45,7 +45,7 @@ public class WorkspaceController {
     private final WorkspaceService workspaceService;
 
     @GetMapping
-    @Operation(summary = "我的工作空间列表", description = "获取当前用户可见的所有工作空间（个人空间 + 成员空间）")
+    @Operation(summary = "我的工作空间", description = "获取当前用户可见的所有工作空间列表")
     public ApiResponse<PageResponse<WorkspaceVO>> listMyWorkspaces() {
         long userId = StpUtil.getLoginIdAsLong();
         PageResponse<WorkspaceVO> result = workspaceService.listMyWorkspaces(userId);
@@ -53,7 +53,7 @@ public class WorkspaceController {
     }
 
     @PostMapping
-    @Operation(summary = "创建工作空间", description = "创建新工作空间，自动将自己设为 owner")
+    @Operation(summary = "创建工作空间", description = "创建新工作空间，自动成为空间所有者")
     public ResponseEntity<ApiResponse<WorkspaceVO>> create(@Valid @RequestBody WorkspaceCreateRequest request,
                                                           HttpServletRequest httpRequest) {
         long userId = StpUtil.getLoginIdAsLong();
@@ -70,7 +70,7 @@ public class WorkspaceController {
     }
 
     @GetMapping("/{workspaceId}")
-    @Operation(summary = "工作空间详情", description = "获取指定工作空间详情，需为成员")
+    @Operation(summary = "工作空间详情", description = "获取指定工作空间的详细信息")
     public ApiResponse<WorkspaceVO> getById(@PathVariable Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
         WorkspaceVO workspace = workspaceService.getById(workspaceId, userId);
@@ -78,7 +78,7 @@ public class WorkspaceController {
     }
 
     @PutMapping("/{workspaceId}")
-    @Operation(summary = "更新工作空间", description = "更新工作空间名称或类型，仅 owner 可操作")
+    @Operation(summary = "更新工作空间", description = "更新工作空间名称或类型，仅所有者可操作")
     @RequireWorkspaceRole(role = WorkspaceRole.OWNER, workspaceParam = "workspaceId")
     public ApiResponse<WorkspaceVO> update(
             @PathVariable Long workspaceId,
@@ -95,7 +95,7 @@ public class WorkspaceController {
     }
 
     @DeleteMapping("/{workspaceId}")
-    @Operation(summary = "删除工作空间", description = "仅 owner 可删除")
+    @Operation(summary = "删除工作空间", description = "删除工作空间，仅所有者可操作")
     @RequireWorkspaceRole(role = WorkspaceRole.OWNER, workspaceParam = "workspaceId")
     public ResponseEntity<Void> delete(@PathVariable Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
@@ -107,7 +107,7 @@ public class WorkspaceController {
     // ==================== 成员管理 ====================
 
     @GetMapping("/{workspaceId}/members")
-    @Operation(summary = "成员列表", description = "获取工作空间成员列表，任意成员可查看")
+    @Operation(summary = "成员列表", description = "查看工作空间的所有成员")
     public ApiResponse<PageResponse<MemberVO>> listMembers(@PathVariable Long workspaceId) {
         long userId = StpUtil.getLoginIdAsLong();
         PageResponse<MemberVO> members = workspaceService.listMembers(workspaceId, userId);
@@ -115,7 +115,7 @@ public class WorkspaceController {
     }
 
     @PostMapping("/{workspaceId}/members")
-    @Operation(summary = "添加成员", description = "admin 或 owner 可添加成员")
+    @Operation(summary = "添加成员", description = "将用户添加到工作空间，管理员或所有者可操作")
     @RequireWorkspaceRole(role = WorkspaceRole.ADMIN, workspaceParam = "workspaceId")
     public ResponseEntity<ApiResponse<MemberVO>> addMember(
             @PathVariable Long workspaceId,
@@ -137,7 +137,7 @@ public class WorkspaceController {
     }
 
     @PutMapping("/{workspaceId}/members")
-    @Operation(summary = "更新成员角色", description = "仅 owner 可更新成员角色")
+    @Operation(summary = "更新成员角色", description = "修改成员在空间中的角色，仅所有者可操作")
     @RequireWorkspaceRole(role = WorkspaceRole.OWNER, workspaceParam = "workspaceId")
     public ResponseEntity<Void> updateMemberRole(
             @PathVariable Long workspaceId,
@@ -150,7 +150,7 @@ public class WorkspaceController {
     }
 
     @DeleteMapping("/{workspaceId}/members/{memberId}")
-    @Operation(summary = "移除成员", description = "admin 或 owner 可移除成员（不能移除 owner）")
+    @Operation(summary = "移除成员", description = "从工作空间移除成员，管理员或所有者可操作，但不能移除所有者")
     @RequireWorkspaceRole(role = WorkspaceRole.ADMIN, workspaceParam = "workspaceId")
     public ResponseEntity<Void> removeMember(
             @PathVariable Long workspaceId,

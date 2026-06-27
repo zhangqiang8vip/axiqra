@@ -52,7 +52,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "登录", description = "用户名密码登录，返回 Sa-Token")
+    @Operation(summary = "登录", description = "用户名密码登录，返回 Sa-Token 会话凭证")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         UserEntity user = userService.getByUsername(request.getUsername());
         String targetHash = user != null ? user.getPasswordHash() : DUMMY_BCRYPT_HASH;
@@ -68,7 +68,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "注册", description = "注册新用户，自动创建 personal workspace")
+    @Operation(summary = "注册", description = "注册新用户，自动创建个人工作空间")
     public ResponseEntity<ApiResponse<LoginResponse>> register(@Valid @RequestBody RegisterRequest request,
                                                               HttpServletRequest httpRequest) {
         try {
@@ -131,7 +131,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "当前用户信息", description = "获取登录用户信息")
+    @Operation(summary = "当前用户信息", description = "获取已登录用户的详细信息")
     public ApiResponse<LoginResponse> me() {
         try {
             long userId = StpUtil.getLoginIdAsLong();
@@ -158,7 +158,7 @@ public class AuthController {
     }
 
     @PutMapping("/profile")
-    @Operation(summary = "更新个人资料", description = "更新当前用户的 nickname、email 和 avatar")
+    @Operation(summary = "更新个人资料", description = "更新昵称、邮箱和头像")
     public ApiResponse<LoginResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
         long userId;
         try {

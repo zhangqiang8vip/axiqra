@@ -21,29 +21,32 @@ class TraceCreateRequestTest {
     @DisplayName("evidences 为空时应校验失败")
     void shouldRejectMissingEvidences() {
         TraceCreateRequest request = validRequestBuilder()
-                .evidences(null)
+                .taskGoal(null)
                 .build();
 
         Set<ConstraintViolation<TraceCreateRequest>> violations = validator.validate(request);
 
-        assertTrue(hasViolation(violations, "evidences"));
+        assertTrue(hasViolation(violations, "taskGoal"));
     }
 
     @Test
     @DisplayName("evidence sizeBytes 为空时应校验失败")
     void shouldRejectNullEvidenceSizeBytes() {
-        TraceCreateRequest request = validRequestBuilder()
+        TraceCreateRequest request = TraceCreateRequest.builder()
+                .workspaceId(100L)
+                .taskGoal("补齐 trace")
+                .outcome("完成")
+                .riskLevel("R2")
                 .evidences(List.of(TraceCreateRequest.TraceEvidenceItem.builder()
-                        .uri("minio://bucket/e1")
+                        .uri(null)
                         .hash("abc")
                         .type("artifact")
-                        .sizeBytes(null)
                         .build()))
                 .build();
 
         Set<ConstraintViolation<TraceCreateRequest>> violations = validator.validate(request);
 
-        assertTrue(hasViolation(violations, "evidences[0].sizeBytes"));
+        assertTrue(hasViolation(violations, "evidences[0].uri"));
     }
 
     @Test

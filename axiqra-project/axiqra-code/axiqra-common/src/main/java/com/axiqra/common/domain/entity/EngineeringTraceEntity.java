@@ -40,6 +40,13 @@ public class EngineeringTraceEntity extends BaseEntity {
     private String decisions;
     @Nullable
     private String rollbackPath;
+    /**
+     * 决策路径 (JSON): 关键决策点和选择理由
+     * 对应 D06 §3 decision_path
+     */
+    @Nullable
+    @Column("decision_path")
+    private String decisionPath;
     private String outcome;
     private RiskLevel riskLevel;
     private TraceStatus status;
@@ -54,6 +61,13 @@ public class EngineeringTraceEntity extends BaseEntity {
     private Long solutionId;
     @Nullable
     private String evolutionSuggestion;
+    /**
+     * 演进提示 (TEXT): 方案的演进方向和优化建议
+     * 对应 D06 §3 evolution_hint
+     */
+    @Nullable
+    @Column("evolution_hint")
+    private String evolutionHint;
     /**
      * 证据路径 - 证据文件引用列表 (JSON array)
      * 包含日志、diff、测试结果、截图等证据文件引用

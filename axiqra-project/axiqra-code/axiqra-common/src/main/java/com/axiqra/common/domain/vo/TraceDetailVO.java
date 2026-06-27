@@ -27,6 +27,10 @@ public class TraceDetailVO {
     private String forwardSteps;
     private String reversePath;
     private String decisions;
+    /**
+     * 决策路径 (JSON): 关键决策点和选择理由
+     */
+    private String decisionPath;
     private String rollbackPath;
     private String outcome;
     private String riskLevel;
@@ -38,6 +42,10 @@ public class TraceDetailVO {
     private Long reviewId;
     private Long solutionId;
     private String evolutionSuggestion;
+    /**
+     * 演进提示 (TEXT): 方案的演进方向和优化建议
+     */
+    private String evolutionHint;
     /**
      * 证据路径 - 证据文件引用列表 (JSON array)
      * 包含日志、diff、测试结果、截图等证据文件引用

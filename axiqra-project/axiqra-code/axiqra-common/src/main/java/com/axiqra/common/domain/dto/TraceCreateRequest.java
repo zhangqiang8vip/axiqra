@@ -54,8 +54,20 @@ public class TraceCreateRequest {
     @JsonAlias("decision_path")
     private String decisions;
 
+    /**
+     * 决策路径 (JSON): 关键决策点和选择理由
+     */
+    @JsonAlias("decision_path")
+    private String decisionPath;
+
     @JsonAlias("rollback_path")
     private String rollbackPath;
+
+    /**
+     * 演进提示 (TEXT): 方案的演进方向和优化建议
+     */
+    @JsonAlias("evolution_hint")
+    private String evolutionHint;
 
     @NotBlank(message = "outcome 不能为空")
     private String outcome;
@@ -77,7 +89,7 @@ public class TraceCreateRequest {
     @JsonAlias("idempotency_key")
     private String idempotencyKey;
 
-    @JsonAlias("evidence_refs")
+    @NotNull(message = "evidences 不能为空")
     @Valid
     private List<TraceEvidenceItem> evidences;
 
@@ -104,7 +116,7 @@ public class TraceCreateRequest {
 
     @JsonSetter("decision_path")
     public void setDecisionPath(Object decisionPath) {
-        this.decisions = stringifyJsonish(decisionPath);
+        this.decisionPath = stringifyJsonish(decisionPath);
     }
 
     private TraceEvidenceItem normalizeEvidence(Object ref) {
@@ -170,12 +182,15 @@ public class TraceCreateRequest {
     @Builder
     public static class TraceEvidenceItem {
 
+        @NotBlank(message = "证据 URI 不能为空")
         private String uri;
 
         private String hash;
 
         private String type;
 
+        @NotNull(message = "文件大小不能为空")
+        @Min(value = 0, message = "文件大小不能为负数")
         @JsonAlias("size_bytes")
         private Long sizeBytes;
     }

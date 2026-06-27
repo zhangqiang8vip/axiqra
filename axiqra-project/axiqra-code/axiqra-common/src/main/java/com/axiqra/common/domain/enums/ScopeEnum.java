@@ -48,10 +48,6 @@ public enum ScopeEnum {
     FEEDBACK_WRITE("feedback:write", "提交 Feedback"),
     FEEDBACK_ADMIN("feedback:admin", "反馈管理"),
 
-    // ==================== Seed 候选种子 ====================
-    SEED_READ("seed:read", "查看候选 Seed"),
-    SEED_WRITE("seed:write", "创建候选 Seed"),
-
     // ==================== Review 审核 ====================
     REVIEW_READ("review:read", "查看待审核列表"),
     REVIEW_WRITE("review:write", "执行审核操作"),

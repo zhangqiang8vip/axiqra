@@ -6,6 +6,15 @@ import lombok.Getter;
 /**
  * Engineering Trace 风险等级枚举
  *
+ * <p>风险等级与审核队列路由映射：
+ * <ul>
+ *   <li>R0 (level=0) → AUTO_PASS（无风险，自动通过）</li>
+ *   <li>R1 (level=1) → LOW_RISK_SAMPLING（低风险，抽检）</li>
+ *   <li>R2 (level=2) → HUMAN_REVIEW（中风险，普通人工审核）</li>
+ *   <li>R3 (level=3) → CERTIFIED_REVIEW（高风险，认证审核）</li>
+ *   <li>R4 (level=4) → AUTO_REJECT（极高风险，自动拒绝）</li>
+ * </ul>
+ *
  * @author Axiqra Team
  * @date 2026-06-06
  */
@@ -59,5 +68,34 @@ public enum RiskLevel {
     /** 是否需要人工审核 */
     public boolean requiresHumanReview() {
         return level >= 2;
+    }
+
+    /**
+     * 根据风险等级路由到对应的审核队列。
+     *
+     * @return 建议进入的审核队列
+     */
+    public ReviewQueue routeToReviewQueue() {
+        return switch (this) {
+            case R0 -> ReviewQueue.AUTO_PASS;
+            case R1 -> ReviewQueue.LOW_RISK_SAMPLING;
+            case R2 -> ReviewQueue.HUMAN_REVIEW;
+            case R3 -> ReviewQueue.CERTIFIED_REVIEW;
+            case R4 -> ReviewQueue.AUTO_REJECT;
+        };
+    }
+
+    /**
+     * 根据风险等级判断是否应自动通过。
+     */
+    public boolean shouldAutoPass() {
+        return this == R0;
+    }
+
+    /**
+     * 根据风险等级判断是否应自动拒绝。
+     */
+    public boolean shouldAutoReject() {
+        return this == R4;
     }
 }

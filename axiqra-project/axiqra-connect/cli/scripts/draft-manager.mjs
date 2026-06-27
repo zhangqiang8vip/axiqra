@@ -8,7 +8,7 @@
  * - outcome 必须由用户确认
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
 import { resolve, dirname } from 'path';
 
 /**
@@ -108,9 +108,10 @@ export class Draft {
     if (this.status === DRAFT_STATUS.FLUSHED || this.status === DRAFT_STATUS.ABANDONED) {
       return false;
     }
-    const config = this.getConfig();
+    // 修复：直接引用配置常量，而不是调用 getConfig()
     const inactiveMs = Date.now() - new Date(this.updatedAt).getTime();
     const inactiveMinutes = inactiveMs / 60000;
+    const config = DraftManager.getDefaultConfig();
     return inactiveMinutes > (config.draft_inactive_minutes || 30);
   }
 }
@@ -130,14 +131,21 @@ export class DraftManager {
   }
 
   /**
-   * 获取配置
+   * 获取默认配置（静态方法）
    */
-  getConfig() {
+  static getDefaultConfig() {
     return {
       draft_inactive_minutes: 30,
       draft_max_steps: 50,
       reminder_cooldown_minutes: 30
     };
+  }
+
+  /**
+   * 获取配置
+   */
+  getConfig() {
+    return DraftManager.getDefaultConfig();
   }
 
   /**
@@ -385,8 +393,8 @@ export class DraftManager {
   deleteDraft(draftId) {
     const file = this.getDraftFile(draftId);
     if (existsSync(file)) {
-      const fs = require('fs');
-      fs.unlinkSync(file);
+      // 修复：使用已导入的 unlinkSync，不使用 require
+      unlinkSync(file);
     }
 
     const index = this.loadIndex();

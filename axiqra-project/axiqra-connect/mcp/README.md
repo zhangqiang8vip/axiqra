@@ -56,6 +56,39 @@ AI 会自动完成一切。
 
 ## MCP 配置
 
+### 环境变量
+
+MCP Server 支持两种认证方式：
+
+| 环境变量 | 说明 | 适用场景 |
+|---------|------|---------|
+| `AXIQRA_TOKEN` | SaToken session token（从 CLI 登录获取） | 本地部署（推荐） |
+| `AXIQRA_API_KEY` | API Key | 云服务或本地部署 |
+| `AXIQRA_API_URL` | API 地址 | 本地部署时覆盖默认 |
+| `AXIQRA_WORKSPACE_ID` | 工作空间 ID | 多用户隔离 |
+
+**⚠️ 重要：认证是必须的**
+
+所有需要写入数据的工具都需要认证：
+- `submit_trace` - 需要认证
+- `submit_feedback` - 需要认证
+- `search_before_act` - 需要认证
+- `doctor` - 需要认证
+- `create_seed` - 需要认证
+
+**本地开发推荐配置：**
+
+```bash
+# 1. 先通过 CLI 登录获取 token
+cd axiqra-project/axiqra-connect
+node cli/scripts/axiqra-cli.mjs login
+
+# 2. 设置环境变量（从 ~/.axiqra/config.json 读取的 token）
+set AXIQRA_TOKEN=<从CLI登录获取的token>
+set AXIQRA_API_URL=http://localhost:8080
+set AXIQRA_WORKSPACE_ID=<工作空间ID>
+```
+
 ### Cursor
 
 在 Cursor 设置中添加：
@@ -67,8 +100,9 @@ AI 会自动完成一切。
       "command": "node",
       "args": ["/path/to/axiqra-connect/mcp/server.mjs"],
       "env": {
-        "AXIQRA_API_URL": "https://api.axiqra.com",
-        "AXIQRA_API_KEY": "your-api-key"
+        "AXIQRA_API_URL": "http://localhost:8080",
+        "AXIQRA_TOKEN": "your-session-token",
+        "AXIQRA_WORKSPACE_ID": "427728627237785600"
       }
     }
   }
@@ -77,27 +111,44 @@ AI 会自动完成一切。
 
 ### Claude Code
 
-在 `~/.claude/settings.json` 中添加规则：
+在 `~/.claude/settings.json` 中添加：
 
 ```json
 {
-  "rules": ["axiqra.md"]
+  "mcpServers": {
+    "axiqra": {
+      "command": "node",
+      "args": ["/path/to/axiqra-connect/mcp/server.mjs"],
+      "env": {
+        "AXIQRA_API_URL": "http://localhost:8080",
+        "AXIQRA_TOKEN": "your-session-token",
+        "AXIQRA_WORKSPACE_ID": "427728627237785600"
+      }
+    }
+  }
 }
 ```
 
-## 本地开发模式
+### 认证问题排查
 
-```bash
-# Windows
-set AXIQRA_API_URL=http://localhost:8080/api
-set AXIQRA_WEB_URL=http://localhost:5173
-node mcp/skill/scripts/auth.js --start
+如果遇到 401 认证失败：
 
-# Linux/Mac
-export AXIQRA_API_URL=http://localhost:8080/api
-export AXIQRA_WEB_URL=http://localhost:5173
-node mcp/skill/scripts/auth.js --start
-```
+1. **检查 token 是否有效：**
+   ```bash
+   # 使用 CLI 重新登录
+   node cli/scripts/axiqra-cli.mjs login
+   
+   # 或使用 API Key
+   AXIQRA_API_KEY=your-api-key
+   ```
+
+2. **验证 token 是否过期：**
+   ```bash
+   node cli/scripts/axiqra-cli.mjs whoami
+   ```
+
+3. **检查工作空间 ID：**
+   确保 `AXIQRA_WORKSPACE_ID` 设置正确
 
 ## 让其他 Agent 接入
 
@@ -120,13 +171,41 @@ node mcp/skill/scripts/auth.js --start
       "command": "node",
       "args": ["/path/to/axiqra-connect/mcp/server.mjs"],
       "env": {
-        "AXIQRA_API_URL": "http://localhost:8080/api",
-        "AXIQRA_WEB_URL": "http://localhost:5173"
+        "AXIQRA_API_URL": "http://localhost:8080",
+        "AXIQRA_TOKEN": "your-session-token",
+        "AXIQRA_WORKSPACE_ID": "your-workspace-id"
       }
     }
   }
 }
 ```
+
+### 认证流程（本地部署）
+
+1. **CLI 登录获取 Token：**
+   ```bash
+   cd axiqra-project/axiqra-connect
+   node cli/scripts/axiqra-cli.mjs login
+   ```
+
+2. **查看获取的 Token：**
+   ```bash
+   # Token 保存在 ~/.axiqra/config.json
+   type ~/.axiqra/config.json
+   ```
+
+3. **配置环境变量：**
+   ```bash
+   # Windows PowerShell
+   $env:AXIQRA_TOKEN = "your-token-here"
+   $env:AXIQRA_API_URL = "http://localhost:8080"
+   $env:AXIQRA_WORKSPACE_ID = "427728627237785600"
+   ```
+
+4. **验证认证：**
+   ```bash
+   node cli/scripts/axiqra-cli.mjs whoami
+   ```
 
 ## 文档
 

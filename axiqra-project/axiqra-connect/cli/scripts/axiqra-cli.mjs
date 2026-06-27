@@ -68,6 +68,10 @@ function saveLogin(token, user) {
       : {};
     config.token = token;
     config.user = user;
+    // 确保 workspaceId 被保存
+    if (user.workspaceId) {
+      config.user.workspaceId = user.workspaceId;
+    }
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
     return true;
   } catch (e) {
@@ -357,7 +361,8 @@ async function loginWithPassword(username, password) {
       saveLogin(token, {
         id: result.data.userId,
         username: result.data.username,
-        nickname: result.data.nickname
+        nickname: result.data.nickname,
+        workspaceId: result.data.workspaceId
       });
       process.env.AXIQRA_TOKEN = token;
 
@@ -391,7 +396,8 @@ async function loginWithApiKey(apiKey) {
       saveLogin(token, {
         id: result.data.userId,
         username: result.data.username,
-        nickname: result.data.nickname
+        nickname: result.data.nickname,
+        workspaceId: result.data.workspaceId
       });
       process.env.AXIQRA_TOKEN = token;
 
@@ -1011,15 +1017,15 @@ program
     }
 
     try {
+      // 修复：如果 invocationId 是数字字符串则发送 invocationId，否则发送 invocationCode
+      const isNumeric = /^\d+$/.test(invocationId);
+      const requestBody = isNumeric
+        ? { invocationId: parseInt(invocationId), feedbackType: type, feedbackContent: options.reason, contextDelta: options.note, evidenceRefs: options.evidence }
+        : { invocationCode: invocationId, feedbackType: type, feedbackContent: options.reason, contextDelta: options.note, evidenceRefs: options.evidence };
+
       const result = await apiRequest('/v1/feedbacks', {
         method: 'POST',
-        body: JSON.stringify({
-          invocationId: parseInt(invocationId) || invocationId,
-          feedbackType: type,
-          feedbackContent: options.reason,
-          contextDelta: options.note,
-          evidenceRefs: options.evidence
-        })
+        body: JSON.stringify(requestBody)
       });
 
       console.log(chalk.green('\n✓ 反馈已提交'));
@@ -1515,6 +1521,136 @@ draftCmd
       console.log(chalk.green(`\n✓ 已删除草稿: ${draftId}\n`));
     } catch (error) {
       console.error(chalk.red('删除失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// Workspace 命令
+// ============================================================
+const workspaceCmd = program
+  .command('workspace')
+  .description('工作空间管理（list/members/add-member）');
+
+// ============================================================
+// workspace list
+// ============================================================
+workspaceCmd
+  .command('list')
+  .description('查看我的工作空间列表')
+  .action(async () => {
+    try {
+      const result = await apiRequest('/workspaces');
+
+      console.log(chalk.blue('\n我的工作空间\n'));
+      console.log(chalk.gray('='.repeat(60)));
+
+      const workspaces = result.data?.content || result.data?.records || [];
+      if (workspaces.length === 0) {
+        console.log(chalk.gray('  暂无工作空间'));
+        console.log(chalk.gray('\n  运行 axiqra workspace create <name> 创建工作空间\n'));
+      } else {
+        workspaces.forEach((ws, i) => {
+          console.log(chalk.cyan(`  ${i + 1}. ${ws.name || ws.workspaceName || '未命名'}`));
+          console.log(chalk.gray(`     ID: ${ws.id || ws.workspaceId}`));
+          console.log(chalk.gray(`     类型: ${ws.type || ws.workspaceType || 'N/A'}`));
+          console.log(chalk.gray(`     角色: ${ws.myRole || 'N/A'}`));
+          console.log();
+        });
+      }
+
+      console.log(chalk.gray('='.repeat(60) + '\n'));
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// workspace create
+// ============================================================
+workspaceCmd
+  .command('create <name>')
+  .description('创建工作空间')
+  .option('-t, --type <type>', '类型', /^(personal|team|enterprise)$/i, 'personal')
+  .action(async (name, options) => {
+    try {
+      const result = await apiRequest('/workspaces', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: name,
+          workspaceType: options.type
+        })
+      });
+
+      console.log(chalk.green('\n✓ 工作空间创建成功'));
+      console.log(chalk.gray(`  ID: ${result.data?.id || result.data?.workspaceId}`));
+      console.log(chalk.gray(`  名称: ${name}`));
+      console.log(chalk.gray(`  类型: ${options.type}\n`));
+    } catch (error) {
+      console.error(chalk.red('创建失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// workspace members <workspace-id>
+// ============================================================
+workspaceCmd
+  .command('members <workspaceId>')
+  .description('查看工作空间成员')
+  .action(async (workspaceId) => {
+    try {
+      const result = await apiRequest(`/workspaces/${workspaceId}/members`);
+
+      console.log(chalk.blue(`\n工作空间 ${workspaceId} 成员\n`));
+      console.log(chalk.gray('='.repeat(60)));
+
+      const members = result.data?.content || result.data?.records || [];
+      if (members.length === 0) {
+        console.log(chalk.gray('  暂无成员\n'));
+      } else {
+        members.forEach((m, i) => {
+          const roleColor = {
+            'owner': chalk.magenta,
+            'admin': chalk.red,
+            'member': chalk.green,
+            'viewer': chalk.gray
+          }[m.role] || chalk.white;
+
+          console.log(chalk.cyan(`  ${i + 1}. ${m.nickname || m.username || m.userId}`));
+          console.log(chalk.gray(`     用户ID: ${m.userId || m.memberId}`));
+          roleColor(`     角色: ${m.role}`);
+          console.log(chalk.gray(`     状态: ${m.status || 'active'}`));
+          console.log();
+        });
+      }
+
+      console.log(chalk.gray('='.repeat(60) + '\n'));
+    } catch (error) {
+      console.error(chalk.red('获取失败:'), error.message);
+    }
+  });
+
+// ============================================================
+// workspace add-member <workspace-id> <user-id>
+// ============================================================
+workspaceCmd
+  .command('add-member <workspaceId> <userId>')
+  .description('添加工作空间成员')
+  .option('-r, --role <role>', '角色', /^(member|admin)$/i, 'member')
+  .action(async (workspaceId, userId, options) => {
+    try {
+      const result = await apiRequest(`/workspaces/${workspaceId}/members?userId=${userId}&role=${options.role}`, {
+        method: 'POST'
+      });
+
+      console.log(chalk.green('\n✓ 成员添加成功'));
+      console.log(chalk.gray(`  工作空间: ${workspaceId}`));
+      console.log(chalk.gray(`  用户ID: ${userId}`));
+      console.log(chalk.gray(`  角色: ${options.role}\n`));
+    } catch (error) {
+      console.error(chalk.red('添加失败:'), error.message);
+      if (error.message.includes('403')) {
+        console.log(chalk.yellow('  提示: 只有 admin 或 owner 才能添加成员\n'));
+      }
     }
   });
 

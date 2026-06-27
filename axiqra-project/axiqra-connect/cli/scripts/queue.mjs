@@ -12,6 +12,19 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 
 /**
+ * 获取平台特定的配置目录
+ */
+function getConfigDir() {
+  if (process.env.AXIQRA_CONFIG_DIR) {
+    return process.env.AXIQRA_CONFIG_DIR;
+  }
+  if (process.platform === 'win32') {
+    return resolve(process.env.USERPROFILE || 'C:\\Users\\' + process.env.USERNAME, '.axiqra');
+  }
+  return resolve(process.env.HOME || '', '.axiqra');
+}
+
+/**
  * 暂存条目状态
  */
 export const PENDING_STATUS = {
@@ -57,7 +70,7 @@ export class PendingEntry {
  */
 export class QueueManager {
   constructor(options = {}) {
-    this.queueDir = options.queueDir || resolve(process.env.AXIQRA_CONFIG_DIR || resolve(process.env.HOME || '', '.axiqra'), 'queue');
+    this.queueDir = options.queueDir || resolve(getConfigDir(), 'queue');
     this.maxRetries = options.maxRetries || 5;
     this.baseDelayMs = options.baseDelayMs || 1000;
     this.maxDelayMs = options.maxDelayMs || 300000; // 5 分钟

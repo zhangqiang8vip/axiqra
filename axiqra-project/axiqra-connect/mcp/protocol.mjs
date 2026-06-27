@@ -157,6 +157,7 @@ export const MCP_TOOL_DEFINITIONS = [
           properties: {
             session_id: { type: 'string' },
             task_goal: { type: 'string' },
+            workspace_id: { type: 'string', description: '工作空间ID（可选，不填则使用默认workspace）' },
             environment: {
               type: 'object',
               properties: {
@@ -165,17 +166,20 @@ export const MCP_TOOL_DEFINITIONS = [
                 os: { type: 'string' }
               }
             },
-            forward_path: { type: 'array' },
-            reverse_path: { type: 'array' },
-            decision_path: { type: 'array' },
+            forward_path: { type: 'array', items: { type: 'string' } },
+            reverse_path: { type: 'array', items: { type: 'string' } },
+            decision_path: { type: 'array', items: { type: 'string' } },
             evidence_refs: { type: 'array', items: { type: 'string' } },
             rollback_path: { type: 'object' },
+            risk_level: { type: 'string', enum: ['R0', 'R1', 'R2', 'R3', 'R4', 'development', 'staging', 'production'] },
+            tool_type: { type: 'string' },
+            context_snapshot: { type: 'string' },
             outcome: {
               type: 'string',
               enum: ['success', 'failure', 'partial']
             }
           },
-          required: ['task_goal', 'outcome']
+          required: ['task_goal', 'outcome', 'risk_level', 'evidence_refs']
         },
         idempotency_key: {
           type: 'string',
@@ -248,6 +252,11 @@ export const MCP_TOOL_DEFINITIONS = [
         target_id: {
           type: 'string',
           description: '目标ID'
+        },
+        // 工作空间（用于获取用户默认workspace）
+        workspace_id: {
+          type: 'string',
+          description: '工作空间ID（可选，不填则使用默认workspace）'
         },
         // 调用结果
         result_type: {

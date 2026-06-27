@@ -11,6 +11,7 @@ import com.axiqra.common.domain.enums.ScopeEnum;
 import com.axiqra.common.domain.enums.SolutionStatus;
 import com.axiqra.common.domain.enums.VerificationLevel;
 import com.axiqra.common.domain.enums.VisibilityScope;
+import com.axiqra.common.domain.vo.PageResponse;
 import com.axiqra.common.domain.vo.SearchResultItemVO;
 import com.axiqra.common.domain.vo.SolutionDetailVO;
 import com.axiqra.common.domain.vo.SolutionFeedbackStatsVO;
@@ -207,6 +208,26 @@ public class SolutionServiceImpl implements SolutionService {
                 .filter(this::isPubliclyReadableSolution)
                 .map(solution -> toSearchResult(solution, null))
                 .toList();
+    }
+
+    @Override
+    public PageResponse<SearchResultItemVO> listMySolutions(Long userId, Long workspaceId, int page, int pageSize) {
+        if (userId == null) {
+            return PageResponse.empty();
+        }
+        int normalizedPage = Math.max(1, page);
+        int normalizedPageSize = Math.min(Math.max(1, pageSize), 50);
+        int offset = (normalizedPage - 1) * normalizedPageSize;
+
+        List<SolutionEntity> solutions = defaultIfNull(solutionMapper.selectPageByWorkspace(workspaceId, userId, normalizedPageSize, offset));
+        long total = solutionMapper.countByWorkspace(workspaceId, userId);
+
+        List<SearchResultItemVO> items = solutions.stream()
+                .filter(Objects::nonNull)
+                .map(s -> toSearchResult(s, null))
+                .toList();
+
+        return PageResponse.of(items, normalizedPage, normalizedPageSize, total);
     }
 
     private boolean canView(Long userId, SolutionEntity solution) {

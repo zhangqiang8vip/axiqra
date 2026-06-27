@@ -65,4 +65,22 @@ public interface SolutionMapper extends BaseMapper<SolutionEntity> {
                 .and("is_deleted = FALSE");
         return selectListByQuery(qw);
     }
+
+    @Select("<script>" +
+            "SELECT * FROM axiqra_solution WHERE is_deleted = FALSE " +
+            "<if test='workspaceId != null'> AND workspace_id = #{workspaceId} </if>" +
+            "<if test='authorId != null'> AND author_id = #{authorId} </if>" +
+            " ORDER BY gmt_modified DESC LIMIT #{limit} OFFSET #{offset}" +
+            "</script>")
+    List<SolutionEntity> selectPageByWorkspace(@Param("workspaceId") Long workspaceId,
+                                              @Param("authorId") Long authorId,
+                                              @Param("limit") int limit,
+                                              @Param("offset") int offset);
+
+    @Select("<script>" +
+            "SELECT COUNT(*) FROM axiqra_solution WHERE is_deleted = FALSE " +
+            "<if test='workspaceId != null'> AND workspace_id = #{workspaceId} </if>" +
+            "<if test='authorId != null'> AND author_id = #{authorId} </if>" +
+            "</script>")
+    long countByWorkspace(@Param("workspaceId") Long workspaceId, @Param("authorId") Long authorId);
 }

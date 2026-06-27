@@ -43,6 +43,10 @@ public class RbacAdapter implements RbacPort {
         if (userId == null || workspaceId == null || requiredRole == null) {
             return false;
         }
+        // 个人空间 owner 直接通过 workspace.owner_id 判断
+        if (requiredRole == MemberRole.OWNER && isWorkspaceOwner(userId, workspaceId)) {
+            return true;
+        }
         MembershipEntity membership = membershipMapper.selectByUserAndWorkspace(userId, workspaceId);
         if (membership == null) {
             return false;
@@ -59,7 +63,18 @@ public class RbacAdapter implements RbacPort {
 
     @Override
     public boolean isOwner(Long userId, Long workspaceId) {
-        return hasRole(userId, workspaceId, MemberRole.OWNER);
+        return isWorkspaceOwner(userId, workspaceId) || hasRole(userId, workspaceId, MemberRole.OWNER);
+    }
+
+    /**
+     * 检查用户是否为工作空间的 owner（通过 workspace.owner_id 字段）
+     */
+    private boolean isWorkspaceOwner(Long userId, Long workspaceId) {
+        if (userId == null || workspaceId == null) {
+            return false;
+        }
+        var workspace = workspaceMapper.selectById(workspaceId);
+        return workspace != null && userId.equals(workspace.getOwnerId());
     }
 
     @Override
@@ -71,6 +86,10 @@ public class RbacAdapter implements RbacPort {
     public MemberRole getRole(Long userId, Long workspaceId) {
         if (userId == null || workspaceId == null) {
             return null;
+        }
+        // 个人空间 owner 直接通过 workspace.owner_id 判断
+        if (isWorkspaceOwner(userId, workspaceId)) {
+            return MemberRole.OWNER;
         }
         MembershipEntity membership = membershipMapper.selectByUserAndWorkspace(userId, workspaceId);
         if (membership == null) {
@@ -94,6 +113,10 @@ public class RbacAdapter implements RbacPort {
     public boolean isMember(Long userId, Long workspaceId) {
         if (userId == null || workspaceId == null) {
             return false;
+        }
+        // workspace owner 也是成员
+        if (isWorkspaceOwner(userId, workspaceId)) {
+            return true;
         }
         MembershipEntity membership = membershipMapper.selectByUserAndWorkspace(userId, workspaceId);
         return membership != null && MemberStatus.ACTIVE.getCode().equals(membership.getStatus());

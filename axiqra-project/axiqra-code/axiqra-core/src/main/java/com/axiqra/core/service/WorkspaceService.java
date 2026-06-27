@@ -31,6 +31,11 @@ public interface WorkspaceService {
     WorkspaceVO getById(Long workspaceId, Long userId);
 
     /**
+     * 获取用户的个人空间 ID（如果不存在则创建）
+     */
+    Long getOrCreatePersonalWorkspaceId(Long userId);
+
+    /**
      * 更新工作空间（仅 owner 可操作）
      */
     WorkspaceVO update(Long workspaceId, Long userId, String workspaceName, String workspaceType);

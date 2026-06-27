@@ -82,6 +82,7 @@ public class TraceServiceImpl implements TraceService {
                 .setForwardSteps(trimToNull(request.getForwardSteps()))
                 .setReversePath(trimToNull(request.getReversePath()))
                 .setDecisions(trimToNull(request.getDecisions()))
+                .setDecisionPath(trimToNull(request.getDecisionPath()))
                 .setRollbackPath(trimToNull(request.getRollbackPath()))
                 .setOutcome(request.getOutcome().trim())
                 .setRiskLevel(riskLevel)
@@ -93,6 +94,7 @@ public class TraceServiceImpl implements TraceService {
                 .setReviewId(null)
                 .setSolutionId(request.getSolutionId())
                 .setEvolutionSuggestion(trimToNull(request.getEvolutionSuggestion()))
+                .setEvolutionHint(trimToNull(request.getEvolutionHint()))
                 .setDeleted(false);
         engineeringTraceMapper.insertSelective(entity);
 
@@ -275,6 +277,7 @@ public class TraceServiceImpl implements TraceService {
                 .forwardSteps(trace.getForwardSteps())
                 .reversePath(trace.getReversePath())
                 .decisions(trace.getDecisions())
+                .decisionPath(trace.getDecisionPath())
                 .rollbackPath(trace.getRollbackPath())
                 .outcome(trace.getOutcome())
                 .riskLevel(trace.getRiskLevel() != null ? trace.getRiskLevel().getCode() : null)
@@ -286,6 +289,7 @@ public class TraceServiceImpl implements TraceService {
                 .reviewId(trace.getReviewId())
                 .solutionId(trace.getSolutionId())
                 .evolutionSuggestion(trace.getEvolutionSuggestion())
+                .evolutionHint(trace.getEvolutionHint())
                 .evidencePath(trace.getEvidencePath())
                 .gmtCreate(trace.getGmtCreate())
                 .gmtModified(trace.getGmtModified())

@@ -8,6 +8,7 @@ import com.axiqra.common.domain.entity.ProjectCaseEntity;
 import com.axiqra.common.domain.enums.LicenseScope;
 import com.axiqra.common.domain.enums.ScopeEnum;
 import com.axiqra.common.domain.enums.TraceStatus;
+import com.axiqra.common.domain.vo.PageResponse;
 import com.axiqra.common.domain.vo.ProjectCaseDetailVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
@@ -22,6 +23,8 @@ import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * Project Case 服务实现
@@ -125,6 +128,26 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
             throw new BizException(ErrorCode.FORBIDDEN, "无权访问该 Project Case");
         }
         return toDetailVO(entity);
+    }
+
+    @Override
+    public PageResponse<ProjectCaseDetailVO> listByWorkspace(Long userId, Long workspaceId, int page, int pageSize) {
+        if (userId == null) {
+            return PageResponse.empty();
+        }
+        int normalizedPage = Math.max(1, page);
+        int normalizedPageSize = Math.min(Math.max(1, pageSize), 50);
+        int offset = (normalizedPage - 1) * normalizedPageSize;
+
+        List<ProjectCaseEntity> cases = projectCaseMapper.selectPageByWorkspace(workspaceId, null, normalizedPageSize, offset);
+        long total = projectCaseMapper.countByWorkspace(workspaceId, null);
+
+        List<ProjectCaseDetailVO> items = cases.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(this::toDetailVO)
+                .toList();
+
+        return PageResponse.of(items, normalizedPage, normalizedPageSize, total);
     }
 
     @Override

@@ -180,6 +180,23 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
+    public Long getOrCreatePersonalWorkspaceId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        var owned = workspaceMapper.selectByOwnerId(userId);
+        if (owned != null && !owned.isEmpty()) {
+            for (var ws : owned) {
+                if (ws.getWorkspaceType() == WorkspaceType.PERSONAL) {
+                    return ws.getId();
+                }
+            }
+            return owned.get(0).getId();
+        }
+        return null;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public WorkspaceVO update(Long workspaceId, Long userId, String workspaceName, String workspaceType) {
         if (workspaceId == null) {

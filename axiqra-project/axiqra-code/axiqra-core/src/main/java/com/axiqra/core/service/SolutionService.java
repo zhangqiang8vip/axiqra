@@ -1,6 +1,7 @@
 package com.axiqra.core.service;
 
 import com.axiqra.common.domain.dto.SolutionCreateFromProjectCaseRequest;
+import com.axiqra.common.domain.vo.PageResponse;
 import com.axiqra.common.domain.vo.SolutionDetailVO;
 import com.axiqra.common.domain.vo.SearchResultItemVO;
 
@@ -16,6 +17,8 @@ public interface SolutionService {
     SolutionDetailVO getDetail(Long userId, Long solutionId);
 
     SolutionDetailVO getPublicDetail(Long solutionId);
+
+    PageResponse<SearchResultItemVO> listMySolutions(Long userId, Long workspaceId, int page, int pageSize);
 
     List<SearchResultItemVO> listPublicSolutions(String query,
                                                  String domain,

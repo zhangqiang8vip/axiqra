@@ -25,18 +25,31 @@ public class CandidateSeedServiceImpl implements CandidateSeedService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CandidateSeedCreationResult createOrReuseCandidateSeed(Long userId, SearchRequest request) {
+        return createOrReuseCandidateSeed(userId, request, null, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CandidateSeedCreationResult createOrReuseCandidateSeed(Long userId,
+                                                                    SearchRequest request,
+                                                                    String customGap,
+                                                                    String evidenceHint) {
         String queryHash = hashQuery(request.getQuery(), request.getWorkspaceId(), request.getTechStack(), request.getDomain());
         CandidateSeedEntity existing = candidateSeedMapper.selectByQueryHashAndWorkspaceId(queryHash, request.getWorkspaceId());
         if (existing != null) {
             return new CandidateSeedCreationResult(existing, false);
         }
+        // 自定义 coverage_gap 优先；否则走自动推断
+        String effectiveCoverageGap = isBlank(customGap) ? buildCoverageGap(request) : customGap.trim();
+        // evidenceHint 合并到 task_goal 末尾，避免动 DB schema
+        String effectiveTaskGoal = mergeEvidence(request.getQuery(), evidenceHint);
         CandidateSeedEntity entity = new CandidateSeedEntity()
                 .setWorkspaceId(request.getWorkspaceId())
                 .setAuthorId(userId)
                 .setQueryHash(queryHash)
-                .setTaskGoal(request.getQuery().trim())
+                .setTaskGoal(effectiveTaskGoal)
                 .setTechStack(blankToNull(request.getTechStack()))
-                .setCoverageGap(buildCoverageGap(request))
+                .setCoverageGap(effectiveCoverageGap)
                 .setStatus("open")
                 .setAssigneeId(null)
                 .setSolutionId(null)
@@ -52,6 +65,19 @@ public class CandidateSeedServiceImpl implements CandidateSeedService {
             }
             throw new BizException(ErrorCode.DUPLICATE_ENTRY, "候选种子在重试时已被删除或处于不一致状态", ex);
         }
+    }
+
+    /**
+     * 合并 evidence hint 到 task_goal 末尾
+     */
+    static String mergeEvidence(String query, String evidenceHint) {
+        String q = query == null ? "" : query.trim();
+        if (isBlank(evidenceHint)) return q;
+        return q + "\n\n[Evidence] " + evidenceHint.trim();
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
     }
 
     static String buildCoverageGap(SearchRequest request) {

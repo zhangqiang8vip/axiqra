@@ -260,8 +260,8 @@ public class PolicyEngineAdapter implements PolicyEnginePort {
                 ScopeEnum.CASE_WRITE.getCode(),
                 ScopeEnum.FEEDBACK_READ.getCode(),
                 ScopeEnum.FEEDBACK_WRITE.getCode(),
-                ScopeEnum.SEED_READ.getCode(),
-                ScopeEnum.SEED_WRITE.getCode(),
+                ScopeEnum.CONTRIBUTION_READ.getCode(),
+                ScopeEnum.CONTRIBUTION_WRITE.getCode(),
                 ScopeEnum.PUBLIC_READ.getCode()
         );
         // S2 TODO: 从 axiqra_authorization 表查询用户持有的实际 scope

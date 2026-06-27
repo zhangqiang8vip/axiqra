@@ -1,10 +1,17 @@
 package com.axiqra.core.service.impl;
 
 import com.axiqra.common.domain.entity.UserEntity;
+import com.axiqra.common.domain.entity.WorkspaceEntity;
+import com.axiqra.common.domain.entity.MembershipEntity;
+import com.axiqra.common.domain.enums.MemberRole;
+import com.axiqra.common.domain.enums.MemberStatus;
+import com.axiqra.common.domain.enums.WorkspaceType;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.util.PasswordHashUtil;
+import com.axiqra.core.mapper.MembershipMapper;
 import com.axiqra.core.mapper.UserMapper;
+import com.axiqra.core.mapper.WorkspaceMapper;
 import com.axiqra.core.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +39,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final WorkspaceMapper workspaceMapper;
+    private final MembershipMapper membershipMapper;
     private final PasswordHashUtil passwordHashUtil;
 
     @Override
@@ -73,8 +82,41 @@ public class UserServiceImpl implements UserService {
             log.error("用户注册数据库异常: username={}, email={}", username, email, e);
             throw new BizException(ErrorCode.DATABASE_ERROR, "注册失败，请稍后重试");
         }
+        
+        // 注册成功后自动创建个人空间
+        createPersonalWorkspace(user.getId(), nickname);
+        
         log.info("用户注册成功: userId={}", user.getId());
         return user;
+    }
+
+    /**
+     * 为新用户创建个人空间
+     */
+    private void createPersonalWorkspace(Long userId, String nickname) {
+        String workspaceName = (nickname != null && !nickname.isBlank()) 
+                ? nickname + " 的空间" 
+                : "我的空间";
+        
+        WorkspaceEntity workspace = new WorkspaceEntity()
+                .setOwnerId(userId)
+                .setWorkspaceName(workspaceName)
+                .setWorkspaceType(WorkspaceType.PERSONAL)
+                .setDeleted(false);
+        
+        workspaceMapper.insertSelective(workspace);
+        
+        // 自动将自己添加为 owner
+        MembershipEntity membership = new MembershipEntity()
+                .setWorkspaceId(workspace.getId())
+                .setUserId(userId)
+                .setRole(MemberRole.OWNER.getCode())
+                .setStatus(MemberStatus.ACTIVE.getCode())
+                .setDeleted(false);
+        
+        membershipMapper.insertSelective(membership);
+        
+        log.info("为用户创建个人空间: userId={}, workspaceId={}", userId, workspace.getId());
     }
 
     @Override

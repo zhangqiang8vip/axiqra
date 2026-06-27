@@ -52,7 +52,12 @@ public class InvocationServiceImpl implements InvocationService {
         entity.setTargetType(request.getTargetType());
         entity.setTargetId(request.getTargetId());
         entity.setWorkspaceId(request.getWorkspaceId());
-        entity.setInvocationCode(request.getInvocationCode());
+        // invocationCode 不能为空，如果没有提供则使用 requestId
+        String invocationCode = request.getInvocationCode();
+        if (invocationCode == null || invocationCode.isBlank()) {
+            invocationCode = request.getRequestId();
+        }
+        entity.setInvocationCode(invocationCode);
         entity.setToolType(request.getToolType());
         entity.setRiskLevel(request.getRiskLevel() != null ? request.getRiskLevel() : 0);
         entity.setRequiredConfirmation(request.getRequiredConfirmation() != null ? request.getRequiredConfirmation() : 0);

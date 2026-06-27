@@ -37,3 +37,30 @@ tools/maven-install-all.ps1
 # IDE
 **/rebel.xml
 
+# === Frontend (axiqra-app) is a separate independent repository ===
+# Source lives at axiqra-project/axiqra-app with its own .git; commit there, not here.
+# We only ignore the runtime/build artifacts (node_modules, dist, tsbuildinfo, .env.*).
+axiqra-project/axiqra-app/node_modules/
+axiqra-project/axiqra-app/dist/
+axiqra-project/axiqra-app/*.tsbuildinfo
+axiqra-project/axiqra-app/.env
+axiqra-project/axiqra-app/.env.local
+axiqra-project/axiqra-app/.env.*.local
+# The frontend repo's own .git and .env.example are managed inside axiqra-app/
+# and intentionally left untracked from the parent repository.
+
+# === Maven build outputs ===
+**/target/
+
+# === Local debug/diagnostic scripts and one-off probes ===
+tests/mcp-e2e.js
+tests/mcp-call.js
+tests/doctor-loop.js
+tests/test-parse*.js
+tests/test-safe*.js
+tests/mcp-r1.json
+tests/mcp-step2*.txt
+tests/out.json
+tests/API_TEST_REPORT.md
+tests/temp/
+

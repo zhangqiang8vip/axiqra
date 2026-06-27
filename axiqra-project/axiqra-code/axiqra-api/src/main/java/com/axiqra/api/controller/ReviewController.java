@@ -39,7 +39,10 @@ public class ReviewController {
     @GetMapping("/pending")
     @RequireScope("review:read")
     public ResponseEntity<ApiResponse<List<ReviewDetailVO>>> getPendingReviews(
-            @RequestParam(defaultValue = "human") @Pattern(regexp = "^(HUMAN|AUTO|QUARANTINED)$", message = "queue 只能是 HUMAN|AUTO|QUARANTINED") @Size(max = 32) String queue,
+            @RequestParam(defaultValue = "human_review") @Pattern(
+                regexp = "^(AUTO_PASS|AUTO_REJECT|LOW_RISK_SAMPLING|HUMAN_REVIEW|CERTIFIED_REVIEW|DOMAIN_REVIEW|APPEAL|HUMAN|AUTO|QUARANTINED)$",
+                message = "queue 必须是 AUTO_PASS|AUTO_REJECT|LOW_RISK_SAMPLING|HUMAN_REVIEW|CERTIFIED_REVIEW|DOMAIN_REVIEW|APPEAL"
+            ) @Size(max = 32) String queue,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
         long userId = StpUtil.getLoginIdAsLong();
         List<ReviewDetailVO> result = reviewService.getPendingReviews(userId, queue, limit);

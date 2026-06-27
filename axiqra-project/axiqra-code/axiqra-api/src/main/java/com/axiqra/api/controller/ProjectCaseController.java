@@ -2,6 +2,7 @@ package com.axiqra.api.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.dto.ProjectCaseCreateRequest;
+import com.axiqra.common.domain.vo.PageResponse;
 import com.axiqra.common.domain.vo.ProjectCaseDetailVO;
 import com.axiqra.common.response.ApiResponse;
 import com.axiqra.common.util.PrivacyUtils;
@@ -47,6 +48,18 @@ public class ProjectCaseController {
         long userId = StpUtil.getLoginIdAsLong();
         ProjectCaseDetailVO result = projectCaseService.getDetail(userId, caseId);
         log.info("读取 Project Case 详情: caseId={}, actorHash={}", caseId, PrivacyUtils.pseudonymizeUserId(userId));
+        return ApiResponse.ok(result);
+    }
+
+    @GetMapping
+    @Operation(summary = "分页查询 Project Cases")
+    public ApiResponse<PageResponse<ProjectCaseDetailVO>> listByWorkspace(
+            @RequestParam(required = false) Long workspaceId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        long userId = StpUtil.getLoginIdAsLong();
+        PageResponse<ProjectCaseDetailVO> result = projectCaseService.listByWorkspace(userId, workspaceId, page, pageSize);
+        log.info("分页查询 Project Cases: userId={}, workspaceId={}, page={}, pageSize={}", userId, workspaceId, page, pageSize);
         return ApiResponse.ok(result);
     }
 

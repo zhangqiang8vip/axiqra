@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * @author Axiqra Team
  * @date 2026-06-11
  */
+@Slf4j
 @Tag(name = "Invocation", description = "调用记录接口")
 @RestController
 @RequestMapping("/v1/invocations")
@@ -38,9 +40,15 @@ public class InvocationController {
     @RequireScope("connect:write")
     public ResponseEntity<ApiResponse<InvocationDetailVO>> reportInvocation(
             @Valid @RequestBody InvocationReportRequest request) {
+        log.info("【Invocation 上报】request={}", request);
         long userId = StpUtil.getLoginIdAsLong();
-        InvocationDetailVO result = invocationService.reportInvocation(userId, request);
-        return ResponseEntity.ok(ApiResponse.ok(result));
+        try {
+            InvocationDetailVO result = invocationService.reportInvocation(userId, request);
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (Exception e) {
+            log.error("【Invocation 上报失败】request={}, error={}", request, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Operation(summary = "获取调用详情")

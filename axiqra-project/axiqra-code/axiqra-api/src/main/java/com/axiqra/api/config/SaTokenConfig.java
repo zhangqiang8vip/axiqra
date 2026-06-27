@@ -12,8 +12,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Sa-Token 配置
  *
  * <p>集成 Sa-Token + Redis 实现分布式会话。
- * 注册两个权限拦截器：
+ * 注册三个权限拦截器：
  * <ul>
+ *   <li>Sa-Token 内置登录拦截器：校验 Sa-Token 是否登录</li>
  *   <li>ScopeCheckInterceptor：校验 @RequireScope 注解</li>
  *   <li>WorkspaceRoleCheckInterceptor：校验 @RequireWorkspaceRole 注解</li>
  * </ul>
@@ -42,6 +43,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/internal/health",
                         "/internal/health/verify",
                         "/api/internal/health/**",
+                        "/api/mcp/**",
                         "/actuator/health/**",
                         "/actuator/info",
                         "/v3/api-docs/**",

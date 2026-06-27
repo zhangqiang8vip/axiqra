@@ -6,6 +6,7 @@ import com.axiqra.common.domain.entity.UserEntity;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.common.response.ApiResponse;
 import com.axiqra.core.service.UserService;
+import com.axiqra.core.service.WorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class DeviceAuthController {
 
     private final UserService userService;
+    private final WorkspaceService workspaceService;
     private final StringRedisTemplate redisTemplate;
 
     private static final String CODE_PREFIX = "auth:device:";
@@ -97,17 +99,22 @@ public class DeviceAuthController {
         String token = StpUtil.getTokenValue();
         redisTemplate.delete(key);
 
+        Long workspaceId = workspaceService.getOrCreatePersonalWorkspaceId(userId);
+
         Map<String, Object> result = new HashMap<>();
         result.put("access_token", token);
         result.put("token_type", "Bearer");
         result.put("expires_in", 2592000);
-        result.put("user", Map.of(
-                "id", user.getId(),
-                "username", user.getUsername(),
-                "nickname", user.getNickname() != null ? user.getNickname() : user.getUsername()
-        ));
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("nickname", user.getNickname() != null ? user.getNickname() : user.getUsername());
+        if (workspaceId != null) {
+            userInfo.put("workspaceId", workspaceId);
+        }
+        result.put("user", userInfo);
 
-        log.info("设备授权成功: userId={}", userId);
+        log.info("设备授权成功: userId={}, workspaceId={}", userId, workspaceId);
         return ApiResponse.ok(result);
     }
 

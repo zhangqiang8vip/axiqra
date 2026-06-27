@@ -78,8 +78,7 @@ public class AuthController {
                     request.getEmail(),
                     request.getNickname()
             );
-            // 注册成功后自动创建 personal workspace
-            workspaceService.create(user.getId(), "personal", null);
+            // 注册成功后自动登录（UserService.register 已自动创建 personal workspace）
             StpUtil.login(user.getId());
             String token = StpUtil.getTokenValue();
             LoginResponse body = buildLoginResponse(user, token);

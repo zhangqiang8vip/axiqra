@@ -41,7 +41,7 @@ public class SeedController {
 
     @PostMapping
     @Operation(summary = "创建候选 Seed", description = "搜索无结果时创建候选 Seed")
-    @RequireScope("seed:write")
+    @RequireScope("contribution:write")
     public ApiResponse<CandidateSeedVO> createSeed(@Valid @RequestBody CreateSeedRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
         Long workspaceId = request.workspaceId() != null ? request.workspaceId() : resolveDefaultWorkspaceId(userId);
@@ -52,13 +52,13 @@ public class SeedController {
                 .domain(request.domain())
                 .build();
         CandidateSeedService.CandidateSeedCreationResult result =
-                candidateSeedService.createOrReuseCandidateSeed(userId, searchRequest);
+                candidateSeedService.createOrReuseCandidateSeed(userId, searchRequest, request.coverageGap(), request.evidenceHint());
         return ApiResponse.ok(toVO(result.seed()));
     }
 
     @GetMapping
     @Operation(summary = "获取候选 Seed 列表")
-    @RequireScope("seed:read")
+    @RequireScope("contribution:read")
     public ApiResponse<List<CandidateSeedVO>> listSeeds(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long workspaceId) {
@@ -74,7 +74,7 @@ public class SeedController {
 
     @GetMapping("/{seedId}")
     @Operation(summary = "获取候选 Seed 详情")
-    @RequireScope("seed:read")
+    @RequireScope("contribution:read")
     public ApiResponse<CandidateSeedVO> getSeed(@PathVariable Long seedId) {
         CandidateSeedEntity seed = candidateSeedMapper.selectById(seedId);
         if (seed == null || seed.isDeleted()) {
@@ -106,7 +106,18 @@ public class SeedController {
             Long workspaceId,
             @JsonAlias("tech_stack")
             String techStack,
-            String domain
+            String domain,
+            /**
+             * 用户自定义覆盖空白描述。如果传入且非空，会覆盖自动推断的 coverage_gap。
+             * 用于将 failed 反馈、failed 工程 Trace 升级为 Seed 时附带上下文。
+             */
+            @JsonAlias({"coverage_gap", "coverageGap"})
+            String coverageGap,
+            /**
+             * 证据提示 (URL/路径列表)。可选，用于人工分析后补充。
+             */
+            @JsonAlias({"evidence_hint", "evidenceHint"})
+            String evidenceHint
     ) {
         public String normalizedQuery() {
             return query;

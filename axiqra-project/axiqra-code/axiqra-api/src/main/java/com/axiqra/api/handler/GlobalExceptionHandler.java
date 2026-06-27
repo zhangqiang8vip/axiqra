@@ -175,6 +175,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resp);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        String path = ex.getResourcePath();
+        log.warn("【无静态资源/接口】path={}, traceId={}", path, getTraceId());
+        ApiResponse<Void> resp = ApiResponse.fail(
+                ErrorCode.RESOURCE_NOT_FOUND.getCode(),
+                "接口不存在: " + path,
+                getTraceId()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resp);
+    }
+
     // ==================== Uncaught exceptions (fallback) ====================
     // Explicitly handle RuntimeException (unchecked) so unexpected issues are clear.
     // Error subclasses are rethrown — they should never be caught and serialized.

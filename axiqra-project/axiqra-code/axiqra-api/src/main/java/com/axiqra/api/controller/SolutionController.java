@@ -2,6 +2,7 @@ package com.axiqra.api.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.axiqra.common.domain.dto.SolutionCreateFromProjectCaseRequest;
+import com.axiqra.common.domain.vo.PageResponse;
 import com.axiqra.common.domain.vo.SearchResultItemVO;
 import com.axiqra.common.domain.vo.SolutionDetailVO;
 import com.axiqra.common.response.ApiResponse;
@@ -70,6 +71,18 @@ public class SolutionController {
     public ApiResponse<SolutionDetailVO> getPublicDetail(@PathVariable Long solutionId) {
         SolutionDetailVO result = solutionService.getPublicDetail(solutionId);
         log.info("匿名读取 Public Solution 详情: solutionId={}", solutionId);
+        return ApiResponse.ok(result);
+    }
+
+    @GetMapping
+    @Operation(summary = "分页查询用户的 Solutions")
+    public ApiResponse<PageResponse<SearchResultItemVO>> listMySolutions(
+            @RequestParam(required = false) Long workspaceId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        long userId = StpUtil.getLoginIdAsLong();
+        PageResponse<SearchResultItemVO> result = solutionService.listMySolutions(userId, workspaceId, page, pageSize);
+        log.info("分页查询 Solutions: userId={}, workspaceId={}, page={}, pageSize={}", userId, workspaceId, page, pageSize);
         return ApiResponse.ok(result);
     }
 

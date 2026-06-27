@@ -17,6 +17,9 @@ axiqra-project/axiqra-connect/cli/scripts/.axiqra/
 # Axiqra local Chinese docs — separate private repo
 # _docs/ contains the Axiqra local development docs private git submodule
 docs/_docs/
+# .docs/ contains the Axiqra product spec Chinese corpus kept only on
+# the local development machine; do not track in this repo.
+docs/.docs/
 # Compressed logo assets
 logo/*.zip
 

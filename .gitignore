@@ -55,7 +55,20 @@ axiqra-project/axiqra-app/.env.*.local
 # === Maven build outputs ===
 **/target/
 
+# === Node.js dependencies (axiqra-connect) ===
+# node_modules was previously committed in error; untracked, kept on disk.
+axiqra-project/axiqra-connect/node_modules/
+
 # === Local debug/diagnostic scripts and one-off probes ===
+# Round-based phase reports (R1-R7) and AI black-box test reports live
+# only on local development machines; not part of the source tree.
+tests/claude/
+tests/cursor/
+tests/evidence/
+tests/s1-core/
+REPORTS/
+axiqra-project/test-cases/
+TEST_REPORT_V*.md
 tests/mcp-e2e.js
 tests/mcp-call.js
 tests/doctor-loop.js

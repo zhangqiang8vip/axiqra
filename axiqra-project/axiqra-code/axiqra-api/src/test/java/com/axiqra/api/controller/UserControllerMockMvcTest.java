@@ -86,6 +86,7 @@ class UserControllerMockMvcTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data").isEmpty());
+                // ApiResponse@JsonInclude(NON_NULL) 会省略 data 字段
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

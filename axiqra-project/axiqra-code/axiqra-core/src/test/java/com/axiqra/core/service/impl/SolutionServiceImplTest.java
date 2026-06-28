@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -574,6 +575,8 @@ class SolutionServiceImplTest {
     @Test
     @DisplayName("createFromProjectCase request 为 null 应抛异常")
     void shouldRejectCreateWithNullRequest() {
+        when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
+
         BizException ex = assertThrows(BizException.class,
                 () -> solutionService.createFromProjectCase(1L, null));
 
@@ -665,6 +668,7 @@ class SolutionServiceImplTest {
     @DisplayName("createFromProjectCase 已存在本人 Solution 应复用")
     void shouldReuseExistingSolutionFromSameAuthor() throws Exception {
         SolutionEntity existingSolution = baseSolution();
+        existingSolution.setAuthorId(1L); // 当前 userId 必须是 author 才能复用
         when(rbacService.hasScope(1L, "solution:write")).thenReturn(true);
         when(solutionMapper.selectBySourceCaseId(77L)).thenReturn(existingSolution);
         when(solutionVersionMapper.selectBySolutionId(10L)).thenReturn(List.of());
@@ -700,14 +704,17 @@ class SolutionServiceImplTest {
     }
 
     @Test
-    @DisplayName("listPublicSolutions minVerificationLevel 超出上限应修正为 L5")
+    @DisplayName("listPublicSolutions minVerificationLevel 超出上限 5 应抛异常")
     void shouldCapMinVerificationLevelAtL5() {
-        when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
-                .thenReturn(List.of());
+        // 当前实现：minVerificationLevel > L5(5) 直接抛 PARAM_INVALID，
+        // 不做静默修正。这是有意为之：让调用方明确感知参数错误。
+        // 因此这里不能 mock searchVisibleSolutions，否则会触发 UnnecessaryStubbing。
 
-        var result = solutionService.listPublicSolutions("spring", null, null, 6, null);
+        BizException ex = assertThrows(BizException.class,
+                () -> solutionService.listPublicSolutions("spring", null, null, 6, null));
 
-        assertNotNull(result);
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("minVerificationLevel"));
     }
 
     @Test

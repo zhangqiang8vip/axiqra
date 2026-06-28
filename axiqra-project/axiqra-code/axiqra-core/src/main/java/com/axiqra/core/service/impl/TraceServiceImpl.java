@@ -16,6 +16,7 @@ import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.EngineeringTraceMapper;
 import com.axiqra.core.mapper.TraceEvidenceRefMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.RbacService;
 import com.axiqra.core.service.TraceService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class TraceServiceImpl implements TraceService {
     private final EngineeringTraceMapper engineeringTraceMapper;
     private final TraceEvidenceRefMapper traceEvidenceRefMapper;
     private final RbacService rbacService;
+    private final AxiqraMetrics metrics;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -82,7 +84,6 @@ public class TraceServiceImpl implements TraceService {
                 .setForwardSteps(trimToNull(request.getForwardSteps()))
                 .setReversePath(trimToNull(request.getReversePath()))
                 .setDecisions(trimToNull(request.getDecisions()))
-                .setDecisionPath(trimToNull(request.getDecisionPath()))
                 .setRollbackPath(trimToNull(request.getRollbackPath()))
                 .setOutcome(request.getOutcome().trim())
                 .setRiskLevel(riskLevel)
@@ -94,8 +95,19 @@ public class TraceServiceImpl implements TraceService {
                 .setReviewId(null)
                 .setSolutionId(request.getSolutionId())
                 .setEvolutionSuggestion(trimToNull(request.getEvolutionSuggestion()))
+                .setEvidencePath(null)
+                .setDeleted(false)
+                // V10 新增 JSONB 路径字段：V5/V6/V7 已创建对应列
+                .setForwardPathJson(trimToNull(request.getForwardPath()))
+                .setReversePathJson(trimToNull(request.getReversePath()))
+                .setRollbackPathJson(trimToNull(request.getRollbackPath()))
+                .setDecisionPathJson(trimToNull(request.getDecisionPath()))
+                .setAttemptedFailurePath(trimToNull(request.getAttemptedFailurePath()))
                 .setEvolutionHint(trimToNull(request.getEvolutionHint()))
-                .setDeleted(false);
+                // V10 新增审计与归因字段
+                .setAuthorizationId(request.getAuthorizationId())
+                .setSourceTool(trimToNull(request.getSourceTool()))
+                .setSchemaVersion("1.0");
         engineeringTraceMapper.insertSelective(entity);
 
         for (TraceCreateRequest.TraceEvidenceItem evidence : request.getEvidences()) {
@@ -111,6 +123,7 @@ public class TraceServiceImpl implements TraceService {
         }
 
         List<TraceEvidenceRefEntity> evidences = traceEvidenceRefMapper.selectByTraceId(entity.getId());
+        metrics.recordTraceDraftCreated(String.valueOf(entity.getRiskLevel()));
         log.info("创建 Trace 草稿: traceId={}, workspaceId={}, userId={}", entity.getId(), entity.getWorkspaceId(), userId);
         return toDetailVO(entity, evidences);
     }
@@ -148,6 +161,8 @@ public class TraceServiceImpl implements TraceService {
                 ? TraceStatus.NEEDS_REVIEW
                 : TraceStatus.SUBMITTED);
         engineeringTraceMapper.update(trace);
+        String submitPath = trace.getStatus() == TraceStatus.NEEDS_REVIEW ? "needs_review" : "direct";
+        metrics.recordTraceSubmitted(submitPath, true);
         return toDetailVO(trace, evidences);
     }
 
@@ -277,7 +292,7 @@ public class TraceServiceImpl implements TraceService {
                 .forwardSteps(trace.getForwardSteps())
                 .reversePath(trace.getReversePath())
                 .decisions(trace.getDecisions())
-                .decisionPath(trace.getDecisionPath())
+                .decisionPath(trace.getDecisionPathJson())
                 .rollbackPath(trace.getRollbackPath())
                 .outcome(trace.getOutcome())
                 .riskLevel(trace.getRiskLevel() != null ? trace.getRiskLevel().getCode() : null)

@@ -85,4 +85,26 @@ public class SolutionEntity extends BaseEntity {
     @Nullable
     @Column("inapplicability")
     private String inapplicability;
+
+    // ========== D08 §15 Solution 演化关系字段 ==========
+
+    /** 父 Solution ID：merge / fork / split 操作的来源 Solution */
+    @Nullable
+    @Column("parent_solution_id")
+    private Long parentSolutionId;
+
+    /** 继承 Solution ID：本 Solution 被 merge 到 / 被 superseded 到 */
+    @Nullable
+    @Column("successor_solution_id")
+    private Long successorSolutionId;
+
+    /** Fork 来源 Solution ID：本 Solution 是从哪个 Solution fork 出来的 */
+    @Nullable
+    @Column("fork_of_solution_id")
+    private Long forkOfSolutionId;
+
+    /** 演化类型：merge / fork / supersede / split / rollback / null */
+    @Nullable
+    @Column("evolution_kind")
+    private String evolutionKind;
 }

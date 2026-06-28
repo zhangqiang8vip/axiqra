@@ -48,8 +48,16 @@ public class TraceCreateRequest {
     @JsonAlias({"forward_steps", "forward_path"})
     private String forwardSteps;
 
+    /** 正向路径 (JSON): V10 新字段，V5 的 forward_path 替代物（D06 §3） */
+    @JsonAlias("forward_path")
+    private String forwardPath;
+
     @JsonAlias("reverse_path")
     private String reversePath;
+
+    /** 回滚路径 (JSON): V10 新字段 */
+    @JsonAlias("rollback_path")
+    private String rollbackPath;
 
     @JsonAlias("decision_path")
     private String decisions;
@@ -60,8 +68,9 @@ public class TraceCreateRequest {
     @JsonAlias("decision_path")
     private String decisionPath;
 
-    @JsonAlias("rollback_path")
-    private String rollbackPath;
+    /** 本次案例中尝试过但不成立的方向 (D07 §10) */
+    @JsonAlias("attempted_failure_path")
+    private String attemptedFailurePath;
 
     /**
      * 演进提示 (TEXT): 方案的演进方向和优化建议
@@ -85,6 +94,14 @@ public class TraceCreateRequest {
 
     @JsonAlias("evolution_suggestion")
     private String evolutionSuggestion;
+
+    /** V10: 授权边界 FK → axiqra_authorization.id */
+    @JsonAlias("authorization_id")
+    private Long authorizationId;
+
+    /** V10: AI 工具类型 */
+    @JsonAlias("source_tool")
+    private String sourceTool;
 
     @JsonAlias("idempotency_key")
     private String idempotencyKey;

@@ -41,6 +41,14 @@ public abstract class BaseEntity implements Serializable {
     @Column("gmt_modified")
     protected Instant gmtModified;
 
+    /** 创建人 user_id */
+    @Column("created_by")
+    protected Long createdBy;
+
+    /** 修改人 user_id */
+    @Column("updated_by")
+    protected Long updatedBy;
+
     /** 乐观锁版本号 */
     @Column(value = "version", version = true)
     protected Long version;

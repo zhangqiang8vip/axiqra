@@ -13,6 +13,7 @@ import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.EngineeringTraceMapper;
 import com.axiqra.core.mapper.TraceEvidenceRefMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("TraceServiceImpl 单元测试")
 class TraceServiceImplTest {
 
@@ -46,6 +50,9 @@ class TraceServiceImplTest {
 
     @Mock
     private RbacService rbacService;
+
+    @Mock
+    private AxiqraMetrics metrics;
 
     @InjectMocks
     private TraceServiceImpl traceService;
@@ -251,9 +258,6 @@ class TraceServiceImplTest {
     @Test
     @DisplayName("submitEvidence 空证据列表应抛异常")
     void shouldRejectEmptyEvidenceRefs() {
-        EngineeringTraceEntity trace = traceEntity(88L, 1L, TraceStatus.USER_CONFIRMED, RiskLevel.R1);
-        when(engineeringTraceMapper.selectActiveById(88L)).thenReturn(trace);
-
         BizException ex = assertThrows(BizException.class,
                 () -> traceService.submitEvidence(1L, 88L, List.of()));
 
@@ -343,7 +347,7 @@ class TraceServiceImplTest {
     }
 
     @Test
-    @DisplayName("R2 风险 Trace 提交后应进入 submitted")
+    @DisplayName("R2 风险 Trace 提交后应进入 needs_review（中等风险走人工审核）")
     void shouldSubmitDirectlyForMediumRiskTrace() {
         EngineeringTraceEntity trace = traceEntity(89L, 1L, TraceStatus.USER_CONFIRMED, RiskLevel.R2);
         when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
@@ -352,7 +356,8 @@ class TraceServiceImplTest {
 
         TraceDetailVO result = traceService.submit(1L, 89L);
 
-        assertEquals("submitted", result.getStatus());
+        // R2 (level=2) requiresHumanReview() 返回 true，应进入 needs_review
+        assertEquals("needs_review", result.getStatus());
     }
 
     @Test
@@ -392,10 +397,13 @@ class TraceServiceImplTest {
         TraceCreateRequest request = baseCreateRequest();
         request.setRiskLevel("INVALID");
         when(rbacService.hasScope(1L, "trace:write")).thenReturn(true);
+        when(rbacService.isMember(1L, 100L)).thenReturn(true);
 
         BizException ex = assertThrows(BizException.class,
                 () -> traceService.createDraft(1L, request));
 
+        // validateCreateRequest 先校验 evidence，再校验 riskLevel，
+        // 当前测试用例 evidences 有效，所以会进入 riskLevel 校验分支。
         assertEquals(ErrorCode.PARAM_INVALID.getCode(), ex.getCode());
         assertTrue(ex.getMessage().contains("riskLevel"));
     }

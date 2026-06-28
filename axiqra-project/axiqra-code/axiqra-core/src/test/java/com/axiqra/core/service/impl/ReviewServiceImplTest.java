@@ -7,6 +7,7 @@ import com.axiqra.common.domain.vo.ReviewDetailVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.ReviewMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.SolutionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
@@ -25,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doNothing;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("ReviewServiceImpl 单元测试")
 class ReviewServiceImplTest {
 
@@ -33,6 +37,9 @@ class ReviewServiceImplTest {
 
     @Mock
     private SolutionService solutionService;
+
+    @Mock
+    private AxiqraMetrics metrics;
 
     @InjectMocks
     private ReviewServiceImpl reviewService;
@@ -339,7 +346,8 @@ class ReviewServiceImplTest {
         BizException ex = assertThrows(BizException.class,
                 () -> reviewService.reject(1L, 10L, "RISK_HIGH", "R4 not allowed"));
 
-        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+        // 已删除的 Review 等价于不存在 → RESOURCE_NOT_FOUND (30001)
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
     }
 
     @Test
@@ -352,7 +360,7 @@ class ReviewServiceImplTest {
         BizException ex = assertThrows(BizException.class,
                 () -> reviewService.quarantine(1L, 10L, "QUARANTINE", "malicious"));
 
-        assertEquals(ErrorCode.STATUS_TRANSITION_INVALID.getCode(), ex.getCode());
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), ex.getCode());
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.axiqra.common.domain.vo.SolutionFeedbackStatsVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.InvocationMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.FeedbackService;
 import com.axiqra.core.service.RateLimitService;
 import com.axiqra.common.domain.vo.RateLimitStatusVO;
@@ -42,6 +43,9 @@ class InvocationServiceImplTest {
     @Mock
     private ObjectProvider<FeedbackService> feedbackServiceProvider;
 
+    @Mock
+    private AxiqraMetrics metrics;
+
     private InvocationServiceImpl invocationService;
 
     @Test
@@ -52,7 +56,7 @@ class InvocationServiceImplTest {
         when(invocationMapper.insert(any(InvocationEntity.class)))
                 .thenThrow(new DataIntegrityViolationException("Duplicate entry"));
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
 
         InvocationReportRequest request = new InvocationReportRequest();
         request.setRequestId("req-1");
@@ -75,7 +79,7 @@ class InvocationServiceImplTest {
     void shouldCreateRecordAndCheckRateLimit() {
         ArgumentCaptor<InvocationEntity> captor = ArgumentCaptor.forClass(InvocationEntity.class);
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
 
         InvocationReportRequest request = new InvocationReportRequest();
         request.setRequestId("req-new");
@@ -105,7 +109,7 @@ class InvocationServiceImplTest {
         when(rateLimitService.checkOrThrow(1L, "invocation:report"))
                 .thenThrow(new BizException(ErrorCode.RATE_LIMITED));
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
 
         InvocationReportRequest request = new InvocationReportRequest();
         request.setRequestId("req-new");
@@ -127,7 +131,7 @@ class InvocationServiceImplTest {
     void shouldThrowWhenDetailNotFound() {
         when(invocationMapper.selectById(999L)).thenReturn(null);
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
 
         BizException ex = assertThrows(BizException.class,
                 () -> service.getInvocationDetail(1L, 999L));
@@ -142,7 +146,7 @@ class InvocationServiceImplTest {
         entity.setDeleted(true);
         when(invocationMapper.selectById(10L)).thenReturn(entity);
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
 
         BizException ex = assertThrows(BizException.class,
                 () -> service.getInvocationDetail(1L, 10L));
@@ -156,7 +160,7 @@ class InvocationServiceImplTest {
         InvocationEntity entity = invocationEntity(10L, "req-1");
         when(invocationMapper.selectById(10L)).thenReturn(entity);
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
 
         InvocationDetailVO result = service.getInvocationDetail(1L, 10L);
 
@@ -174,7 +178,7 @@ class InvocationServiceImplTest {
         when(feedbackServiceProvider.getIfAvailable()).thenReturn(mockFeedbackService);
         when(mockFeedbackService.getSolutionFeedbackStats(77L)).thenReturn(expectedStats);
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
         SolutionFeedbackStatsVO result = service.getSolutionFeedbackStats(77L);
 
         assertNotNull(result);
@@ -187,7 +191,7 @@ class InvocationServiceImplTest {
     void shouldReturnEmptyStatsWhenFeedbackServiceUnavailable() {
         when(feedbackServiceProvider.getIfAvailable()).thenReturn(null);
 
-        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider);
+        InvocationServiceImpl service = new InvocationServiceImpl(invocationMapper, rateLimitService, feedbackServiceProvider, metrics);
         SolutionFeedbackStatsVO result = service.getSolutionFeedbackStats(77L);
 
         assertNotNull(result);

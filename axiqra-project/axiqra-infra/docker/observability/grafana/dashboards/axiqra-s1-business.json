@@ -1,0 +1,122 @@
+{
+  "uid": "axiqra-s1-business-metrics",
+  "title": "Axiqra S1 业务指标",
+  "tags": ["axiqra", "s1", "business"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Search Before Act (req/s by kind)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum by (kind, result) (rate(axiqra_search_requests_total[1m]))", "legendFormat": "{{kind}} / {{result}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 2,
+      "title": "Search Latency P95/P99",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (le, kind) (rate(axiqra_search_duration_seconds_bucket[5m])))", "legendFormat": "p95 {{kind}}" },
+        { "expr": "histogram_quantile(0.99, sum by (le, kind) (rate(axiqra_search_duration_seconds_bucket[5m])))", "legendFormat": "p99 {{kind}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 3,
+      "title": "Solution Invocations (by result)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sum by (result) (rate(axiqra_solution_invocations_total[1m]))", "legendFormat": "{{result}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 4,
+      "title": "Review Decisions (by decision)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sum by (decision) (rate(axiqra_review_decisions_total[5m]))", "legendFormat": "{{decision}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 5,
+      "title": "Feedback Submissions (by type)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sum by (type) (rate(axiqra_feedback_submissions_total[5m]))", "legendFormat": "{{type}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 6,
+      "title": "Workspace Created (by type)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sum by (type) (rate(axiqra_workspace_created_total[10m]))", "legendFormat": "{{type}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 7,
+      "title": "Trace Submissions (by path/result)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sum by (path, result) (rate(axiqra_trace_submissions_total[5m]))", "legendFormat": "{{path}} / {{result}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 8,
+      "title": "Project Case Created (by visibility)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sum by (visibility) (rate(axiqra_project_case_created_total[10m]))", "legendFormat": "{{visibility}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 9,
+      "title": "Device Auth Token Refreshes (by result)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 8 },
+      "targets": [
+        { "expr": "sum by (result) (rate(axiqra_device_auth_token_refreshes_total[5m]))", "legendFormat": "{{result}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 10,
+      "title": "JVM Heap Used (MiB)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"heap\"}) / 1024 / 1024", "legendFormat": "{{instance}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "decmbytes" } }
+    },
+    {
+      "id": 11,
+      "title": "HTTP Server Requests P99 (s)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket[5m])))", "legendFormat": "p99 {{uri}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    }
+  ]
+}

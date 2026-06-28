@@ -7,6 +7,7 @@ import com.axiqra.common.domain.entity.ReviewEntity;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.ReviewMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.ReviewService;
 import com.axiqra.core.service.SolutionService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
     private final SolutionService solutionService;
+    private final AxiqraMetrics metrics;
 
     @Override
     public List<ReviewDetailVO> getPendingReviews(Long userId, String queue, int limit) {
@@ -48,6 +50,7 @@ public class ReviewServiceImpl implements ReviewService {
             solutionService.transitionAfterReviewApproved(entity.getObjectId(), reviewerId);
         }
 
+        metrics.recordReviewDecision("approved");
         log.info("审核通过: reviewId={}, reviewerId={}", reviewId, reviewerId);
         return toDetailVO(entity);
     }
@@ -62,6 +65,7 @@ public class ReviewServiceImpl implements ReviewService {
             solutionService.transitionAfterReviewRejected(entity.getObjectId(), reviewerId, reasonCode);
         }
 
+        metrics.recordReviewDecision("rejected");
         log.info("审核拒绝: reviewId={}, reviewerId={}, reasonCode={}", reviewId, reviewerId, reasonCode);
         return toDetailVO(entity);
     }
@@ -76,6 +80,7 @@ public class ReviewServiceImpl implements ReviewService {
             solutionService.transitionToQuarantined(entity.getObjectId(), reviewerId, reasonCode);
         }
 
+        metrics.recordReviewDecision("quarantined");
         log.info("内容隔离: reviewId={}, reviewerId={}", reviewId, reviewerId);
         return toDetailVO(entity);
     }

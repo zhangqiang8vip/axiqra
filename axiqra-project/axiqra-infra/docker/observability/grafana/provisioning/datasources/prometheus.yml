@@ -1,0 +1,12 @@
+# 自动加载 Prometheus 数据源
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://axiqra_prometheus:9091
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 15s

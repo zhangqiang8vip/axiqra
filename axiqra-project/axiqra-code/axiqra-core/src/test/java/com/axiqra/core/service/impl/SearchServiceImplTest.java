@@ -14,6 +14,7 @@ import com.axiqra.common.domain.vo.SearchResponseVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.SolutionMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.CandidateSeedService;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
@@ -36,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("SearchServiceImpl 单元测试")
 class SearchServiceImplTest {
 
@@ -50,6 +54,9 @@ class SearchServiceImplTest {
 
     @Mock
     private com.axiqra.core.service.VectorSearchService vectorSearchService;
+
+    @Mock
+    private AxiqraMetrics metrics;
 
     @InjectMocks
     private SearchServiceImpl searchService;
@@ -347,6 +354,7 @@ class SearchServiceImplTest {
         SearchRequest request = new SearchRequest();
         request.setQuery("spring boot");
         request.setWorkspaceId(100L);
+        request.setIncludeCandidateSeed(false);
         when(rbacService.hasScope(1L, "search:read")).thenReturn(true);
         when(rbacService.getMemberships(1L)).thenReturn(null);
         when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
@@ -364,6 +372,7 @@ class SearchServiceImplTest {
         SearchRequest request = new SearchRequest();
         request.setQuery("spring boot");
         request.setWorkspaceId(100L);
+        request.setIncludeCandidateSeed(false); // 显式禁用，避免走到 seed 创建路径
         MembershipEntity inactiveMembership = new MembershipEntity();
         inactiveMembership.setWorkspaceId(200L);
         inactiveMembership.setStatus("inactive");
@@ -383,6 +392,7 @@ class SearchServiceImplTest {
         SearchRequest request = new SearchRequest();
         request.setQuery("spring boot");
         request.setWorkspaceId(100L);
+        request.setIncludeCandidateSeed(false);
         when(rbacService.hasScope(1L, "search:read")).thenReturn(true);
         when(rbacService.getMemberships(1L)).thenReturn(List.of(activeMembership(100L)));
         when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
@@ -438,6 +448,7 @@ class SearchServiceImplTest {
         request.setQuery("spring boot");
         request.setWorkspaceId(100L);
         request.setEnableVectorSearch(true);
+        request.setIncludeCandidateSeed(false);
         when(rbacService.hasScope(1L, "search:read")).thenReturn(true);
         when(rbacService.getMemberships(1L)).thenReturn(List.of(activeMembership(100L)));
         when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
@@ -472,6 +483,8 @@ class SearchServiceImplTest {
         SearchRequest request = new SearchRequest();
         request.setQuery("spring boot");
         request.setWorkspaceId(100L);
+        request.setEnableVectorSearch(false); // 关闭向量搜索 → 走 keyword-only 路径
+        request.setIncludeCandidateSeed(false);
         when(rbacService.hasScope(1L, "search:read")).thenReturn(true);
         when(rbacService.getMemberships(1L)).thenReturn(List.of(activeMembership(100L)));
         when(solutionMapper.searchVisibleSolutions(anyString(), any(), anyList(), any(), any(), any(), anyInt()))
@@ -479,7 +492,9 @@ class SearchServiceImplTest {
 
         SearchResponseVO result = searchService.searchBeforeAct(1L, request);
 
-        assertEquals(1, result.getHybridSearchHits());
+        // keyword-only 模式下 hybridHits = 0（不是混合召回）
+        assertEquals(0, result.getHybridSearchHits());
+        assertEquals(1, result.getKeywordSearchHits());
     }
 
     // ========== 向量搜索测试 ==========

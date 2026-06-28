@@ -9,6 +9,7 @@ import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
 import com.axiqra.core.mapper.InvocationMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.FeedbackService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +36,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final FeedbackMapper feedbackMapper;
     private final InvocationMapper invocationMapper;
     private final ObjectMapper objectMapper;
+    private final AxiqraMetrics metrics;
 
     @Override
     @Transactional
@@ -74,6 +76,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         entity.setVersion(0L);
 
         feedbackMapper.insert(entity);
+        metrics.recordFeedbackSubmission(request.getFeedbackType() != null ? request.getFeedbackType() : "unknown");
         log.info("Feedback 提交成功: id={}, invocationId={}, type={}", entity.getId(), invocation.getId(), request.getFeedbackType());
 
         return toDetailVO(entity);

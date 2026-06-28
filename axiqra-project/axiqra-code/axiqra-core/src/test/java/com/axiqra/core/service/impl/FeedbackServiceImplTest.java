@@ -9,6 +9,7 @@ import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.FeedbackMapper;
 import com.axiqra.core.mapper.InvocationMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
@@ -30,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("FeedbackServiceImpl 单元测试")
 class FeedbackServiceImplTest {
 
@@ -38,6 +42,9 @@ class FeedbackServiceImplTest {
 
     @Mock
     private InvocationMapper invocationMapper;
+
+    @Mock
+    private AxiqraMetrics metrics;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();

@@ -14,6 +14,7 @@ import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.MembershipMapper;
 import com.axiqra.core.mapper.WorkspaceMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.RbacService;
 import com.axiqra.core.service.WorkspaceService;
 import com.axiqra.core.mapper.UserMapper;
@@ -45,6 +46,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final MembershipMapper membershipMapper;
     private final UserMapper userMapper;
     private final RbacService rbacService;
+    private final AxiqraMetrics metrics;
 
     @Override
     public PageResponse<WorkspaceVO> listMyWorkspaces(Long userId) {
@@ -149,6 +151,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         log.info("创建工作空间: workspaceId={}, name={}, type={}, ownerId={}",
                 workspace.getId(), workspaceName, workspaceType, userId);
+
+        metrics.recordWorkspaceCreated(workspaceType.getCode());
 
         return WorkspaceVO.from(workspace)
                 .withMyRole(MemberRole.OWNER.getCode())

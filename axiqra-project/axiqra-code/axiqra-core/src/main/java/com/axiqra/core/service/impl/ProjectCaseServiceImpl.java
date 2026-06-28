@@ -15,6 +15,7 @@ import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.AuthorizationMapper;
 import com.axiqra.core.mapper.EngineeringTraceMapper;
 import com.axiqra.core.mapper.ProjectCaseMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.ProjectCaseService;
 import com.axiqra.core.service.RbacService;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
     private final AuthorizationMapper authorizationMapper;
     private final RbacService rbacService;
     private final AuditPort auditPort;
+    private final AxiqraMetrics metrics;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -109,6 +111,7 @@ public class ProjectCaseServiceImpl implements ProjectCaseService {
                 .tenantId(null)
                 .build());
 
+        metrics.recordProjectCaseCreated(entity.getVisibilityScope());
         return toDetailVO(entity);
     }
 

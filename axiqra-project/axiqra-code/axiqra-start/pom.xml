@@ -49,7 +49,11 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- Micrometer（已通过 Actuator 传递引入） -->
+        <!-- Micrometer Prometheus registry（暴露 /actuator/prometheus） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
 
         <!-- Audit datasource runtime dependencies -->
         <dependency>

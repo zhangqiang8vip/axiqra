@@ -1,0 +1,91 @@
+# ============================================================
+# Axiqra Observability Stack
+# Prometheus + Grafana for /actuator/prometheus scraping
+#
+# 启动命令（与后端 infra 分离，避免启动 backend 服务）：
+#   cd E:\ProjectMyNew\axiqra\axiqra-project\axiqra-infra
+#   docker compose -f docker-compose.observability.yml up -d
+#
+# 验证：
+#   - Prometheus UI:  http://localhost:9091
+#   - Grafana UI:     http://localhost:3001  (admin / admin)
+#   - Axiqra 后端:    http://localhost:9090/actuator/prometheus
+#
+# 注意：本 compose 仅包含可观测性基础设施，与主后端 (axiqra-infra/docker-compose.yml)
+# 完全解耦。axiqra-core 进程需要独立启动，并暴露 9090 端口。
+# ============================================================
+
+services:
+  # -------------------- Prometheus 时序库 --------------------
+  axiqra_prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: axiqra_prometheus
+    hostname: axiqra-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--storage.tsdb.retention.size=5GB"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+      - "--web.listen-address=:9091"
+    ports:
+      - "127.0.0.1:9091:9091"
+    volumes:
+      - ./docker/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - axiqra_prometheus_data:/prometheus
+    extra_hosts:
+      # 关键：让容器内能访问宿主机上的 axiqra-core actuator 端口
+      - "host.docker.internal:host-gateway"
+    networks:
+      - axiqra_observability_net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9091/-/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # -------------------- Grafana 可视化 --------------------
+  axiqra_grafana:
+    image: grafana/grafana:11.3.0
+    container_name: axiqra_grafana
+    hostname: axiqra-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_INSTALL_PLUGINS=
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - axiqra_grafana_data:/var/lib/grafana
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - axiqra_observability_net
+    depends_on:
+      axiqra_prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  axiqra_observability_net:
+    name: axiqra_observability_net
+    driver: bridge
+
+volumes:
+  axiqra_prometheus_data:
+    name: axiqra_prometheus_data
+  axiqra_grafana_data:
+    name: axiqra_grafana_data

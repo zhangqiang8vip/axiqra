@@ -8,6 +8,7 @@ import com.axiqra.common.domain.vo.SolutionFeedbackStatsVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.InvocationMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.FeedbackService;
 import com.axiqra.core.service.InvocationService;
 import com.axiqra.core.service.RateLimitService;
@@ -32,13 +33,16 @@ public class InvocationServiceImpl implements InvocationService {
     private final InvocationMapper invocationMapper;
     private final RateLimitService rateLimitService;
     private final ObjectProvider<FeedbackService> feedbackServiceProvider;
+    private final AxiqraMetrics metrics;
 
     public InvocationServiceImpl(InvocationMapper invocationMapper,
                                   RateLimitService rateLimitService,
-                                  ObjectProvider<FeedbackService> feedbackServiceProvider) {
+                                  ObjectProvider<FeedbackService> feedbackServiceProvider,
+                                  AxiqraMetrics metrics) {
         this.invocationMapper = invocationMapper;
         this.rateLimitService = rateLimitService;
         this.feedbackServiceProvider = feedbackServiceProvider;
+        this.metrics = metrics;
     }
 
     @Override
@@ -92,8 +96,10 @@ public class InvocationServiceImpl implements InvocationService {
 
         try {
             invocationMapper.insert(entity);
+            metrics.recordSolutionInvocation("success");
             log.info("Invocation 上报成功: id={}, requestId={}", entity.getId(), request.getRequestId());
         } catch (DataIntegrityViolationException ex) {
+            metrics.recordSolutionInvocation("duplicate");
             log.info("Invocation 已存在，幂等返回: requestId={}", request.getRequestId());
             InvocationEntity existing = invocationMapper.selectByRequestId(request.getRequestId());
             if (existing != null) {
@@ -101,6 +107,9 @@ public class InvocationServiceImpl implements InvocationService {
             }
             log.error("Invocation 插入失败但查询不到记录: requestId={}", request.getRequestId());
             throw new IllegalStateException("Invocation 幂等处理异常：无法找到已存在的记录 requestId=" + request.getRequestId());
+        } catch (RuntimeException ex) {
+            metrics.recordSolutionInvocation("failed");
+            throw ex;
         }
 
         if (request.getFeedbackContent() != null || (request.getEvidenceRefs() != null && !request.getEvidenceRefs().isEmpty())) {

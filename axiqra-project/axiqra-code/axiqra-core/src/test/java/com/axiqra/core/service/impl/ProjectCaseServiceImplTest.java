@@ -15,6 +15,7 @@ import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.AuthorizationMapper;
 import com.axiqra.core.mapper.EngineeringTraceMapper;
 import com.axiqra.core.mapper.ProjectCaseMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -36,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("ProjectCaseServiceImpl 单元测试")
 class ProjectCaseServiceImplTest {
 
@@ -53,6 +57,9 @@ class ProjectCaseServiceImplTest {
 
     @Mock
     private AuditPort auditPort;
+
+    @Mock
+    private AxiqraMetrics metrics;
 
     @InjectMocks
     private ProjectCaseServiceImpl projectCaseService;

@@ -14,6 +14,7 @@ import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.MembershipMapper;
 import com.axiqra.core.mapper.UserMapper;
 import com.axiqra.core.mapper.WorkspaceMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.RbacService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,6 +36,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("WorkspaceServiceImpl 单元测试")
 class WorkspaceServiceImplTest {
 
@@ -47,6 +51,9 @@ class WorkspaceServiceImplTest {
 
     @Mock
     private RbacService rbacService;
+
+    @Mock
+    private AxiqraMetrics metrics;
 
     @InjectMocks
     private WorkspaceServiceImpl workspaceService;

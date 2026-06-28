@@ -15,6 +15,7 @@ import com.axiqra.common.domain.vo.SearchResultItemVO;
 import com.axiqra.common.exception.BizException;
 import com.axiqra.common.exception.ErrorCode;
 import com.axiqra.core.mapper.SolutionMapper;
+import com.axiqra.core.observability.AxiqraMetrics;
 import com.axiqra.core.service.CandidateSeedService;
 import com.axiqra.core.service.RbacService;
 import com.axiqra.core.service.SearchService;
@@ -24,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -40,6 +42,7 @@ public class SearchServiceImpl implements SearchService {
     private final CandidateSeedService candidateSeedService;
     private final RbacService rbacService;
     private final VectorSearchService vectorSearchService;
+    private final AxiqraMetrics metrics;
 
     private static final double VECTOR_WEIGHT_DEFAULT = 0.6;
     private static final double KEYWORD_WEIGHT_DEFAULT = 0.4;
@@ -47,6 +50,24 @@ public class SearchServiceImpl implements SearchService {
     @Override
     @Transactional
     public SearchResponseVO searchBeforeAct(Long userId, SearchRequest request) {
+        long startNanos = System.nanoTime();
+        boolean success = true;
+        String kind = "keyword";
+        try {
+            SearchResponseVO resp = doSearch(userId, request);
+            kind = Boolean.TRUE.equals(request.getEnableVectorSearch()) && Boolean.TRUE.equals(resp.getVectorSearchEnabled()) && resp.getHybridSearchHits() > 0
+                    ? "hybrid"
+                    : Boolean.TRUE.equals(resp.getVectorSearchEnabled()) ? "vector" : "keyword";
+            return resp;
+        } catch (RuntimeException ex) {
+            success = false;
+            throw ex;
+        } finally {
+            metrics.recordSearch(kind, Duration.ofNanos(System.nanoTime() - startNanos), success);
+        }
+    }
+
+    private SearchResponseVO doSearch(Long userId, SearchRequest request) {
         if (userId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
@@ -153,6 +174,7 @@ public class SearchServiceImpl implements SearchService {
                 .vectorSearchEnabled(enableVectorSearch)
                 .keywordSearchHits(keywordHits)
                 .vectorSearchHits(vectorHits)
+                .hybridSearchHits(0)
                 .candidateSeed(candidateSeed)
                 .items(List.of())
                 .build();

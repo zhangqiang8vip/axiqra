@@ -169,8 +169,9 @@ export const MCP_TOOL_DEFINITIONS = [
             forward_path: { type: 'array', items: { type: 'string' } },
             reverse_path: { type: 'array', items: { type: 'string' } },
             decision_path: { type: 'array', items: { type: 'string' } },
-            evidence_refs: { type: 'array', items: { type: 'string' } },
-            rollback_path: { type: 'object' },
+            attempted_failure_path: { type: 'array', items: { type: 'string' }, description: '本次案例中尝试过但不成立的方向（区别于 Solution.failure_paths）' },
+            evidence_path: { type: 'array', items: { type: 'string' } },
+            rollback_path: { type: 'array', items: { type: 'string' }, description: '失败时的回滚步骤（注意：字段属于 Engineering Trace，不属于 Invocation）' },
             risk_level: { type: 'string', enum: ['R0', 'R1', 'R2', 'R3', 'R4', 'development', 'staging', 'production'] },
             tool_type: { type: 'string' },
             context_snapshot: { type: 'string' },
@@ -179,7 +180,7 @@ export const MCP_TOOL_DEFINITIONS = [
               enum: ['success', 'failure', 'partial']
             }
           },
-          required: ['task_goal', 'outcome', 'risk_level', 'evidence_refs']
+          required: ['task_goal', 'outcome', 'risk_level', 'evidence_path']
         },
         idempotency_key: {
           type: 'string',
@@ -258,11 +259,11 @@ export const MCP_TOOL_DEFINITIONS = [
           type: 'string',
           description: '工作空间ID（可选，不填则使用默认workspace）'
         },
-        // 调用结果
+        // 调用结果（primary field）
         result_type: {
           type: 'string',
           enum: ['worked', 'partial', 'failed', 'not_applicable'],
-          description: '调用结果'
+          description: 'AI 调用结果反馈类型（影响 Solution 验证等级）'
         },
         // 上下文信息
         task_goal: {
@@ -286,15 +287,10 @@ export const MCP_TOOL_DEFINITIONS = [
           type: 'string',
           description: '调用记录ID（可选，用于关联已有记录）'
         },
-        feedback_type: {
-          type: 'string',
-          enum: ['worked', 'partial', 'failed', 'not_applicable'],
-          description: '反馈类型'
-        },
-        evidence_refs: {
+        evidence_path: {
           type: 'array',
           items: { type: 'string' },
-          description: '证据引用'
+          description: '证据引用（对应 evidence_path）'
         },
         notes: {
           type: 'string',
@@ -315,7 +311,8 @@ export const MCP_TOOL_DEFINITIONS = [
       type: 'object',
       properties: {
         invocation_id: { type: 'string' },
-        feedback_type: { type: 'string' },
+        feedback_id: { type: 'string', description: '反馈记录 ID' },
+        result_type: { type: 'string', description: '处理后的反馈类型' },
         status: { type: 'string' },
         impact: {
           type: 'object',
